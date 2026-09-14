@@ -74,7 +74,12 @@ void ctimer3_match1_callback(uint32_t flags)
 
 void COMM_TMOut_callback(uint32_t flags)
 {
-    L02_Rs485Dma_TimerCallback(flags);
+    /*
+     * Legacy Config Tools callback retained so peripherals.c remains linkable.
+     * L02_Rs485Dma_Init() disables COMM_CTIMER4; MRT0 now owns communication
+     * receive gaps and turnaround delays.
+     */
+    (void)flags;
 }
 
 void drv_internalbus_clk_callback(pint_pin_int_t pintr, uint32_t pmatch_status)

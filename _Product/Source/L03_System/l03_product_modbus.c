@@ -14,12 +14,14 @@
 #include "ProductConfig.h"
 #include "SerialConfiguration.h"
 #include "l02_rs485_dma.h"
+#include "peripherals.h"
 #include "product_modbus_register_adapter.h"
 
 typedef enum _l03_product_modbus_state
 {
     kL03_ProductModbusStopped = 0U,
     kL03_ProductModbusReceiving,
+    kL03_ProductModbusWaitingForTurnaround,
     kL03_ProductModbusWaitingForTx
 } l03_product_modbus_state_t;
 
@@ -32,6 +34,7 @@ typedef struct _l03_product_modbus_context
     uint8_t rxBuffer[MODBUS_ASCII_MAX_ADU_LENGTH];
     uint8_t txBuffer[MODBUS_ASCII_MAX_ADU_LENGTH];
     size_t rxScannedLength;
+    size_t txLength;
     bool initialized;
 } l03_product_modbus_context_t;
 
@@ -46,12 +49,11 @@ static size_t L03_ProductModbus_GetRxCapacity(void)
 
 static status_t L03_ProductModbus_StartReceive(void)
 {
-    status_t status;
-
-    status = L02_Rs485Dma_StartReceive(
+    status_t status = L02_Rs485Dma_StartReceive(
         kL02_Rs485Channel1,
         s_productModbus.rxBuffer,
         L03_ProductModbus_GetRxCapacity());
+
     if (status == kStatus_Success)
     {
         s_productModbus.rxScannedLength = 0U;
@@ -66,6 +68,65 @@ static status_t L03_ProductModbus_StartReceive(void)
     return status;
 }
 
+static void L03_ProductModbus_GetAutomaticRtuTiming(
+    uint32_t *t15Us,
+    uint32_t *t35Us)
+{
+    uint32_t bitsPerCharacter;
+    uint32_t baudRate = UART1_FC1_config.baudRate_Bps;
+
+    bitsPerCharacter = 1U;
+    bitsPerCharacter +=
+        (UART1_FC1_config.bitCountPerChar == kUSART_7BitsPerChar) ? 7U : 8U;
+    bitsPerCharacter +=
+        (UART1_FC1_config.parityMode == kUSART_ParityDisabled) ? 0U : 1U;
+    bitsPerCharacter +=
+        (UART1_FC1_config.stopBitCount == kUSART_TwoStopBit) ? 2U : 1U;
+
+    if (baudRate > 19200U)
+    {
+        *t15Us = 750U;
+        *t35Us = 1750U;
+    }
+    else
+    {
+        *t15Us = (uint32_t)(
+            (((uint64_t)bitsPerCharacter * 1500000ULL) +
+             (uint64_t)baudRate - 1ULL) /
+            (uint64_t)baudRate);
+        *t35Us = (uint32_t)(
+            (((uint64_t)bitsPerCharacter * 3500000ULL) +
+             (uint64_t)baudRate - 1ULL) /
+            (uint64_t)baudRate);
+    }
+}
+
+static status_t L03_ProductModbus_ConfigureReceiveTiming(void)
+{
+    uint32_t t15Us;
+    uint32_t t35Us;
+
+    if (s_productModbus.protocol == SERIAL_PROTOCOL_MODBUS_ASCII)
+    {
+        return L02_Rs485Dma_SetReceiveTimeoutUs(
+            kL02_Rs485Channel1,
+            PRODUCT_MODBUS_FC1_FRAME_TIMEOUT_US);
+    }
+
+#if ((PRODUCT_MODBUS_FC1_RTU_T15_US != 0U) && \
+     (PRODUCT_MODBUS_FC1_RTU_T35_US != 0U))
+    t15Us = PRODUCT_MODBUS_FC1_RTU_T15_US;
+    t35Us = PRODUCT_MODBUS_FC1_RTU_T35_US;
+#else
+    L03_ProductModbus_GetAutomaticRtuTiming(&t15Us, &t35Us);
+#endif
+
+    return L02_Rs485Dma_SetRtuReceiveTimingUs(
+        kL02_Rs485Channel1,
+        t15Us,
+        t35Us);
+}
+
 static status_t L03_ProductModbus_DetectAsciiEnd(void)
 {
     size_t receivedCount;
@@ -77,12 +138,9 @@ static status_t L03_ProductModbus_DetectAsciiEnd(void)
         return kStatus_Success;
     }
 
-    status = L02_Rs485Dma_GetReceiveCount(
-        kL02_Rs485Channel1,
-        &receivedCount);
+    status = L02_Rs485Dma_GetReceiveCount(kL02_Rs485Channel1, &receivedCount);
     if (status == kStatus_NoTransferInProgress)
     {
-        /* L02 may already have completed the buffer or timeout frame. */
         return kStatus_Success;
     }
     if (status != kStatus_Success)
@@ -90,18 +148,14 @@ static status_t L03_ProductModbus_DetectAsciiEnd(void)
         return status;
     }
 
-    for (index = s_productModbus.rxScannedLength;
-         index < receivedCount;
-         index++)
+    for (index = s_productModbus.rxScannedLength; index < receivedCount; index++)
     {
         if ((index != 0U) &&
             (s_productModbus.rxBuffer[index - 1U] == MODBUS_ASCII_CR_CHARACTER) &&
             (s_productModbus.rxBuffer[index] == MODBUS_ASCII_LF_CHARACTER))
         {
             s_productModbus.rxScannedLength = index + 1U;
-            return L02_Rs485Dma_CompleteReceive(
-                kL02_Rs485Channel1,
-                index + 1U);
+            return L02_Rs485Dma_CompleteReceive(kL02_Rs485Channel1, index + 1U);
         }
     }
 
@@ -109,9 +163,7 @@ static status_t L03_ProductModbus_DetectAsciiEnd(void)
     return kStatus_Success;
 }
 
-static ModbusSlaveResult_t L03_ProductModbus_ProcessFrame(
-    size_t rxLength,
-    size_t *txLength)
+static ModbusSlaveResult_t L03_ProductModbus_ProcessFrame(size_t rxLength, size_t *txLength)
 {
     if (s_productModbus.protocol == SERIAL_PROTOCOL_MODBUS_ASCII)
     {
@@ -157,6 +209,39 @@ static void L03_ProductModbus_RecordResult(ModbusSlaveResult_t result)
     }
 }
 
+static status_t L03_ProductModbus_SendPreparedResponse(void)
+{
+    status_t status = L02_Rs485Dma_SendAsync(
+        kL02_Rs485Channel1,
+        s_productModbus.txBuffer,
+        s_productModbus.txLength);
+
+    if (status == kStatus_Success)
+    {
+        s_productModbus.state = kL03_ProductModbusWaitingForTx;
+        s_productModbus.statistics.transmittedResponses++;
+    }
+
+    return status;
+}
+
+static status_t L03_ProductModbus_StartResponse(void)
+{
+#if (PRODUCT_MODBUS_FC1_TURNAROUND_DELAY_US == 0U)
+    return L03_ProductModbus_SendPreparedResponse();
+#else
+    status_t status = L02_Rs485Dma_StartTurnaroundDelayUs(
+        PRODUCT_MODBUS_FC1_TURNAROUND_DELAY_US);
+
+    if (status == kStatus_Success)
+    {
+        s_productModbus.state = kL03_ProductModbusWaitingForTurnaround;
+    }
+
+    return status;
+#endif
+}
+
 status_t L03_ProductModbus_Init(void)
 {
 #if (PRODUCT_MODBUS_FC1_ENABLE == 0U)
@@ -165,10 +250,8 @@ status_t L03_ProductModbus_Init(void)
     status_t status;
 
     (void)memset(&s_productModbus, 0, sizeof(s_productModbus));
-    s_productModbus.slave.unit_address =
-        (uint8_t)PRODUCT_MODBUS_FC1_UNIT_ADDRESS;
-    ProductModbusRegisterAdapter_GetInterface(
-        &s_productModbus.slave.registers);
+    s_productModbus.slave.unit_address = (uint8_t)PRODUCT_MODBUS_FC1_UNIT_ADDRESS;
+    ProductModbusRegisterAdapter_GetInterface(&s_productModbus.slave.registers);
 
 #if (PRODUCT_MODBUS_FC1_PROTOCOL == PRODUCT_MODBUS_PROTOCOL_ASCII)
     s_productModbus.protocol = SERIAL_PROTOCOL_MODBUS_ASCII;
@@ -176,9 +259,7 @@ status_t L03_ProductModbus_Init(void)
     s_productModbus.protocol = SERIAL_PROTOCOL_MODBUS_RTU;
 #endif
 
-    status = L02_Rs485Dma_SetReceiveTimeoutUs(
-        kL02_Rs485Channel1,
-        PRODUCT_MODBUS_FC1_FRAME_TIMEOUT_US);
+    status = L03_ProductModbus_ConfigureReceiveTiming();
     if (status != kStatus_Success)
     {
         return status;
@@ -201,6 +282,8 @@ void L03_ProductModbus_Process(void)
     size_t rxLength;
     size_t txLength = 0U;
     bool txBusy;
+    bool elapsed;
+    bool timingError;
     status_t status;
     ModbusSlaveResult_t result;
 
@@ -220,9 +303,7 @@ void L03_ProductModbus_Process(void)
             return;
         }
 
-        status = L02_Rs485Dma_TakeReceivedFrame(
-            kL02_Rs485Channel1,
-            &rxLength);
+        status = L02_Rs485Dma_TakeReceivedFrame(kL02_Rs485Channel1, &rxLength);
         if (status == kStatus_NoData)
         {
             return;
@@ -234,33 +315,62 @@ void L03_ProductModbus_Process(void)
             return;
         }
 
+        status = L02_Rs485Dma_GetLastReceiveTimingError(
+            kL02_Rs485Channel1, &timingError);
+        if (status != kStatus_Success)
+        {
+            s_productModbus.statistics.transportErrors++;
+            s_productModbus.state = kL03_ProductModbusStopped;
+            return;
+        }
+        if ((s_productModbus.protocol == SERIAL_PROTOCOL_MODBUS_RTU) && timingError)
+        {
+            s_productModbus.statistics.rtuInterCharacterErrors++;
+            (void)L03_ProductModbus_StartReceive();
+            return;
+        }
+
         s_productModbus.statistics.receivedFrames++;
         result = L03_ProductModbus_ProcessFrame(rxLength, &txLength);
         L03_ProductModbus_RecordResult(result);
 
         if (result == MODBUS_SLAVE_RESULT_RESPONSE_READY)
         {
-            status = L02_Rs485Dma_SendAsync(
-                kL02_Rs485Channel1,
-                s_productModbus.txBuffer,
-                txLength);
+            s_productModbus.txLength = txLength;
+            status = L03_ProductModbus_StartResponse();
             if (status == kStatus_Success)
             {
-                s_productModbus.state = kL03_ProductModbusWaitingForTx;
-                s_productModbus.statistics.transmittedResponses++;
                 return;
             }
-
             s_productModbus.statistics.transportErrors++;
         }
 
         (void)L03_ProductModbus_StartReceive();
     }
+    else if (s_productModbus.state == kL03_ProductModbusWaitingForTurnaround)
+    {
+        status = L02_Rs485Dma_TakeTurnaroundDelayElapsed(&elapsed);
+        if (status != kStatus_Success)
+        {
+            s_productModbus.statistics.transportErrors++;
+            s_productModbus.state = kL03_ProductModbusStopped;
+        }
+        else if (elapsed)
+        {
+            if (L03_ProductModbus_SendPreparedResponse() != kStatus_Success)
+            {
+                s_productModbus.statistics.transportErrors++;
+                s_productModbus.state = kL03_ProductModbusStopped;
+            }
+        }
+        else
+        {
+            /* MRT0 channel 2 is still counting. */
+        }
+    }
     else if (s_productModbus.state == kL03_ProductModbusWaitingForTx)
     {
-        status = L02_Rs485Dma_IsTransmitBusy(
-            kL02_Rs485Channel1,
-            &txBusy);
+        status = L02_Rs485Dma_IsTransmitBusy(kL02_Rs485Channel1, &txBusy);
         if (status != kStatus_Success)
         {
             s_productModbus.statistics.transportErrors++;
@@ -277,10 +387,6 @@ void L03_ProductModbus_Process(void)
     }
     else
     {
-        /*
-         * A stopped service retries RX from main context. This recovers from a
-         * transient DMA busy/error without resetting the MCU.
-         */
         (void)L03_ProductModbus_StartReceive();
     }
 #endif

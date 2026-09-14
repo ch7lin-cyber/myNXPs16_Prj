@@ -6,10 +6,15 @@
 #include "l02_rs485_dma.h"
 
 #include "ProductFeatureConfig.h"
+#include "fsl_clock.h"
 #include "fsl_ctimer.h"
+#include "fsl_mrt.h"
 #include "fsl_usart.h"
 #include "fsl_usart_dma.h"
 #include "peripherals.h"
+
+#define L02_RS485_MRT_IRQ_PRIORITY       (5U)
+#define L02_RS485_MRT_TURNAROUND_CHANNEL kMRT_Channel_2
 
 typedef enum _l02_rs485_dma_tx_state
 {
@@ -25,6 +30,13 @@ typedef enum _l02_rs485_dma_rx_state
     kL02_Rs485DmaRxFrameReady
 } l02_rs485_dma_rx_state_t;
 
+typedef enum _l02_rs485_dma_rx_gap_state
+{
+    kL02_Rs485DmaRxGapIdle = 0U,
+    kL02_Rs485DmaRxGapWaitT15,
+    kL02_Rs485DmaRxGapWaitT35
+} l02_rs485_dma_rx_gap_state_t;
+
 typedef struct _l02_rs485_dma_hardware
 {
     USART_Type *usart;
@@ -39,48 +51,157 @@ typedef struct _l02_rs485_dma_context
     volatile l02_rs485_dma_tx_state_t txState;
     volatile bool rxDmaFullPending;
     l02_rs485_dma_rx_state_t rxState;
-    uint32_t rxTimeoutTicks;
-    uint32_t rxLastActivityTick;
+    l02_rs485_dma_rx_gap_state_t rxGapState;
+    uint32_t rxTimeoutUs;
+    uint32_t rxT15Us;
+    uint32_t rxT35Us;
     uint32_t rxLastCount;
+    uint32_t rxT15Count;
     size_t rxFrameLength;
     size_t rxCapacity;
     bool rxHasData;
+    bool rxUsesRtuTiming;
+    bool rxTimingError;
+    bool rxFrameTimingError;
     bool initialized;
 } l02_rs485_dma_context_t;
 
 static const l02_rs485_dma_hardware_t s_rs485DmaHardware[kL02_Rs485ChannelCount] = {
-    {
-        UART0_FC0_PERIPHERAL,
-        &UART0_FC0_USART_DMA_Handle,
-        &UART0_FC0_TX_Handle,
-        &UART0_FC0_RX_Handle,
-    },
-    {
-        UART1_FC1_PERIPHERAL,
-        &UART1_FC1_USART_DMA_Handle,
-        &UART1_FC1_TX_Handle,
-        &UART1_FC1_RX_Handle,
-    },
+    { UART0_FC0_PERIPHERAL, &UART0_FC0_USART_DMA_Handle, &UART0_FC0_TX_Handle, &UART0_FC0_RX_Handle },
+    { UART1_FC1_PERIPHERAL, &UART1_FC1_USART_DMA_Handle, &UART1_FC1_TX_Handle, &UART1_FC1_RX_Handle },
 };
 
 static l02_rs485_dma_context_t s_rs485DmaContext[kL02_Rs485ChannelCount] = {
-    {
-        .channel = kL02_Rs485Channel0,
-        .txState = kL02_Rs485DmaTxIdle,
-        .rxTimeoutTicks = 10U,
-    },
-    {
-        .channel = kL02_Rs485Channel1,
-        .txState = kL02_Rs485DmaTxIdle,
-        .rxTimeoutTicks = 10U,
-    },
+    { .channel = kL02_Rs485Channel0, .txState = kL02_Rs485DmaTxIdle,
+      .rxTimeoutUs = L02_RS485_DMA_DEFAULT_FRAME_TIMEOUT_US },
+    { .channel = kL02_Rs485Channel1, .txState = kL02_Rs485DmaTxIdle,
+      .rxTimeoutUs = L02_RS485_DMA_DEFAULT_FRAME_TIMEOUT_US },
 };
 
-static volatile uint32_t s_rs485TimerTick100us;
+static volatile uint32_t s_rs485MrtEvents;
+static uint32_t s_rs485MrtClockHz;
+static bool s_rs485MrtInitialized;
 
 static bool L02_Rs485Dma_IsChannelIndexValid(l02_rs485_channel_t channel)
 {
     return ((uint32_t)channel < (uint32_t)kL02_Rs485ChannelCount);
+}
+
+static mrt_chnl_t L02_Rs485Dma_GetReceiveTimerChannel(l02_rs485_channel_t channel)
+{
+    return (channel == kL02_Rs485Channel0) ? kMRT_Channel_0 : kMRT_Channel_1;
+}
+
+static status_t L02_Rs485Dma_StartMrtTimer(mrt_chnl_t channel, uint32_t timeoutUs)
+{
+    uint64_t ticks;
+    uint32_t interruptMask;
+    uint32_t eventMask;
+
+    if (!s_rs485MrtInitialized || (timeoutUs == 0U))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    ticks = (((uint64_t)timeoutUs * (uint64_t)s_rs485MrtClockHz) + 999999ULL) / 1000000ULL;
+    if ((ticks == 0ULL) || (ticks > (uint64_t)MRT_CHANNEL_INTVAL_IVALUE_MASK))
+    {
+        return kStatus_OutOfRange;
+    }
+
+    eventMask = 1UL << (uint32_t)channel;
+    interruptMask = DisableGlobalIRQ();
+    MRT_StopTimer(MRT0_PERIPHERAL, channel);
+    MRT_ClearStatusFlags(MRT0_PERIPHERAL, channel, (uint32_t)kMRT_TimerInterruptFlag);
+    s_rs485MrtEvents &= ~eventMask;
+    MRT_StartTimer(MRT0_PERIPHERAL, channel, (uint32_t)ticks);
+    EnableGlobalIRQ(interruptMask);
+
+    return kStatus_Success;
+}
+
+static void L02_Rs485Dma_StopMrtTimer(mrt_chnl_t channel)
+{
+    uint32_t interruptMask;
+    uint32_t eventMask = 1UL << (uint32_t)channel;
+
+    if (!s_rs485MrtInitialized)
+    {
+        return;
+    }
+
+    interruptMask = DisableGlobalIRQ();
+    MRT_StopTimer(MRT0_PERIPHERAL, channel);
+    MRT_ClearStatusFlags(MRT0_PERIPHERAL, channel, (uint32_t)kMRT_TimerInterruptFlag);
+    s_rs485MrtEvents &= ~eventMask;
+    EnableGlobalIRQ(interruptMask);
+}
+
+static bool L02_Rs485Dma_TakeMrtEvent(mrt_chnl_t channel)
+{
+    uint32_t interruptMask;
+    uint32_t eventMask = 1UL << (uint32_t)channel;
+    bool elapsed;
+
+    interruptMask = DisableGlobalIRQ();
+    elapsed = ((s_rs485MrtEvents & eventMask) != 0U);
+    s_rs485MrtEvents &= ~eventMask;
+    EnableGlobalIRQ(interruptMask);
+
+    return elapsed;
+}
+
+static status_t L02_Rs485Dma_InitMrt(void)
+{
+    uint32_t channel;
+
+    s_rs485MrtClockHz = CLOCK_GetFreq(kCLOCK_BusClk);
+    if (s_rs485MrtClockHz == 0U)
+    {
+        return kStatus_Fail;
+    }
+
+    s_rs485MrtEvents = 0U;
+    for (channel = 0U; channel < (uint32_t)FSL_FEATURE_MRT_NUMBER_OF_CHANNELS; channel++)
+    {
+        MRT_StopTimer(MRT0_PERIPHERAL, (mrt_chnl_t)channel);
+        MRT_SetupChannelMode(MRT0_PERIPHERAL, (mrt_chnl_t)channel, kMRT_OneShotMode);
+        MRT_ClearStatusFlags(MRT0_PERIPHERAL, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptFlag);
+        MRT_EnableInterrupts(MRT0_PERIPHERAL, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptEnable);
+    }
+
+    NVIC_ClearPendingIRQ(MRT0_IRQn);
+    NVIC_SetPriority(MRT0_IRQn, L02_RS485_MRT_IRQ_PRIORITY);
+    s_rs485MrtInitialized = true;
+    EnableIRQ(MRT0_IRQn);
+
+    /* Retire the former dedicated 100 us communication tick. */
+    CTIMER_StopTimer(COMM_CTIMER4_PERIPHERAL);
+    CTIMER_DisableInterrupts(COMM_CTIMER4_PERIPHERAL, (uint32_t)kCTIMER_Match1InterruptEnable);
+    CTIMER_ClearStatusFlags(COMM_CTIMER4_PERIPHERAL, (uint32_t)kCTIMER_Match1Flag);
+    DisableIRQ(COMM_CTIMER4_TIMER_IRQN);
+    NVIC_ClearPendingIRQ(COMM_CTIMER4_TIMER_IRQN);
+
+    return kStatus_Success;
+}
+
+void MRT0_DriverIRQHandler(void)
+{
+    uint32_t channel;
+
+    for (channel = 0U; channel < (uint32_t)FSL_FEATURE_MRT_NUMBER_OF_CHANNELS; channel++)
+    {
+        mrt_chnl_t mrtChannel = (mrt_chnl_t)channel;
+
+        if ((MRT_GetStatusFlags(MRT0_PERIPHERAL, mrtChannel) &
+             (uint32_t)kMRT_TimerInterruptFlag) != 0U)
+        {
+            MRT_ClearStatusFlags(MRT0_PERIPHERAL, mrtChannel, (uint32_t)kMRT_TimerInterruptFlag);
+            s_rs485MrtEvents |= 1UL << channel;
+        }
+    }
+
+    SDK_ISR_EXIT_BARRIER;
 }
 
 static void L02_Rs485Dma_Callback(USART_Type *base,
@@ -97,20 +218,15 @@ static void L02_Rs485Dma_Callback(USART_Type *base,
     {
         if (status == kStatus_USART_TxIdle)
         {
-            /*
-             * ISR rule: publish only. Post-TX delay and GPIO access are
-             * deferred to L02_Rs485Dma_Process().
-             */
             context->txState = kL02_Rs485DmaTxDirectionReleasePending;
         }
         else if (status == kStatus_USART_RxIdle)
         {
-            /* DMA filled the complete user buffer. Finalization is deferred. */
             context->rxDmaFullPending = true;
         }
         else
         {
-            /* Other USART status values are not generated by this DMA driver. */
+            /* No action. */
         }
     }
 }
@@ -123,13 +239,19 @@ static status_t L02_Rs485Dma_InitChannel(l02_rs485_channel_t channel)
 
     context->txState = kL02_Rs485DmaTxIdle;
     context->rxState = kL02_Rs485DmaRxIdle;
+    context->rxGapState = kL02_Rs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
-    context->rxTimeoutTicks = 10U;
-    context->rxLastActivityTick = 0U;
+    context->rxTimeoutUs = L02_RS485_DMA_DEFAULT_FRAME_TIMEOUT_US;
+    context->rxT15Us = 0U;
+    context->rxT35Us = 0U;
     context->rxLastCount = 0U;
+    context->rxT15Count = 0U;
     context->rxFrameLength = 0U;
     context->rxCapacity = 0U;
     context->rxHasData = false;
+    context->rxUsesRtuTiming = false;
+    context->rxTimingError = false;
+    context->rxFrameTimingError = false;
     context->initialized = false;
 
     status = USART_TransferCreateHandleDMA(hardware->usart,
@@ -146,41 +268,60 @@ static status_t L02_Rs485Dma_InitChannel(l02_rs485_channel_t channel)
     return status;
 }
 
-static void L02_Rs485Dma_InitTimer(void)
-{
-    ctimer_match_config_t tickConfig = COMM_CTIMER4_Match_0_config;
-
-    /*
-     * The generated timer clock is 10 kHz. Convert its original 1 ms one-shot
-     * match into a continuous 100 us time base without changing Wizard files.
-     */
-    tickConfig.matchValue = 0U;
-    tickConfig.enableCounterReset = true;
-    tickConfig.enableCounterStop = false;
-    tickConfig.enableInterrupt = true;
-
-    CTIMER_StopTimer(COMM_CTIMER4_PERIPHERAL);
-    CTIMER_Reset(COMM_CTIMER4_PERIPHERAL);
-    CTIMER_ClearStatusFlags(COMM_CTIMER4_PERIPHERAL, (uint32_t)kCTIMER_Match1Flag);
-    CTIMER_SetupMatch(COMM_CTIMER4_PERIPHERAL, COMM_CTIMER4_MATCH_0_CHANNEL, &tickConfig);
-
-    s_rs485TimerTick100us = 0U;
-    CTIMER_StartTimer(COMM_CTIMER4_PERIPHERAL);
-}
-
 static void L02_Rs485Dma_FinalizeReceive(l02_rs485_dma_context_t *context, size_t length)
 {
+    L02_Rs485Dma_StopMrtTimer(L02_Rs485Dma_GetReceiveTimerChannel(context->channel));
     context->rxFrameLength = length;
+    context->rxFrameTimingError = context->rxTimingError;
     context->rxState = (length != 0U) ? kL02_Rs485DmaRxFrameReady : kL02_Rs485DmaRxIdle;
+    context->rxGapState = kL02_Rs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
     context->rxHasData = false;
 }
 
-static void L02_Rs485Dma_ProcessReceive(l02_rs485_dma_context_t *context, uint32_t now)
+static void L02_Rs485Dma_StopReceiveAndFinalize(
+    l02_rs485_dma_context_t *context,
+    uint32_t receivedCount)
+{
+    const l02_rs485_dma_hardware_t *hardware =
+        &s_rs485DmaHardware[(uint32_t)context->channel];
+
+    USART_EnableRxDMA(hardware->usart, false);
+    (void)USART_TransferGetReceiveCountDMA(hardware->usart, hardware->usartDmaHandle, &receivedCount);
+    USART_TransferAbortReceiveDMA(hardware->usart, hardware->usartDmaHandle);
+    L02_Rs485Dma_FinalizeReceive(context, (size_t)receivedCount);
+}
+
+static void L02_Rs485Dma_RestartReceiveGapTimer(l02_rs485_dma_context_t *context)
+{
+    uint32_t timeoutUs;
+
+    if (context->rxUsesRtuTiming)
+    {
+        context->rxGapState = kL02_Rs485DmaRxGapWaitT15;
+        timeoutUs = context->rxT15Us;
+    }
+    else
+    {
+        context->rxGapState = kL02_Rs485DmaRxGapIdle;
+        timeoutUs = context->rxTimeoutUs;
+    }
+
+    if (L02_Rs485Dma_StartMrtTimer(
+            L02_Rs485Dma_GetReceiveTimerChannel(context->channel),
+            timeoutUs) != kStatus_Success)
+    {
+        context->rxTimingError = true;
+    }
+}
+
+static void L02_Rs485Dma_ProcessReceive(l02_rs485_dma_context_t *context)
 {
     const l02_rs485_dma_hardware_t *hardware;
+    mrt_chnl_t timerChannel;
     uint32_t receivedCount;
     status_t countStatus;
+    bool timerElapsed;
 
     if (context->rxState != kL02_Rs485DmaRxActive)
     {
@@ -188,6 +329,7 @@ static void L02_Rs485Dma_ProcessReceive(l02_rs485_dma_context_t *context, uint32
     }
 
     hardware = &s_rs485DmaHardware[(uint32_t)context->channel];
+    timerChannel = L02_Rs485Dma_GetReceiveTimerChannel(context->channel);
 
     if (context->rxDmaFullPending)
     {
@@ -195,38 +337,76 @@ static void L02_Rs485Dma_ProcessReceive(l02_rs485_dma_context_t *context, uint32
         return;
     }
 
-    countStatus = USART_TransferGetReceiveCountDMA(hardware->usart,
-                                                   hardware->usartDmaHandle,
-                                                   &receivedCount);
-    if (countStatus == kStatus_Success)
+    timerElapsed = L02_Rs485Dma_TakeMrtEvent(timerChannel);
+    countStatus = USART_TransferGetReceiveCountDMA(
+        hardware->usart, hardware->usartDmaHandle, &receivedCount);
+    if (countStatus != kStatus_Success)
     {
-        if (receivedCount != context->rxLastCount)
+        return;
+    }
+
+    if (timerElapsed && context->rxHasData)
+    {
+        if (!context->rxUsesRtuTiming)
         {
-            context->rxLastCount = receivedCount;
-            context->rxLastActivityTick = now;
-            context->rxHasData = (receivedCount != 0U);
+            if (receivedCount == context->rxLastCount)
+            {
+                L02_Rs485Dma_StopReceiveAndFinalize(context, receivedCount);
+                return;
+            }
+        }
+        else if (context->rxGapState == kL02_Rs485DmaRxGapWaitT15)
+        {
+            if (receivedCount == context->rxLastCount)
+            {
+                context->rxT15Count = receivedCount;
+                context->rxGapState = kL02_Rs485DmaRxGapWaitT35;
+                if (L02_Rs485Dma_StartMrtTimer(
+                        timerChannel,
+                        context->rxT35Us - context->rxT15Us) != kStatus_Success)
+                {
+                    context->rxTimingError = true;
+                }
+                return;
+            }
+        }
+        else if (context->rxGapState == kL02_Rs485DmaRxGapWaitT35)
+        {
+            if (receivedCount == context->rxT15Count)
+            {
+                L02_Rs485Dma_StopReceiveAndFinalize(context, receivedCount);
+                return;
+            }
+            context->rxTimingError = true;
+        }
+        else
+        {
+            context->rxTimingError = true;
+        }
+    }
+
+    if (receivedCount != context->rxLastCount)
+    {
+        if (context->rxUsesRtuTiming &&
+            (context->rxGapState == kL02_Rs485DmaRxGapWaitT35))
+        {
+            context->rxTimingError = true;
         }
 
-        if (context->rxHasData &&
-            ((uint32_t)(now - context->rxLastActivityTick) >= context->rxTimeoutTicks))
-        {
-            /*
-             * Stop new DMA requests before sampling the final byte count.
-             * The timeout denotes a silent bus, so no byte should race this step.
-             */
-            USART_EnableRxDMA(hardware->usart, false);
-            (void)USART_TransferGetReceiveCountDMA(hardware->usart,
-                                                   hardware->usartDmaHandle,
-                                                   &receivedCount);
-            USART_TransferAbortReceiveDMA(hardware->usart, hardware->usartDmaHandle);
-            L02_Rs485Dma_FinalizeReceive(context, (size_t)receivedCount);
-        }
+        context->rxLastCount = receivedCount;
+        context->rxHasData = (receivedCount != 0U);
+        L02_Rs485Dma_RestartReceiveGapTimer(context);
     }
 }
 
 status_t L02_Rs485Dma_Init(void)
 {
-    status_t status;
+    status_t status = L02_Rs485Dma_InitMrt();
+
+    if (status != kStatus_Success)
+    {
+        return status;
+    }
 
 #if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_RS485)
     status = L02_Rs485Dma_InitChannel(kL02_Rs485Channel0);
@@ -236,13 +416,7 @@ status_t L02_Rs485Dma_Init(void)
     }
 #endif
 
-    status = L02_Rs485Dma_InitChannel(kL02_Rs485Channel1);
-    if (status == kStatus_Success)
-    {
-        L02_Rs485Dma_InitTimer();
-    }
-
-    return status;
+    return L02_Rs485Dma_InitChannel(kL02_Rs485Channel1);
 }
 
 status_t L02_Rs485Dma_SendAsync(l02_rs485_channel_t channel, const uint8_t *data, size_t length)
@@ -259,12 +433,10 @@ status_t L02_Rs485Dma_SendAsync(l02_rs485_channel_t channel, const uint8_t *data
 
     context = &s_rs485DmaContext[(uint32_t)channel];
     hardware = &s_rs485DmaHardware[(uint32_t)channel];
-
     if (!context->initialized)
     {
         return kStatus_InvalidArgument;
     }
-
     if ((context->txState != kL02_Rs485DmaTxIdle) ||
         (context->rxState != kL02_Rs485DmaRxIdle))
     {
@@ -279,11 +451,6 @@ status_t L02_Rs485Dma_SendAsync(l02_rs485_channel_t channel, const uint8_t *data
 
     transfer.txData = (uint8_t *)data;
     transfer.dataSize = length;
-
-    /*
-     * Set active before enabling DMA. Otherwise a very short transfer could
-     * complete in an interrupt before the state is updated here.
-     */
     context->txState = kL02_Rs485DmaTxActive;
     status = USART_TransferSendDMA(hardware->usart, hardware->usartDmaHandle, &transfer);
     if (status != kStatus_Success)
@@ -329,14 +496,55 @@ status_t L02_Rs485Dma_SetReceiveTimeoutUs(l02_rs485_channel_t channel, uint32_t 
     {
         return kStatus_InvalidArgument;
     }
+    if (context->rxState == kL02_Rs485DmaRxActive)
+    {
+        return kStatus_Busy;
+    }
 
-    ticks = (((uint64_t)timeoutUs * (uint64_t)COMM_CTIMER4_TICK_FREQ) + 999999ULL) / 1000000ULL;
-    if ((ticks == 0ULL) || (ticks > (uint64_t)UINT32_MAX))
+    ticks = (((uint64_t)timeoutUs * (uint64_t)s_rs485MrtClockHz) + 999999ULL) / 1000000ULL;
+    if ((ticks == 0ULL) || (ticks > (uint64_t)MRT_CHANNEL_INTVAL_IVALUE_MASK))
     {
         return kStatus_OutOfRange;
     }
 
-    context->rxTimeoutTicks = (uint32_t)ticks;
+    context->rxTimeoutUs = timeoutUs;
+    context->rxUsesRtuTiming = false;
+    return kStatus_Success;
+}
+
+status_t L02_Rs485Dma_SetRtuReceiveTimingUs(
+    l02_rs485_channel_t channel,
+    uint32_t t15Us,
+    uint32_t t35Us)
+{
+    l02_rs485_dma_context_t *context;
+    uint64_t maxTicks;
+
+    if (!L02_Rs485Dma_IsChannelIndexValid(channel) ||
+        (t15Us == 0U) || (t35Us <= t15Us))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    context = &s_rs485DmaContext[(uint32_t)channel];
+    if (!context->initialized)
+    {
+        return kStatus_InvalidArgument;
+    }
+    if (context->rxState == kL02_Rs485DmaRxActive)
+    {
+        return kStatus_Busy;
+    }
+
+    maxTicks = (((uint64_t)t35Us * (uint64_t)s_rs485MrtClockHz) + 999999ULL) / 1000000ULL;
+    if ((maxTicks == 0ULL) || (maxTicks > (uint64_t)MRT_CHANNEL_INTVAL_IVALUE_MASK))
+    {
+        return kStatus_OutOfRange;
+    }
+
+    context->rxT15Us = t15Us;
+    context->rxT35Us = t35Us;
+    context->rxUsesRtuTiming = true;
     return kStatus_Success;
 }
 
@@ -354,12 +562,10 @@ status_t L02_Rs485Dma_StartReceive(l02_rs485_channel_t channel, uint8_t *buffer,
 
     context = &s_rs485DmaContext[(uint32_t)channel];
     hardware = &s_rs485DmaHardware[(uint32_t)channel];
-
     if (!context->initialized)
     {
         return kStatus_InvalidArgument;
     }
-
     if ((context->txState != kL02_Rs485DmaTxIdle) ||
         (context->rxState != kL02_Rs485DmaRxIdle))
     {
@@ -369,13 +575,17 @@ status_t L02_Rs485Dma_StartReceive(l02_rs485_channel_t channel, uint8_t *buffer,
     transfer.data = buffer;
     transfer.dataSize = capacity;
 
+    L02_Rs485Dma_StopMrtTimer(L02_Rs485Dma_GetReceiveTimerChannel(channel));
     context->rxState = kL02_Rs485DmaRxActive;
+    context->rxGapState = kL02_Rs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
-    context->rxLastActivityTick = s_rs485TimerTick100us;
     context->rxLastCount = 0U;
+    context->rxT15Count = 0U;
     context->rxFrameLength = 0U;
     context->rxCapacity = capacity;
     context->rxHasData = false;
+    context->rxTimingError = false;
+    context->rxFrameTimingError = false;
 
     status = USART_TransferReceiveDMA(hardware->usart, hardware->usartDmaHandle, &transfer);
     if (status != kStatus_Success)
@@ -410,10 +620,7 @@ status_t L02_Rs485Dma_GetReceiveCount(l02_rs485_channel_t channel, size_t *count
         return kStatus_NoTransferInProgress;
     }
 
-    status = USART_TransferGetReceiveCountDMA(
-        hardware->usart,
-        hardware->usartDmaHandle,
-        &receivedCount);
+    status = USART_TransferGetReceiveCountDMA(hardware->usart, hardware->usartDmaHandle, &receivedCount);
     if (status == kStatus_Success)
     {
         *count = (size_t)receivedCount;
@@ -448,11 +655,6 @@ status_t L02_Rs485Dma_CompleteReceive(l02_rs485_channel_t channel, size_t frameL
     status = L02_Rs485Dma_GetReceiveCount(channel, &receivedCount);
     if (status != kStatus_Success)
     {
-        /*
-         * DMA may fill the buffer between the L03 count check and this call.
-         * In that case the SDK handle is already idle and the ISR has published
-         * rxDmaFullPending, so it is safe to finalize the requested prefix.
-         */
         if ((status == kStatus_NoTransferInProgress) &&
             context->rxDmaFullPending &&
             (frameLength <= context->rxCapacity))
@@ -470,7 +672,6 @@ status_t L02_Rs485Dma_CompleteReceive(l02_rs485_channel_t channel, size_t frameL
     USART_EnableRxDMA(hardware->usart, false);
     USART_TransferAbortReceiveDMA(hardware->usart, hardware->usartDmaHandle);
     L02_Rs485Dma_FinalizeReceive(context, frameLength);
-
     return kStatus_Success;
 }
 
@@ -488,7 +689,6 @@ status_t L02_Rs485Dma_TakeReceivedFrame(l02_rs485_channel_t channel, size_t *len
     {
         return kStatus_InvalidArgument;
     }
-
     if (context->rxState != kL02_Rs485DmaRxFrameReady)
     {
         return kStatus_NoData;
@@ -498,7 +698,27 @@ status_t L02_Rs485Dma_TakeReceivedFrame(l02_rs485_channel_t channel, size_t *len
     context->rxFrameLength = 0U;
     context->rxCapacity = 0U;
     context->rxState = kL02_Rs485DmaRxIdle;
+    return kStatus_Success;
+}
 
+status_t L02_Rs485Dma_GetLastReceiveTimingError(
+    l02_rs485_channel_t channel,
+    bool *timingError)
+{
+    l02_rs485_dma_context_t *context;
+
+    if ((timingError == NULL) || !L02_Rs485Dma_IsChannelIndexValid(channel))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    context = &s_rs485DmaContext[(uint32_t)channel];
+    if (!context->initialized)
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    *timingError = context->rxFrameTimingError;
     return kStatus_Success;
 }
 
@@ -514,12 +734,12 @@ status_t L02_Rs485Dma_CancelReceive(l02_rs485_channel_t channel)
 
     context = &s_rs485DmaContext[(uint32_t)channel];
     hardware = &s_rs485DmaHardware[(uint32_t)channel];
-
     if (!context->initialized)
     {
         return kStatus_InvalidArgument;
     }
 
+    L02_Rs485Dma_StopMrtTimer(L02_Rs485Dma_GetReceiveTimerChannel(channel));
     if (context->rxState == kL02_Rs485DmaRxActive)
     {
         USART_EnableRxDMA(hardware->usart, false);
@@ -527,19 +747,36 @@ status_t L02_Rs485Dma_CancelReceive(l02_rs485_channel_t channel)
     }
 
     context->rxState = kL02_Rs485DmaRxIdle;
+    context->rxGapState = kL02_Rs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
     context->rxLastCount = 0U;
     context->rxFrameLength = 0U;
     context->rxCapacity = 0U;
     context->rxHasData = false;
+    context->rxTimingError = false;
+    context->rxFrameTimingError = false;
+    return kStatus_Success;
+}
 
+status_t L02_Rs485Dma_StartTurnaroundDelayUs(uint32_t delayUs)
+{
+    return L02_Rs485Dma_StartMrtTimer(L02_RS485_MRT_TURNAROUND_CHANNEL, delayUs);
+}
+
+status_t L02_Rs485Dma_TakeTurnaroundDelayElapsed(bool *elapsed)
+{
+    if ((elapsed == NULL) || !s_rs485MrtInitialized)
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    *elapsed = L02_Rs485Dma_TakeMrtEvent(L02_RS485_MRT_TURNAROUND_CHANNEL);
     return kStatus_Success;
 }
 
 void L02_Rs485Dma_Process(void)
 {
     uint32_t index;
-    uint32_t now = s_rs485TimerTick100us;
 
     for (index = 0U; index < (uint32_t)kL02_Rs485ChannelCount; index++)
     {
@@ -552,25 +789,12 @@ void L02_Rs485Dma_Process(void)
 
         if (context->txState == kL02_Rs485DmaTxDirectionReleasePending)
         {
-            /*
-             * The SDK callback is raised by the USART TXIDLE IRQ, so one
-             * microsecond of timeout is only a defensive register re-check.
-             */
             if (L02_Rs485Direction_EndTransmitBlocking(context->channel, 1U) == kStatus_Success)
             {
                 context->txState = kL02_Rs485DmaTxIdle;
             }
         }
 
-        L02_Rs485Dma_ProcessReceive(context, now);
-    }
-}
-
-void L02_Rs485Dma_TimerCallback(uint32_t flags)
-{
-    if ((flags & (uint32_t)kCTIMER_Match1Flag) != 0U)
-    {
-        /* ISR rule: publish time only; DMA and frame state stay in main context. */
-        s_rs485TimerTick100us++;
+        L02_Rs485Dma_ProcessReceive(context);
     }
 }
