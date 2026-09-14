@@ -1288,8 +1288,8 @@
                         <struct name="dma_interrupt">
                            <setting name="IRQn" value="DMA0_IRQn"/>
                            <setting name="enable_interrrupt" value="enabled"/>
-                           <setting name="enable_priority" value="false"/>
-                           <setting name="priority" value="0"/>
+                           <setting name="enable_priority" value="true"/>
+                           <setting name="priority" value="2"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1302,8 +1302,8 @@
                         <struct name="dma_interrupt">
                            <setting name="IRQn" value="DMA1_IRQn"/>
                            <setting name="enable_interrrupt" value="enabled"/>
-                           <setting name="enable_priority" value="false"/>
-                           <setting name="priority" value="0"/>
+                           <setting name="enable_priority" value="true"/>
+                           <setting name="priority" value="3"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1333,8 +1333,8 @@
                               <struct name="interrupt_t">
                                  <setting name="IRQn" value="FLEXCOMM0_IRQn"/>
                                  <setting name="enable_interrrupt" value="enabled"/>
-                                 <setting name="enable_priority" value="false"/>
-                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_priority" value="true"/>
+                                 <setting name="priority" value="2"/>
                                  <setting name="enable_custom_name" value="false"/>
                               </struct>
                            </struct>
@@ -1343,8 +1343,8 @@
                               <struct name="interrupt_t">
                                  <setting name="IRQn" value="FLEXCOMM1_IRQn"/>
                                  <setting name="enable_interrrupt" value="enabled"/>
-                                 <setting name="enable_priority" value="false"/>
-                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_priority" value="true"/>
+                                 <setting name="priority" value="2"/>
                                  <setting name="enable_custom_name" value="false"/>
                               </struct>
                            </struct>
@@ -1365,8 +1365,8 @@
                         <struct name="interrupt">
                            <setting name="IRQn" value="WDT_BOD_IRQn"/>
                            <setting name="enable_interrrupt" value="disabled"/>
-                           <setting name="enable_priority" value="false"/>
-                           <setting name="priority" value="0"/>
+                           <setting name="enable_priority" value="true"/>
+                           <setting name="priority" value="1"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1389,8 +1389,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER2_IRQn"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="4"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer2_match3_callback"/>
@@ -1415,8 +1415,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER0_IRQn"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="4"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer0_match0_callback"/>
@@ -1441,8 +1441,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER1_IRQn"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="4"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer1_match0_callback"/>
@@ -1467,8 +1467,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER3_IRQn"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="4"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer3_match1_callback"/>
@@ -1787,8 +1787,8 @@
                            <struct name="adc_interrupt">
                               <setting name="IRQn" value="ADC0_IRQn"/>
                               <setting name="enable_interrrupt" value="enabled"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="3"/>
                               <setting name="enable_custom_name" value="false"/>
                            </struct>
                         </struct>
@@ -1913,8 +1913,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER4_IRQn"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="2"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="COMM_TMOut_callback"/>
@@ -1944,8 +1944,8 @@
                               <setting name="enable_callback" value="true"/>
                               <struct name="interrupt">
                                  <setting name="IRQn" value="PIN_INT0_IRQn"/>
-                                 <setting name="enable_priority" value="false"/>
-                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_priority" value="true"/>
+                                 <setting name="priority" value="2"/>
                               </struct>
                            </struct>
                         </array>
@@ -1962,8 +1962,8 @@
                               <setting name="enable_callback" value="true"/>
                               <struct name="interrupt">
                                  <setting name="IRQn" value="PIN_INT1_IRQn"/>
-                                 <setting name="enable_priority" value="false"/>
-                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_priority" value="true"/>
+                                 <setting name="priority" value="2"/>
                               </struct>
                            </struct>
                         </array>
@@ -1982,8 +1982,8 @@
                            <struct name="interrupt">
                               <setting name="IRQn" value="MRT0_IRQn"/>
                               <setting name="enable_interrrupt" value="enabled"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
+                              <setting name="enable_priority" value="true"/>
+                              <setting name="priority" value="5"/>
                               <setting name="enable_custom_name" value="false"/>
                            </struct>
                         </struct>
