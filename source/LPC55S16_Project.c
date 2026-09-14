@@ -96,20 +96,18 @@ int main(void) {
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
-#ifndef BOARD_INIT_DEBUG_CONSOLE_PERIPHERAL
-    /* Init FSL debug console. */
+    /* Initialize the PRINTF/SCANF debug console explicitly. */
     BOARD_InitDebugConsole();
-#endif
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
     {
-        PRINTF("System Tick Setup Failed!\n");
+        PRINTF("System Tick Setup Failed!\r\n");
         while (1) {};
     }
 
 
-    PRINTF("Hello World\n");
+    PRINTF("\r\nHello World\r\n");
 
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;
