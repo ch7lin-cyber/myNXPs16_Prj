@@ -192,22 +192,22 @@ instance:
     - wwdt_config:
       - clockSource: 'FunctionClock'
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
-      - enableWwdt: 'true'
+      - enableWwdt: 'false'
       - enableWatchdogProtect: 'false'
       - timeoutValue_input: '500000'
       - windowEnable: 'false'
       - warningValue_input: '0'
     - interrupt:
       - IRQn: 'WDT_BOD_IRQn'
-      - enable_interrrupt: 'enabled'
+      - enable_interrrupt: 'disabled'
       - enable_priority: 'false'
       - priority: '0'
       - enable_custom_name: 'false'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
 const wwdt_config_t WWDT_config = {
-  .enableWwdt = true,
-  .enableWatchdogReset = true,
+  .enableWwdt = false,
+  .enableWatchdogReset = false,
   .enableWatchdogProtect = false,
   .windowValue = WWDT_WINDOW,
   .timeoutValue = WWDT_TIMEOUT,
@@ -1407,7 +1407,7 @@ void BOARD_InitPeripherals(void)
   DMA_Init(DMA1_DMA_BASEADDR);
 
   /* Initialize components */
-  WWDT_init();
+  /* WWDT is disabled during hardware bring-up. */
   OUT4_CTIMER2_init();
   OUT1_CTIMER0_init();
   OUT2_CTIMER1_init();

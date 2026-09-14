@@ -126,7 +126,7 @@ int main(void) {
         __asm volatile ("nop");
 
 
-        WWDT_Refresh(WWDT);
+        /* WWDT is disabled during hardware bring-up. */
 
     }
     return 0 ;

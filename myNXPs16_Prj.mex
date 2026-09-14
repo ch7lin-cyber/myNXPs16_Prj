@@ -1351,12 +1351,12 @@
                         </array>
                      </config_set>
                   </instance>
-                  <instance name="WWDT" uuid="b1882a78-fe37-43a6-8001-19493f387d37" type="wwdt" type_id="wwdt_4afd1b7f7bc88fc51c044e9c38c1808c" mode="reset_mode" peripheral="WWDT" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                  <instance name="WWDT" uuid="b1882a78-fe37-43a6-8001-19493f387d37" type="wwdt" type_id="wwdt_4afd1b7f7bc88fc51c044e9c38c1808c" mode="reset_mode" peripheral="WWDT" enabled="false" comment="" custom_name_enabled="false" editing_lock="false">
                      <config_set name="general">
                         <struct name="wwdt_config">
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="enableWwdt" value="true"/>
+                           <setting name="enableWwdt" value="false"/>
                            <setting name="enableWatchdogProtect" value="false"/>
                            <setting name="timeoutValue_input" value="500000"/>
                            <setting name="windowEnable" value="false"/>
@@ -1364,7 +1364,7 @@
                         </struct>
                         <struct name="interrupt">
                            <setting name="IRQn" value="WDT_BOD_IRQn"/>
-                           <setting name="enable_interrrupt" value="enabled"/>
+                           <setting name="enable_interrrupt" value="disabled"/>
                            <setting name="enable_priority" value="false"/>
                            <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
