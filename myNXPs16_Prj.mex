@@ -1,0 +1,2029 @@
+<?xml version="1.0" encoding= "UTF-8" ?>
+<configuration name="LPC55S16" xsi:schemaLocation="http://mcuxpresso.nxp.com/XSD/mex_configuration_12 http://mcuxpresso.nxp.com/XSD/mex_configuration_12.xsd" uuid="c2d125c4-29aa-4d88-b150-9a92963f26a6" version="12" xmlns="http://mcuxpresso.nxp.com/XSD/mex_configuration_12" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <common>
+      <processor>LPC55S16</processor>
+      <package>LPC55S16JBD100</package>
+      <board>LPCXpresso55S16</board>
+      <mcu_data>ksdk2_0</mcu_data>
+      <cores selected="cm33_core0">
+         <core name="Cortex-M33" id="cm33_core0" description="M33 core"/>
+      </cores>
+      <description>Configuration imported from myNXPs16_prj</description>
+   </common>
+   <preferences>
+      <validate_boot_init_only>true</validate_boot_init_only>
+      <generate_extended_information>false</generate_extended_information>
+      <generate_code_modified_registers_only>false</generate_code_modified_registers_only>
+      <update_include_paths>true</update_include_paths>
+      <generate_registers_defines>false</generate_registers_defines>
+   </preferences>
+   <tools>
+      <pins name="Pins" version="13.0" enabled="true" update_project_code="true">
+         <generated_project_files>
+            <file path="board/pin_mux.c" update_enabled="true"/>
+            <file path="board/pin_mux.h" update_enabled="true"/>
+         </generated_project_files>
+         <pins_profile>
+            <processor_version>13.0.1</processor_version>
+            <pin_labels>
+               <pin_label pin_num="54" pin_signal="PIO0_0/FC3_SCK/CTIMER0_MAT0/SCT_GPI0/SECURE_GPIO0_0/ACMP0_A" label="J11[2]/J13[5]/ARD_CMP0_IN_A" identifier="PULSE_0"/>
+               <pin_label pin_num="7" pin_signal="PIO0_1/FC3_CTS_SDA_SSEL0/CT_INP0/SCT_GPI1/CMP0_OUT/SECURE_GPIO0_1" label="J11[3]/J12[1]/EXP_CMP0_OUT" identifier="RR_SW_4"/>
+               <pin_label pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4" label="J10[16]/U24[14]/FC3_SPI_SSEL0" identifier="CAN_RXD"/>
+               <pin_label pin_num="88" pin_signal="PIO0_5/CAN0_TD/FC4_RXD_SDA_MOSI_DATA/CTIMER3_MAT0/SCT_GPI5/FC3_RTS_SCL_SSEL1/MCLK/SECURE_GPIO0_5" label="J9[7]/J17[7]/J18[2]/SW4/JS3[1]/U22[11]/N4M_ISP_MODE" identifier="SW4;ISP"/>
+               <pin_label pin_num="55" pin_signal="PIO0_9/FC3_SSEL2/FC5_TXD_SCL_MISO_WS/SECURE_GPIO0_9/ACMP0_B" label="J24/PI00_9" identifier="AD7124_CS0"/>
+               <pin_label pin_num="21" pin_signal="PIO0_10/FC6_SCK/CT_INP10/CTIMER2_MAT0/FC1_TXD_SCL_MISO_WS/SCT0_OUT2/SWO/SECURE_GPIO0_10/ADC0_1" label="J9[1]/U18[12]/N4M_SWO" identifier="DEBUG_SWD_SWO"/>
+               <pin_label pin_num="13" pin_signal="PIO0_11/FC6_RXD_SDA_MOSI_DATA/CTIMER2_MAT2/FREQME_GPIO_CLK_A/SWCLK/SECURE_GPIO0_11/ADC0_9" label="J10[8]/U18[4]/N4M_SWDCLK" identifier="DEBUG_SWD_SWDCLK"/>
+               <pin_label pin_num="12" pin_signal="PIO0_12/FC3_TXD_SCL_MISO_WS/FREQME_GPIO_CLK_B/SCT_GPI7/SWDIO/FC6_TXD_SCL_MISO_WS/SECURE_GPIO0_12/ADC0_10" label="J10[6]/U18[8]/N4M_SWDIO" identifier="DEBUG_SWD_SWDIO"/>
+               <pin_label pin_num="72" pin_signal="PIO0_14/FC1_RTS_SCL_SSEL1/UTICK_CAP1/CT_INP1/SCT_GPI1/FC1_TXD_SCL_MISO_WS/PLU_IN1/SECURE_GPIO0_14" label="J13[11]/J13[12]/J18[6]/JS4[2]/FC1_I2C_SCL" identifier="FC1_DIR"/>
+               <pin_label pin_num="14" pin_signal="PIO0_16/FC4_TXD_SCL_MISO_WS/CLKOUT/CT_INP4/SECURE_GPIO0_16/ADC0_8" label="J7[1]/J13[1]/JP4[1]/ARD_MIK_ADC0_8_N" identifier="DI1"/>
+               <pin_label pin_num="8" pin_signal="PIO0_17/FC4_SSEL2/SCT_GPI7/SCT0_OUT0/PLU_IN2/SECURE_GPIO0_17" label="J25/P0_17" identifier="RR_SW_8"/>
+               <pin_label pin_num="56" pin_signal="PIO0_18/FC4_CTS_SDA_SSEL0/CTIMER1_MAT0/SCT0_OUT1/PLU_IN3/SECURE_GPIO0_18/ACMP0_C" label="J11[1]/J12[19]/EXP_CMP0_IN_C" identifier="PULSE_1"/>
+               <pin_label pin_num="90" pin_signal="PIO0_19/FC4_RTS_SCL_SSEL1/UTICK_CAP0/CTIMER0_MAT2/SCT0_OUT2/FC7_TXD_SCL_MISO_WS/PLU_IN4/SECURE_GPIO0_19" label="U13[30]/J9[11]/FC7_I2S_WS" identifier="FC7_I2S_WS;DO0"/>
+               <pin_label pin_num="74" pin_signal="PIO0_20/FC3_CTS_SDA_SSEL0/CTIMER1_MAT1/CT_INP15/SCT_GPI2/FC7_RXD_SDA_MOSI_DATA/HS_SPI_SSEL0/PLU_IN5/SECURE_GPIO0_20/FC4_TXD_SCL_MISO_WS" label="J19[2]/J9[9]/FC7_I2S_TX" identifier="FC7_I2S_TX;AD7124_CS2"/>
+               <pin_label pin_num="76" pin_signal="PIO0_21/FC3_RTS_SCL_SSEL1/UTICK_CAP3/CTIMER3_MAT3/SCT_GPI3/FC7_SCK/HS_SPI_SSEL3/PLU_CLKIN/SECURE_GPIO0_21" label="U13[29]/J9[13]/FC7_I2S_BCLK" identifier="FC7_I2S_BCLK;AD7124_CS1"/>
+               <pin_label pin_num="78" pin_signal="PIO0_22/FC6_TXD_SCL_MISO_WS/UTICK_CAP1/CT_INP15/SCT0_OUT3/USB0_VBUS/PLU_OUT7/SECURE_GPIO0_22" label="USB0_VBUS" identifier="USB0_VBUS"/>
+               <pin_label pin_num="20" pin_signal="PIO0_23/MCLK/CTIMER1_MAT2/CTIMER3_MAT3/SCT0_OUT4/FC0_CTS_SDA_SSEL0/SECURE_GPIO0_23/ADC0_0" label="J13[3]/JP4[3]/ARD_ADC0_0_P" identifier="DI2"/>
+               <pin_label pin_num="70" pin_signal="PIO0_24/FC0_RXD_SDA_MOSI_DATA/CT_INP8/SCT_GPI0/SECURE_GPIO0_24" label="J26/P0_24" identifier="CV_SEL_3"/>
+               <pin_label pin_num="79" pin_signal="PIO0_25/FC0_TXD_SCL_MISO_WS/CT_INP9/SCT_GPI1/SECURE_GPIO0_25" label="J27/P0_25" identifier="DO2"/>
+               <pin_label pin_num="60" pin_signal="PIO0_26/FC2_RXD_SDA_MOSI_DATA/CLKOUT/CT_INP14/SCT0_OUT5/USB0_IDVALUE/FC0_SCK/HS_SPI_MOSI/SECURE_GPIO0_26" label="J7[6]/J9[14]/ARD_MIK_HSSPI_MOSI" identifier="DO1"/>
+               <pin_label pin_num="27" pin_signal="PIO0_27/FC2_TXD_SCL_MISO_WS/CTIMER3_MAT2/SCT0_OUT6/FC7_RXD_SDA_MOSI_DATA/PLU_OUT0/SECURE_GPIO0_27" label="J8[4]/J12[14]/ARD_MIK_FC2_USART_TXD" identifier="SYNC_BAR_0"/>
+               <pin_label pin_num="66" pin_signal="PIO0_28/FC0_SCK/CT_INP11/SCT0_OUT7/USB0_OVERCURRENTN/PLU_OUT1/SECURE_GPIO0_28" label="U5[1]/FS_USB0_OCP#" identifier="CV_SEL_0"/>
+               <pin_label pin_num="11" pin_signal="PIO1_0/FC0_RTS_SCL_SSEL1/CT_INP2/SCT_GPI4/PLU_OUT3/ADC0_11" label="J29/P1_0" identifier="FC0_DIR"/>
+               <pin_label pin_num="59" pin_signal="PIO1_1/FC3_RXD_SDA_MOSI_DATA/CT_INP3/SCT_GPI5/HS_SPI_SSEL1/USB1_OVERCURRENTN/PLU_OUT4" label="J7[3]/J9[16]/ARD_MIK_HSSPI_SSEL1"/>
+               <pin_label pin_num="61" pin_signal="PIO1_2/CAN0_TD/CTIMER0_MAT3/SCT_GPI6/HS_SPI_SCK/USB1_PORTPWRN/PLU_OUT5" label="J7[4]/J9[10]/ARD_MIK_HSSPI_SCK"/>
+               <pin_label pin_num="62" pin_signal="PIO1_3/CAN0_RD/SCT0_OUT4/HS_SPI_MISO/USB0_PORTPWRN/PLU_OUT6" label="J7[5]/J9[12]/ARD_MIK_HSSPI_MISO"/>
+               <pin_label pin_num="1" pin_signal="PIO1_4/FC0_SCK/CTIMER2_MAT1/SCT0_OUT0/FREQME_GPIO_CLK_A" label="Q5[G1]/J12[6]/ARD_LEDR_PWM" identifier="LED_RED;LED_ERR"/>
+               <pin_label pin_num="31" pin_signal="PIO1_5/FC0_RXD_SDA_MOSI_DATA/CTIMER2_MAT0/SCT_GPI0" label="J8[1]/J9[18]/ARD_MIK_P1_5" identifier="GPIO_1;GPIO_1_IntBus_ENB;GPIO_1_InterBus_ENB"/>
+               <pin_label pin_num="5" pin_signal="PIO1_6/FC0_TXD_SCL_MISO_WS/CTIMER2_MAT1/SCT_GPI3" label="Q4[G1]/J12[10]/ARD_LEDB_PWM" identifier="LED_BLUE;LED_COM"/>
+               <pin_label pin_num="9" pin_signal="PIO1_7/FC0_RTS_SCL_SSEL1/CTIMER2_MAT2/SCT_GPI4" label="Q4[G2]/J12[8]/ARD_LEDG_PWM" identifier="LED_GREEN;LED_RUN"/>
+               <pin_label pin_num="24" pin_signal="PIO1_8/FC0_CTS_SDA_SSEL0/SCT0_OUT1/FC4_SSEL2/ADC0_4" label="J9[20]/ARD_P1_8" identifier="DI3"/>
+               <pin_label pin_num="10" pin_signal="PIO1_9/FC1_SCK/CT_INP4/SCT0_OUT2/FC4_CTS_SDA_SSEL0/ADC0_12" label="SW3/J12[2]/ARD_BTN_USR_P1_9" identifier="SW3;USR;DI0"/>
+               <pin_label pin_num="40" pin_signal="PIO1_10/FC1_RXD_SDA_MOSI_DATA/CTIMER1_MAT0/SCT0_OUT3" label="J12[4]/ARD_P1_10" identifier="GPIO_2;GPIO_22;GPIO_5;GPIO_0_2_;GPIO_0_2_InterBus_NextENB;GPIO_1_2_InterBus_NextENA;GPIO_1_2_InterBus_NextENB;GPIO_1_2_InterBus_PreENB"/>
+               <pin_label pin_num="67" pin_signal="PIO1_12/FC6_SCK/CTIMER1_MAT1/USB0_PORTPWRN/HS_SPI_SSEL2" label="U5[3]/FS_USB0_PWR_EN#" identifier="CV_SEL_1"/>
+               <pin_label pin_num="2" pin_signal="PIO1_13/FC6_RXD_SDA_MOSI_DATA/CT_INP6/USB0_OVERCURRENTN/USB0_FRAME" label="J18[2]/J9[19]/FC6_I2S_RX" identifier="FC6_I2S_RX;RR_SW_1"/>
+               <pin_label pin_num="57" pin_signal="PIO1_14/UTICK_CAP2/CTIMER1_MAT2/FC5_CTS_SDA_SSEL0/USB0_LEDN/ACMP0_D" label="J12[3]/EXP_P1_14" identifier="GPIO_5;GPIO_2;GPIO_0_2_InterBus_NextENB;GPIO_0_2_InterBus_NextENA;GPIO_0_2_InterBus_PreENA"/>
+               <pin_label pin_num="82" pin_signal="PIO1_15/UTICK_CAP3/CT_INP7/FC5_RTS_SCL_SSEL1/FC4_RTS_SCL_SSEL1" label="J3[4]/U6[3]/J12[11]/FS_USB0_ID" identifier="SYNC_BAR_1"/>
+               <pin_label pin_num="87" pin_signal="PIO1_16/FC6_TXD_SCL_MISO_WS/CTIMER1_MAT3" label="J12[18]/J13[4]/EXP_P1_16" identifier="CLR_BAR"/>
+               <pin_label pin_num="43" pin_signal="PIO1_17/FC6_RTS_SCL_SSEL1/SCT0_OUT4" label="J12[20]/J13[2]/EXP_P1_17" identifier="GPIO_4;GPIO_3;GPIO_3_IntBus_CLK;GPIO_3_InterBus_CLK"/>
+               <pin_label pin_num="64" pin_signal="PIO1_18/SCT0_OUT5/PLU_OUT0" label="SW1/J8[2]/J12[15]/MIK_EXP_BTN_WK" identifier="SW1;WAKEUP;RR_SW_2"/>
+               <pin_label pin_num="58" pin_signal="PIO1_19/SCT0_OUT7/CTIMER3_MAT1/SCT_GPI7/FC4_SCK/PLU_OUT1/ACMPVREF" label="J18[4]/ISP_P1_19" identifier="PULSE_2"/>
+               <pin_label pin_num="4" pin_signal="PIO1_20/FC7_RTS_SCL_SSEL1/CT_INP14/FC4_TXD_SCL_MISO_WS/PLU_OUT2" label="U12[4]/U13[2]/J8[5]/J9[2]/FC4_I2C_SCL" identifier="FC4_I2C_SCL;FC7_SPI_SSEL1"/>
+               <pin_label pin_num="30" pin_signal="PIO1_21/FC7_CTS_SDA_SSEL0/CTIMER3_MAT2/FC4_RXD_SDA_MOSI_DATA/PLU_OUT3" label="U12[6]/U13[3]/J8[6]/J9[4]/FC4_I2C_SDA" identifier="FC4_I2C_SDA;GPIO_0;GPIO_0_IntBus_ENA;GPIO_0_InterBus_ENA"/>
+               <pin_label pin_num="41" pin_signal="PIO1_22/CTIMER2_MAT3/SCT_GPI5/FC4_SSEL3/PLU_OUT4/CAN0_RD" label="U25[3]/CAN_RXD" identifier="CAN_RXD;PULSE_3"/>
+               <pin_label pin_num="42" pin_signal="PIO1_23/FC2_SCK/SCT0_OUT0/FC3_SSEL2/PLU_OUT5" label="J4[4]/U8[3]/J12[7]/HS_USB1_ID" identifier="GPIO_3;GPIO_4;GPIO_4_IntBus_FB;GPIO_4_InterBus_FB"/>
+               <pin_label pin_num="3" pin_signal="PIO1_24/FC2_RXD_SDA_MOSI_DATA/SCT0_OUT1/FC3_SSEL3/PLU_OUT6" label="J8[3]/J12[9]/J12[16]/ARD_MIK_FC2_USART_RXD" identifier="AD7124_CS3"/>
+               <pin_label pin_num="77" pin_signal="PIO1_25/FC2_TXD_SCL_MISO_WS/SCT0_OUT2/UTICK_CAP0/PLU_CLKIN" label="J9[15]/J12[5]/I2S_IRQ" identifier="I2S_IRQ;DO3"/>
+               <pin_label pin_num="68" pin_signal="PIO1_26/FC2_CTS_SDA_SSEL0/SCT0_OUT3/CT_INP3/UTICK_CAP1/HS_SPI_SSEL3/PLU_IN5" label="U12[11]/J12[13]/J12[17]/ACC_INT_EXP_P1_26" identifier="ACCL_INTR;CV_SEL_2"/>
+               <pin_label pin_num="91" pin_signal="PIO1_31/MCLK/CTIMER0_MAT2/SCT0_OUT6/PLU_IN0" label="J13[7]/J13[8]/U13[28]/I2S_MCLK" identifier="I2S_MCLK;LV"/>
+            </pin_labels>
+            <external_user_signals>
+               <properties/>
+            </external_user_signals>
+         </pins_profile>
+         <functions_list>
+            <function name="BOARD_InitDEBUG_UARTPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM0" description="Peripheral FLEXCOMM0 is not initialized" problem_level="1" source="Pins:BOARD_InitDEBUG_UARTPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitDEBUG_UARTPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitDEBUG_UARTPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_iocon" description="Pins initialization requires the LPC_IOCON Driver in the project." problem_level="2" source="Pins:BOARD_InitDEBUG_UARTPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM0" signal="RXD_SDA_MOSI_DATA" pin_num="92" pin_signal="PIO0_29/FC0_RXD_SDA_MOSI_DATA/CTIMER2_MAT3/SCT0_OUT8/CMP0_OUT/PLU_OUT2/SECURE_GPIO0_29">
+                     <pin_features>
+                        <pin_feature name="mode" value="inactive"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="FLEXCOMM0" signal="TXD_SCL_MISO_WS" pin_num="94" pin_signal="PIO0_30/FC0_TXD_SCL_MISO_WS/CTIMER0_MAT0/SCT0_OUT9/SECURE_GPIO0_30">
+                     <pin_features>
+                        <pin_feature name="mode" value="inactive"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 0" pin_num="11" pin_signal="PIO1_0/FC0_RTS_SCL_SSEL1/CT_INP2/SCT_GPI4/PLU_OUT3/ADC0_11">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitUART2Pins">
+               <description>Route 3 UART pins: RXD, TXD, RTS; Route 5 Expand Interface GPIO pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM1" description="Peripheral FLEXCOMM1 is not initialized" problem_level="1" source="Pins:BOARD_InitUART2Pins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitUART2Pins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitUART2Pins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM1" signal="RXD_SDA_MOSI_DATA" pin_num="71" pin_signal="PIO0_13/FC1_CTS_SDA_SSEL0/UTICK_CAP0/CT_INP0/SCT_GPI0/FC1_RXD_SDA_MOSI_DATA/PLU_IN0/SECURE_GPIO0_13"/>
+                  <pin peripheral="FLEXCOMM1" signal="TXD_SCL_MISO_WS" pin_num="93" pin_signal="PIO1_11/FC1_TXD_SCL_MISO_WS/CT_INP5/USB0_VBUS"/>
+                  <pin peripheral="GPIO" signal="PIO0, 14" pin_num="72" pin_signal="PIO0_14/FC1_RTS_SCL_SSEL1/UTICK_CAP1/CT_INP1/SCT_GPI1/FC1_TXD_SCL_MISO_WS/PLU_IN1/SECURE_GPIO0_14">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitSWD_DEBUGPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>false</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="SWD" description="Peripheral SWD is not initialized" problem_level="1" source="Pins:BOARD_InitSWD_DEBUGPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitSWD_DEBUGPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_iocon" description="Pins initialization requires the LPC_IOCON Driver in the project." problem_level="2" source="Pins:BOARD_InitSWD_DEBUGPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="SWD" signal="SWCLK" pin_num="13" pin_signal="PIO0_11/FC6_RXD_SDA_MOSI_DATA/CTIMER2_MAT2/FREQME_GPIO_CLK_A/SWCLK/SECURE_GPIO0_11/ADC0_9">
+                     <pin_features>
+                        <pin_feature name="mode" value="pullDown"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                        <pin_feature name="asw" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="SWD" signal="SWDIO" pin_num="12" pin_signal="PIO0_12/FC3_TXD_SCL_MISO_WS/FREQME_GPIO_CLK_B/SCT_GPI7/SWDIO/FC6_TXD_SCL_MISO_WS/SECURE_GPIO0_12/ADC0_10">
+                     <pin_features>
+                        <pin_feature name="mode" value="pullUp"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                        <pin_feature name="asw" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="SWD" signal="SWO" pin_num="21" pin_signal="PIO0_10/FC6_SCK/CT_INP10/CTIMER2_MAT0/FC1_TXD_SCL_MISO_WS/SCT0_OUT2/SWO/SECURE_GPIO0_10/ADC0_1"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitCANPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="CAN0" description="Peripheral CAN0 is not initialized" problem_level="1" source="Pins:BOARD_InitCANPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitCANPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="CAN0" signal="CAN_TD" pin_num="85" pin_signal="PIO1_27/FC2_RTS_SCL_SSEL1/CTIMER0_MAT3/CLKOUT/PLU_IN4/CAN0_TD"/>
+                  <pin peripheral="CAN0" signal="CAN_RD" pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitExtADCPins">
+               <description>Use 4 AD7124 modules; Route 7 SPI pins: MOSI(d_out), MISO(d_in), SCK(clock), SSEL0&amp;tilde;3; Route 4 GPIO pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM3" description="Peripheral FLEXCOMM3 is not initialized" problem_level="1" source="Pins:BOARD_InitExtADCPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitExtADCPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitExtADCPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM3" signal="RXD_SDA_MOSI_DATA" pin_num="83" pin_signal="PIO0_3/FC3_RXD_SDA_MOSI_DATA/CTIMER0_MAT1/SCT0_OUT1/SCT_GPI3/SECURE_GPIO0_3"/>
+                  <pin peripheral="FLEXCOMM3" signal="TXD_SCL_MISO_WS" pin_num="81" pin_signal="PIO0_2/FC3_TXD_SCL_MISO_WS/CT_INP1/SCT0_OUT0/SCT_GPI2/SECURE_GPIO0_2"/>
+                  <pin peripheral="FLEXCOMM3" signal="SCK" pin_num="89" pin_signal="PIO0_6/FC3_SCK/CT_INP13/CTIMER4_MAT0/SCT_GPI6/SECURE_GPIO0_6"/>
+                  <pin peripheral="FLEXCOMM3" signal="CTS_SDA_SSEL0" pin_num="74" pin_signal="PIO0_20/FC3_CTS_SDA_SSEL0/CTIMER1_MAT1/CT_INP15/SCT_GPI2/FC7_RXD_SDA_MOSI_DATA/HS_SPI_SSEL0/PLU_IN5/SECURE_GPIO0_20/FC4_TXD_SCL_MISO_WS">
+                     <pin_features>
+                        <pin_feature name="identifier" value="AD7124_CS2"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="FLEXCOMM3" signal="RTS_SCL_SSEL1" pin_num="76" pin_signal="PIO0_21/FC3_RTS_SCL_SSEL1/UTICK_CAP3/CTIMER3_MAT3/SCT_GPI3/FC7_SCK/HS_SPI_SSEL3/PLU_CLKIN/SECURE_GPIO0_21">
+                     <pin_features>
+                        <pin_feature name="identifier" value="AD7124_CS1"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="FLEXCOMM3" signal="SSEL2" pin_num="55" pin_signal="PIO0_9/FC3_SSEL2/FC5_TXD_SCL_MISO_WS/SECURE_GPIO0_9/ACMP0_B"/>
+                  <pin peripheral="FLEXCOMM3" signal="SSEL3" pin_num="3" pin_signal="PIO1_24/FC2_RXD_SDA_MOSI_DATA/SCT0_OUT1/FC3_SSEL3/PLU_OUT6"/>
+                  <pin peripheral="GPIO" signal="PIO0, 28" pin_num="66" pin_signal="PIO0_28/FC0_SCK/CT_INP11/SCT0_OUT7/USB0_OVERCURRENTN/PLU_OUT1/SECURE_GPIO0_28">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 12" pin_num="67" pin_signal="PIO1_12/FC6_SCK/CTIMER1_MAT1/USB0_PORTPWRN/HS_SPI_SSEL2">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 26" pin_num="68" pin_signal="PIO1_26/FC2_CTS_SDA_SSEL0/SCT0_OUT3/CT_INP3/UTICK_CAP1/HS_SPI_SSEL3/PLU_IN5">
+                     <pin_features>
+                        <pin_feature name="identifier" value="CV_SEL_2"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 24" pin_num="70" pin_signal="PIO0_24/FC0_RXD_SDA_MOSI_DATA/CT_INP8/SCT_GPI0/SECURE_GPIO0_24">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitPULSEPins">
+               <description>Route 4 CTIMER_MATCH(pwm) pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="CTIMER2" description="Peripheral CTIMER2 is not initialized" problem_level="1" source="Pins:BOARD_InitPULSEPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="Peripheral" resourceId="CTIMER0" description="Peripheral CTIMER0 is not initialized" problem_level="1" source="Pins:BOARD_InitPULSEPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="Peripheral" resourceId="CTIMER3" description="Peripheral CTIMER3 is not initialized" problem_level="1" source="Pins:BOARD_InitPULSEPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="Peripheral" resourceId="CTIMER1" description="Peripheral CTIMER1 is not initialized" problem_level="1" source="Pins:BOARD_InitPULSEPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitPULSEPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="CTIMER2" signal="MATCH, 3" pin_num="41" pin_signal="PIO1_22/CTIMER2_MAT3/SCT_GPI5/FC4_SSEL3/PLU_OUT4/CAN0_RD">
+                     <pin_features>
+                        <pin_feature name="identifier" value="PULSE_3"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="CTIMER0" signal="MATCH, 0" pin_num="54" pin_signal="PIO0_0/FC3_SCK/CTIMER0_MAT0/SCT_GPI0/SECURE_GPIO0_0/ACMP0_A"/>
+                  <pin peripheral="CTIMER3" signal="MATCH, 1" pin_num="58" pin_signal="PIO1_19/SCT0_OUT7/CTIMER3_MAT1/SCT_GPI7/FC4_SCK/PLU_OUT1/ACMPVREF"/>
+                  <pin peripheral="CTIMER1" signal="MATCH, 0" pin_num="56" pin_signal="PIO0_18/FC4_CTS_SDA_SSEL0/CTIMER1_MAT0/SCT0_OUT1/PLU_IN3/SECURE_GPIO0_18/ACMP0_C"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitExtDACPins">
+               <description>Use 2 2-CH DAC modules; Route 5 pins: MOSI(data), SCK(clock), SSEL(/SYNC), GPIO0(/CLR), GPIO1(/LDAC)</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM5" description="Peripheral FLEXCOMM5 is not initialized" problem_level="1" source="Pins:BOARD_InitExtDACPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitExtDACPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitExtDACPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM5" signal="SCK" pin_num="6" pin_signal="PIO0_7/FC3_RTS_SCL_SSEL1/FC5_SCK/FC1_SCK/SECURE_GPIO0_7"/>
+                  <pin peripheral="FLEXCOMM5" signal="RXD_SDA_MOSI_DATA" pin_num="26" pin_signal="PIO0_8/FC3_SSEL3/FC5_RXD_SDA_MOSI_DATA/SWO/SECURE_GPIO0_8"/>
+                  <pin peripheral="GPIO" signal="PIO0, 27" pin_num="27" pin_signal="PIO0_27/FC2_TXD_SCL_MISO_WS/CTIMER3_MAT2/SCT0_OUT6/FC7_RXD_SDA_MOSI_DATA/PLU_OUT0/SECURE_GPIO0_27">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="gpio_init_state" value="true"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 15" pin_num="82" pin_signal="PIO1_15/UTICK_CAP3/CT_INP7/FC5_RTS_SCL_SSEL1/FC4_RTS_SCL_SSEL1">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="gpio_init_state" value="true"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 16" pin_num="87" pin_signal="PIO1_16/FC6_TXD_SCL_MISO_WS/CTIMER1_MAT3">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="gpio_init_state" value="true"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitDIOPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitDIOPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitDIOPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 9" pin_num="10" pin_signal="PIO1_9/FC1_SCK/CT_INP4/SCT0_OUT2/FC4_CTS_SDA_SSEL0/ADC0_12">
+                     <pin_features>
+                        <pin_feature name="identifier" value="DI0"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 16" pin_num="14" pin_signal="PIO0_16/FC4_TXD_SCL_MISO_WS/CLKOUT/CT_INP4/SECURE_GPIO0_16/ADC0_8">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 23" pin_num="20" pin_signal="PIO0_23/MCLK/CTIMER1_MAT2/CTIMER3_MAT3/SCT0_OUT4/FC0_CTS_SDA_SSEL0/SECURE_GPIO0_23/ADC0_0">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 8" pin_num="24" pin_signal="PIO1_8/FC0_CTS_SDA_SSEL0/SCT0_OUT1/FC4_SSEL2/ADC0_4">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 25" pin_num="77" pin_signal="PIO1_25/FC2_TXD_SCL_MISO_WS/SCT0_OUT2/UTICK_CAP0/PLU_CLKIN">
+                     <pin_features>
+                        <pin_feature name="identifier" value="DO3"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 25" pin_num="79" pin_signal="PIO0_25/FC0_TXD_SCL_MISO_WS/CT_INP9/SCT_GPI1/SECURE_GPIO0_25">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 19" pin_num="90" pin_signal="PIO0_19/FC4_RTS_SCL_SSEL1/UTICK_CAP0/CTIMER0_MAT2/SCT0_OUT2/FC7_TXD_SCL_MISO_WS/PLU_IN4/SECURE_GPIO0_19">
+                     <pin_features>
+                        <pin_feature name="identifier" value="DO0"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 26" pin_num="60" pin_signal="PIO0_26/FC2_RXD_SDA_MOSI_DATA/CLKOUT/CT_INP14/SCT0_OUT5/USB0_IDVALUE/FC0_SCK/HS_SPI_MOSI/SECURE_GPIO0_26">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitCJCPins">
+               <description>Route 2 ADC0 pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="ADC0" description="Peripheral ADC0 is not initialized" problem_level="1" source="Pins:BOARD_InitCJCPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitCJCPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitCJCPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="ADC0" signal="CH, 2" pin_num="22" pin_signal="PIO0_15/FC6_CTS_SDA_SSEL0/UTICK_CAP2/CT_INP16/SCT0_OUT2/SECURE_GPIO0_15/ADC0_2"/>
+                  <pin peripheral="ADC0" signal="CH, 3" pin_num="23" pin_signal="PIO0_31/FC0_CTS_SDA_SSEL0/CTIMER0_MAT1/SCT0_OUT3/SECURE_GPIO0_31/ADC0_3"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitExtMEMPins">
+               <description>Route 3 SPI pins: MOSI(d_out), MISO(d_in), SCK(clock).</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM7" description="Peripheral FLEXCOMM7 is not initialized" problem_level="1" source="Pins:BOARD_InitExtMEMPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitExtMEMPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM7" signal="RXD_SDA_MOSI_DATA" pin_num="80" pin_signal="PIO1_29/FC7_RXD_SDA_MOSI_DATA/SCT_GPI6/USB1_PORTPWRN/USB1_FRAME/PLU_IN2"/>
+                  <pin peripheral="FLEXCOMM7" signal="TXD_SCL_MISO_WS" pin_num="65" pin_signal="PIO1_30/FC7_TXD_SCL_MISO_WS/SCT_GPI7/USB1_OVERCURRENTN/USB1_LEDN/PLU_IN1"/>
+                  <pin peripheral="FLEXCOMM7" signal="SCK" pin_num="73" pin_signal="PIO1_28/FC7_SCK/CT_INP2/PLU_IN3"/>
+                  <pin peripheral="FLEXCOMM7" signal="RTS_SCL_SSEL1" pin_num="4" pin_signal="PIO1_20/FC7_RTS_SCL_SSEL1/CT_INP14/FC4_TXD_SCL_MISO_WS/PLU_OUT2">
+                     <pin_features>
+                        <pin_feature name="identifier" value="FC4_I2C_SCL"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitUSBPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="USBFSH" description="Peripheral USBFSH is not initialized" problem_level="1" source="Pins:BOARD_InitUSBPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitUSBPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="USBFSH" signal="USB_DM" pin_num="98" pin_signal="USB0_DM"/>
+                  <pin peripheral="USBFSH" signal="USB_DP" pin_num="97" pin_signal="USB0_DP"/>
+                  <pin peripheral="USBFSH" signal="USB_VBUS" pin_num="78" pin_signal="PIO0_22/FC6_TXD_SCL_MISO_WS/UTICK_CAP1/CT_INP15/SCT0_OUT3/USB0_VBUS/PLU_OUT7/SECURE_GPIO0_22"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitLEDsPins">
+               <description>Route default RGB pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitLEDsPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitLEDsPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 4" pin_num="1" pin_signal="PIO1_4/FC0_SCK/CTIMER2_MAT1/SCT0_OUT0/FREQME_GPIO_CLK_A">
+                     <pin_features>
+                        <pin_feature name="identifier" value="LED_ERR"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 6" pin_num="5" pin_signal="PIO1_6/FC0_TXD_SCL_MISO_WS/CTIMER2_MAT1/SCT_GPI3">
+                     <pin_features>
+                        <pin_feature name="identifier" value="LED_COM"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 7" pin_num="9" pin_signal="PIO1_7/FC0_RTS_SCL_SSEL1/CTIMER2_MAT2/SCT_GPI4">
+                     <pin_features>
+                        <pin_feature name="identifier" value="LED_RUN"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitDipSWPins">
+               <description>Route 8 GPIO input pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM8" description="Peripheral FLEXCOMM8 is not initialized" problem_level="1" source="Pins:BOARD_InitDipSWPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitDipSWPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="FLEXCOMM8" signal="HS_SPI_MISO" pin_num="62" pin_signal="PIO1_3/CAN0_RD/SCT0_OUT4/HS_SPI_MISO/USB0_PORTPWRN/PLU_OUT6"/>
+                  <pin peripheral="FLEXCOMM8" signal="HS_SPI_SCK" pin_num="61" pin_signal="PIO1_2/CAN0_TD/CTIMER0_MAT3/SCT_GPI6/HS_SPI_SCK/USB1_PORTPWRN/PLU_OUT5"/>
+                  <pin peripheral="FLEXCOMM8" signal="HS_SPI_SSEL1" pin_num="59" pin_signal="PIO1_1/FC3_RXD_SDA_MOSI_DATA/CT_INP3/SCT_GPI5/HS_SPI_SSEL1/USB1_OVERCURRENTN/PLU_OUT4"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitRotarySWPins">
+               <description>Route 4 GPIO input pins.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitRotarySWPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitRotarySWPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 13" pin_num="2" pin_signal="PIO1_13/FC6_RXD_SDA_MOSI_DATA/CT_INP6/USB0_OVERCURRENTN/USB0_FRAME">
+                     <pin_features>
+                        <pin_feature name="identifier" value="RR_SW_1"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 1" pin_num="7" pin_signal="PIO0_1/FC3_CTS_SDA_SSEL0/CT_INP0/SCT_GPI1/CMP0_OUT/SECURE_GPIO0_1">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 17" pin_num="8" pin_signal="PIO0_17/FC4_SSEL2/SCT_GPI7/SCT0_OUT0/PLU_IN2/SECURE_GPIO0_17">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 18" pin_num="64" pin_signal="PIO1_18/SCT0_OUT5/PLU_OUT0">
+                     <pin_features>
+                        <pin_feature name="identifier" value="RR_SW_2"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitLVPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>true</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="PINT" description="Peripheral PINT is not initialized" problem_level="1" source="Pins:BOARD_InitLVPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitLVPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitLVPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.inputmux" description="Pins initialization requires the INPUTMUX Driver in the project." problem_level="2" source="Pins:BOARD_InitLVPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 31" pin_num="91" pin_signal="PIO1_31/MCLK/CTIMER0_MAT2/SCT0_OUT6/PLU_IN0">
+                     <pin_features>
+                        <pin_feature name="identifier" value="LV"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PINT" signal="PINT, 0" pin_num="91" pin_signal="PIO1_31/MCLK/CTIMER0_MAT2/SCT0_OUT6/PLU_IN0"/>
+               </pins>
+            </function>
+            <function name="BOARD_InitBUTTONsPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>false</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="SYSCON" description="Peripheral SYSCON is not initialized" problem_level="1" source="Pins:BOARD_InitBUTTONsPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitBUTTONsPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitBUTTONsPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_iocon" description="Pins initialization requires the LPC_IOCON Driver in the project." problem_level="2" source="Pins:BOARD_InitBUTTONsPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 18" pin_num="64" pin_signal="PIO1_18/SCT0_OUT5/PLU_OUT0">
+                     <pin_features>
+                        <pin_feature name="identifier" value="WAKEUP"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 9" pin_num="10" pin_signal="PIO1_9/FC1_SCK/CT_INP4/SCT0_OUT2/FC4_CTS_SDA_SSEL0/ADC0_12">
+                     <pin_features>
+                        <pin_feature name="identifier" value="USR"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                        <pin_feature name="asw" value="disabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="SYSCON" signal="RESET" pin_num="32" pin_signal="RESETN">
+                     <pin_features>
+                        <pin_feature name="identifier" value="RESET"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 5" pin_num="88" pin_signal="PIO0_5/CAN0_TD/FC4_RXD_SDA_MOSI_DATA/CTIMER3_MAT0/SCT_GPI5/FC3_RTS_SCL_SSEL1/MCLK/SECURE_GPIO0_5">
+                     <pin_features>
+                        <pin_feature name="identifier" value="ISP"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                        <pin_feature name="slew_rate" value="standard"/>
+                        <pin_feature name="invert" value="disabled"/>
+                        <pin_feature name="open_drain" value="disabled"/>
+                     </pin_features>
+                  </pin>
+               </pins>
+            </function>
+            <function name="BOARD_InitInterBusPins">
+               <description>Configures pin routing and optionally pin electrical features.</description>
+               <options>
+                  <callFromInitBoot>false</callFromInitBoot>
+                  <coreID>cm33_core0</coreID>
+                  <enableClock>true</enableClock>
+               </options>
+               <dependencies>
+                  <dependency resourceType="Peripheral" resourceId="PINT" description="Peripheral PINT is not initialized" problem_level="1" source="Pins:BOARD_InitInterBusPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitInterBusPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitInterBusPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.inputmux" description="Pins initialization requires the INPUTMUX Driver in the project." problem_level="2" source="Pins:BOARD_InitInterBusPins">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <pins>
+                  <pin peripheral="GPIO" signal="PIO1, 5" pin_num="31" pin_signal="PIO1_5/FC0_RXD_SDA_MOSI_DATA/CTIMER2_MAT0/SCT_GPI0">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_1_InterBus_ENB"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="gpio_init_state" value="true"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 10" pin_num="40" pin_signal="PIO1_10/FC1_RXD_SDA_MOSI_DATA/CTIMER1_MAT0/SCT0_OUT3">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_1_2_InterBus_PreENB"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 23" pin_num="42" pin_signal="PIO1_23/FC2_SCK/SCT0_OUT0/FC3_SSEL2/PLU_OUT5">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_4_InterBus_FB"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="gpio_init_state" value="true"/>
+                        <pin_feature name="mode" value="pullUp"/>
+                        <pin_feature name="open_drain" value="enabled"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 14" pin_num="57" pin_signal="PIO1_14/UTICK_CAP2/CTIMER1_MAT2/FC5_CTS_SDA_SSEL0/USB0_LEDN/ACMP0_D">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_0_2_InterBus_PreENA"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullDown"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 21" pin_num="30" pin_signal="PIO1_21/FC7_CTS_SDA_SSEL0/CTIMER3_MAT2/FC4_RXD_SDA_MOSI_DATA/PLU_OUT3">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_0_InterBus_ENA"/>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="mode" value="pullDown"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 17" pin_num="43" pin_signal="PIO1_17/FC6_RTS_SCL_SSEL1/SCT0_OUT4">
+                     <pin_features>
+                        <pin_feature name="identifier" value="GPIO_3_InterBus_CLK"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="mode" value="pullDown"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PINT" signal="PINT, 1" pin_num="43" pin_signal="PIO1_17/FC6_RTS_SCL_SSEL1/SCT0_OUT4"/>
+               </pins>
+            </function>
+         </functions_list>
+      </pins>
+      <clocks name="Clocks" version="11.0" enabled="true" update_project_code="true">
+         <generated_project_files>
+            <file path="board/clock_config.c" update_enabled="true"/>
+            <file path="board/clock_config.h" update_enabled="true"/>
+         </generated_project_files>
+         <clocks_profile>
+            <processor_version>13.0.1</processor_version>
+         </clocks_profile>
+         <clock_configurations>
+            <clock_configuration name="BOARD_BootClockPLL150M" id_prefix="" prefix_user_defined="false">
+               <description></description>
+               <options/>
+               <dependencies>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Clocks initialization requires the COMMON Driver in the project." problem_level="2" source="Clocks:BOARD_BootClockPLL150M">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.power" description="Clocks initialization requires the POWER Driver in the project." problem_level="2" source="Clocks:BOARD_BootClockPLL150M">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.clock" description="Clocks initialization requires the CLOCK Driver in the project." problem_level="2" source="Clocks:BOARD_BootClockPLL150M">
+                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <clock_sources>
+                  <clock_source id="ANACTRL.fro_hf.outFreq" value="96 MHz" locked="false" enabled="false"/>
+                  <clock_source id="SYSCON.fro_1m.outFreq" value="1 MHz" locked="false" enabled="false"/>
+               </clock_sources>
+               <clock_outputs>
+                  <clock_output id="ASYNCADC_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CAN_clock.outFreq" value="15 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CTIMER0_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CTIMER1_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CTIMER2_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CTIMER3_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CTIMER4_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FRO_12MHz_clock.outFreq" value="12 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FRO_1MHz_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM0_clock.outFreq" value="12 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM1_clock.outFreq" value="12 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM2_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM3_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM4_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM5_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM6_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FXCOM7_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="HSLSPI_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="SYSTICK0_clock.outFreq" value="150 MHz" locked="false" accuracy=""/>
+                  <clock_output id="System_clock.outFreq" value="150 MHz" locked="false" accuracy=""/>
+                  <clock_output id="USB0_clock.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="WDT_clock.outFreq" value="1 MHz" locked="false" accuracy=""/>
+               </clock_outputs>
+               <clock_settings>
+                  <setting id="PLL0_Mode" value="Normal" locked="false"/>
+                  <setting id="ADCCLKDIV_HALT" value="Enable" locked="false"/>
+                  <setting id="ANALOG_CONTROL_FRO192M_CTRL_ENDI_FRO_96M_CFG" value="Enable" locked="false"/>
+                  <setting id="CANCLKDIV_HALT" value="Enable" locked="false"/>
+                  <setting id="ENABLE_SYSTEM_CLK_OUT" value="Enabled" locked="false"/>
+                  <setting id="FROHFDIV_HALT" value="Enable" locked="false"/>
+                  <setting id="SCTCLKDIV_HALT" value="Enable" locked="false"/>
+                  <setting id="SYSCON.ADCCLKDIV.scale" value="2" locked="true"/>
+                  <setting id="SYSCON.ADCCLKSEL.sel" value="ANACTRL.fro_hf_clk" locked="false"/>
+                  <setting id="SYSCON.CANCLKDIV.scale" value="10" locked="true"/>
+                  <setting id="SYSCON.CANCLKSEL.sel" value="SYSCON.CANCLKDIV" locked="false"/>
+                  <setting id="SYSCON.CTIMERCLKSEL0.sel" value="SYSCON.fro_1m" locked="false"/>
+                  <setting id="SYSCON.CTIMERCLKSEL1.sel" value="SYSCON.fro_1m" locked="false"/>
+                  <setting id="SYSCON.CTIMERCLKSEL2.sel" value="SYSCON.fro_1m" locked="false"/>
+                  <setting id="SYSCON.CTIMERCLKSEL3.sel" value="SYSCON.fro_1m" locked="false"/>
+                  <setting id="SYSCON.CTIMERCLKSEL4.sel" value="SYSCON.fro_1m" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL0.sel" value="ANACTRL.fro_12m_clk" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL1.sel" value="ANACTRL.fro_12m_clk" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL2.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL3.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL4.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL5.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL6.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FCCLKSEL7.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.FROHFDIV.scale" value="2" locked="false"/>
+                  <setting id="SYSCON.HSLSPICLKSEL.sel" value="SYSCON.FROHFDIV" locked="false"/>
+                  <setting id="SYSCON.MAINCLKSELB.sel" value="SYSCON.PLL0_BYPASS" locked="false"/>
+                  <setting id="SYSCON.PLL0CLKSEL.sel" value="ANACTRL.fro_12m_clk" locked="false"/>
+                  <setting id="SYSCON.PLL0M_MULT.scale" value="25" locked="true"/>
+                  <setting id="SYSCON.PLL0N_DIV.scale" value="1" locked="true"/>
+                  <setting id="SYSCON.PLL0_PDEC.scale" value="2" locked="true"/>
+                  <setting id="SYSCON.PLL1_PDEC.scale" value="2" locked="false"/>
+                  <setting id="SYSCON.SYSTICKCLKSEL0.sel" value="SYSCON.SYSTICKCLKDIV0" locked="false"/>
+                  <setting id="SYSCON.USB0CLKDIV.scale" value="2" locked="true"/>
+                  <setting id="SYSCON.USB0CLKSEL.sel" value="ANACTRL.fro_hf_clk" locked="false"/>
+                  <setting id="SYSCON_CLOCK_CTRL_FRO1MHZ_CLK_ENA_CFG" value="Enabled" locked="false"/>
+                  <setting id="SYSTICKCLKDIV0_HALT" value="Enable" locked="false"/>
+                  <setting id="USB0CLKDIV_HALT" value="Enable" locked="false"/>
+                  <setting id="WDTCLKDIV_HALT" value="Enable" locked="false"/>
+               </clock_settings>
+               <called_from_default_init>true</called_from_default_init>
+            </clock_configuration>
+         </clock_configurations>
+      </clocks>
+      <dcdx name="DCDx" version="3.0" enabled="false" update_project_code="true">
+         <generated_project_files/>
+         <dcdx_profile>
+            <processor_version>N/A</processor_version>
+         </dcdx_profile>
+         <dcdx_configurations/>
+      </dcdx>
+      <periphs name="Peripherals" version="12.0" enabled="true" update_project_code="true">
+         <dependencies>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_dma" description="DMA Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_dma" description="Unsupported version of the DMA Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.5.0</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="WWDT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="Unsupported version of the WWDT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.1.2</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.ctimer" description="CTimer Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.ctimer" description="Unsupported version of the CTimer Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="greaterOrEqual">
+                  <data type="Version">2.2.2</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart" description="FLEXCOMM USART Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart" description="Unsupported version of the FLEXCOMM USART Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.7.0</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_spi" description="FLEXCOMM SPI Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_spi" description="Unsupported version of the FLEXCOMM SPI Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="greaterOrEqual">
+                  <data type="Version">2.1.0</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpadc" description="LPADC Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpadc" description="Unsupported version of the LPADC Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="greaterOrEqual">
+                  <data type="Version">2.5.0</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_crc" description="CRC Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_crc" description="Unsupported version of the CRC Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="greaterOrEqual">
+                  <data type="Version">2.0.1</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.pint" description="PINT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.pint" description="Unsupported version of the PINT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.1.3</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.mrt" description="MRT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.mrt" description="Unsupported version of the MRT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.0.0</data>
+               </feature>
+            </dependency>
+         </dependencies>
+         <generated_project_files>
+            <file path="board/peripherals.c" update_enabled="true"/>
+            <file path="board/peripherals.h" update_enabled="true"/>
+         </generated_project_files>
+         <peripherals_profile>
+            <processor_version>13.0.1</processor_version>
+            <ignored_component_migration_offer/>
+         </peripherals_profile>
+         <functional_groups>
+            <functional_group name="BOARD_InitPeripherals" uuid="e48301ba-6eae-42f0-b2e4-0109e547ef26" called_from_default_init="true" id_prefix="" core="cm33_core0">
+               <description></description>
+               <options/>
+               <dependencies>
+                  <dependency resourceType="ClockOutput" resourceId="WDT_clock" description="WDT_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="CTIMER2_clock" description="CTIMER2_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="CTIMER0_clock" description="CTIMER0_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="CTIMER1_clock" description="CTIMER1_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="CTIMER3_clock" description="CTIMER3_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="FXCOM0_clock" description="FXCOM0 clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM0.usart_rxd" description="Signal RX is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM0.usart_txd" description="Signal TX is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart_dma" description="The fsl_usart_dma driver is missing in the project  (required for the DMA mode)." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="enabled" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart_dma" description="The compatible version of the fsl_usart_dma driver is not available in the project  (required for the DMA mode)." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="version" evaluation="compatible">
+                        <data type="Version">2.6.0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="FXCOM1_clock" description="FXCOM1 clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM1.usart_rxd" description="Signal RX is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM1.usart_txd" description="Signal TX is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart_dma" description="The fsl_usart_dma driver is missing in the project  (required for the DMA mode)." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="enabled" evaluation="equal">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="SWComponent" resourceId="platform.drivers.flexcomm_usart_dma" description="The compatible version of the fsl_usart_dma driver is not available in the project  (required for the DMA mode)." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="version" evaluation="compatible">
+                        <data type="Version">2.6.0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM3.spi_miso" description="Signal SPI master data in, slave data out is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM3.spi_mosi" description="Signal SPI master data out, slave data in is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM3.spi_sck" description="Signal SPI serial clock pin is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM3.spi_ss2" description="Signal SPI slave select 2 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="FXCOM3_clock" description="FXCOM3 clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM8.spi_miso" description="Signal SPI master data in, slave data out is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM8.spi_mosi" description="Signal SPI master data out, slave data in is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM8.spi_sck" description="Signal SPI serial clock pin is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM8.spi_ss1" description="Signal SPI slave select 1 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="HSLSPI_clock" description="HSLSPI clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="ASYNCADC_clock" description="ASYNCADC clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="ADC0.adc_se.3A" description="Signal channel 3A is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="ADC0.adc_se.2A" description="Signal channel 2A is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="ADC0.adc_se.26A" description="Signal channel 26A is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="ADC0.adc_se.26B" description="Signal channel 26B is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM5.spi_miso" description="Signal SPI master data in, slave data out is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM5.spi_mosi" description="Signal SPI master data out, slave data in is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM5.spi_sck" description="Signal SPI serial clock pin is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM5.spi_ss1" description="Signal SPI slave select 1 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="FXCOM5_clock" description="FXCOM5 clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM7.spi_miso" description="Signal SPI master data in, slave data out is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM7.spi_mosi" description="Signal SPI master data out, slave data in is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM7.spi_sck" description="Signal SPI serial clock pin is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="FLEXCOMM7.spi_ss1" description="Signal SPI slave select 1 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="FXCOM7_clock" description="FXCOM7 clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="CTIMER4_clock" description="CTIMER4_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="PINT.pint.0" description="Signal PINT, 0 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="PINT.pint.1" description="Signal PINT, 1 is not routed." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="routed" evaluation="">
+                        <data type="Boolean">true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="ClockOutput" resourceId="System_clock" description="System_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
+               </dependencies>
+               <instances>
+                  <instance name="DMA0" uuid="1ce3fd73-afee-4582-b1a6-5c26cf786b03" type="lpc_dma" type_id="lpc_dma_1e560b38547e8785cc7d22228be0a18c" mode="basic" peripheral="DMA0" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="fsl_dma">
+                        <array name="dma_table">
+                           <struct name="0"/>
+                           <struct name="1"/>
+                           <struct name="2"/>
+                           <struct name="3"/>
+                        </array>
+                        <array name="dma_channels"/>
+                        <setting name="init_interrupt" value="false"/>
+                        <struct name="dma_interrupt">
+                           <setting name="IRQn" value="DMA0_IRQn"/>
+                           <setting name="enable_interrrupt" value="enabled"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                           <setting name="enable_custom_name" value="false"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="DMA1" uuid="61b9d183-ff7b-4b17-9e42-b8e451bf934f" type="lpc_dma" type_id="lpc_dma_1e560b38547e8785cc7d22228be0a18c" mode="basic" peripheral="DMA1" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="fsl_dma">
+                        <array name="dma_table"/>
+                        <array name="dma_channels"/>
+                        <setting name="init_interrupt" value="false"/>
+                        <struct name="dma_interrupt">
+                           <setting name="IRQn" value="DMA1_IRQn"/>
+                           <setting name="enable_interrrupt" value="enabled"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                           <setting name="enable_custom_name" value="false"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="NVIC" uuid="21252436-e330-443a-ac73-e32a7de0a97f" type="nvic" type_id="nvic_57b5eef3774cc60acaede6f5b8bddc67" mode="general" peripheral="NVIC" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="nvic">
+                        <array name="interrupt_table">
+                           <struct name="0"/>
+                           <struct name="1"/>
+                           <struct name="2"/>
+                           <struct name="3"/>
+                           <struct name="4"/>
+                           <struct name="5"/>
+                           <struct name="6"/>
+                           <struct name="7"/>
+                           <struct name="8"/>
+                           <struct name="9"/>
+                           <struct name="10"/>
+                           <struct name="11"/>
+                           <struct name="12"/>
+                           <struct name="13"/>
+                           <struct name="14"/>
+                        </array>
+                        <array name="interrupts">
+                           <struct name="0">
+                              <setting name="channelId" value="UART0_FC0"/>
+                              <struct name="interrupt_t">
+                                 <setting name="IRQn" value="FLEXCOMM0_IRQn"/>
+                                 <setting name="enable_interrrupt" value="enabled"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_custom_name" value="false"/>
+                              </struct>
+                           </struct>
+                           <struct name="1">
+                              <setting name="channelId" value="UART1_FC1"/>
+                              <struct name="interrupt_t">
+                                 <setting name="IRQn" value="FLEXCOMM1_IRQn"/>
+                                 <setting name="enable_interrrupt" value="enabled"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
+                                 <setting name="enable_custom_name" value="false"/>
+                              </struct>
+                           </struct>
+                        </array>
+                     </config_set>
+                  </instance>
+                  <instance name="WWDT" uuid="b1882a78-fe37-43a6-8001-19493f387d37" type="wwdt" type_id="wwdt_4afd1b7f7bc88fc51c044e9c38c1808c" mode="reset_mode" peripheral="WWDT" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="general">
+                        <struct name="wwdt_config">
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="enableWwdt" value="true"/>
+                           <setting name="enableWatchdogProtect" value="false"/>
+                           <setting name="timeoutValue_input" value="500000"/>
+                           <setting name="windowEnable" value="false"/>
+                           <setting name="warningValue_input" value="0"/>
+                        </struct>
+                        <struct name="interrupt">
+                           <setting name="IRQn" value="WDT_BOD_IRQn"/>
+                           <setting name="enable_interrrupt" value="enabled"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                           <setting name="enable_custom_name" value="false"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="OUT4_CTIMER2" uuid="72b3420c-730e-4f14-8152-a539c518129e" type="ctimer" type_id="ctimer_44573e4bbd77c18d33bceb2e7900a074" mode="PWM" peripheral="CTIMER2" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_ctimer">
+                        <struct name="ctimerConfig">
+                           <setting name="mode" value="kCTIMER_TimerMode"/>
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="timerPrescaler" value="100"/>
+                        </struct>
+                        <setting name="EnableTimerInInit" value="true"/>
+                        <struct name="pwmConfig">
+                           <setting name="pwmPeriodChannel" value="kCTIMER_Match_0"/>
+                           <setting name="pwmPeriodValueStr" value="4s"/>
+                           <setting name="enableInterrupt" value="true"/>
+                           <array name="pwmChannels"/>
+                        </struct>
+                        <struct name="interruptCallbackConfig">
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="CTIMER2_IRQn"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                           </struct>
+                           <setting name="callback" value="kCTIMER_SingleCallback"/>
+                           <setting name="singleCallback" value="ctimer2_match3_callback"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="OUT1_CTIMER0" uuid="f6c68fab-eeed-4be0-bbed-4b23cab1da01" type="ctimer" type_id="ctimer_44573e4bbd77c18d33bceb2e7900a074" mode="PWM" peripheral="CTIMER0" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_ctimer">
+                        <struct name="ctimerConfig">
+                           <setting name="mode" value="kCTIMER_TimerMode"/>
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="timerPrescaler" value="100"/>
+                        </struct>
+                        <setting name="EnableTimerInInit" value="true"/>
+                        <struct name="pwmConfig">
+                           <setting name="pwmPeriodChannel" value="kCTIMER_Match_3"/>
+                           <setting name="pwmPeriodValueStr" value="4s"/>
+                           <setting name="enableInterrupt" value="true"/>
+                           <array name="pwmChannels"/>
+                        </struct>
+                        <struct name="interruptCallbackConfig">
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="CTIMER0_IRQn"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                           </struct>
+                           <setting name="callback" value="kCTIMER_SingleCallback"/>
+                           <setting name="singleCallback" value="ctimer0_match0_callback"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="OUT2_CTIMER1" uuid="848b3cc1-8258-49c4-913c-c7c130107589" type="ctimer" type_id="ctimer_44573e4bbd77c18d33bceb2e7900a074" mode="PWM" peripheral="CTIMER1" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_ctimer">
+                        <struct name="ctimerConfig">
+                           <setting name="mode" value="kCTIMER_TimerMode"/>
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="timerPrescaler" value="100"/>
+                        </struct>
+                        <setting name="EnableTimerInInit" value="true"/>
+                        <struct name="pwmConfig">
+                           <setting name="pwmPeriodChannel" value="kCTIMER_Match_3"/>
+                           <setting name="pwmPeriodValueStr" value="4s"/>
+                           <setting name="enableInterrupt" value="true"/>
+                           <array name="pwmChannels"/>
+                        </struct>
+                        <struct name="interruptCallbackConfig">
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="CTIMER1_IRQn"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                           </struct>
+                           <setting name="callback" value="kCTIMER_SingleCallback"/>
+                           <setting name="singleCallback" value="ctimer1_match0_callback"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="OUT3_CTIMER3" uuid="45378e19-d7e5-4d9e-8f5f-dc720e7a47ae" type="ctimer" type_id="ctimer_44573e4bbd77c18d33bceb2e7900a074" mode="PWM" peripheral="CTIMER3" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_ctimer">
+                        <struct name="ctimerConfig">
+                           <setting name="mode" value="kCTIMER_TimerMode"/>
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="timerPrescaler" value="100"/>
+                        </struct>
+                        <setting name="EnableTimerInInit" value="true"/>
+                        <struct name="pwmConfig">
+                           <setting name="pwmPeriodChannel" value="kCTIMER_Match_3"/>
+                           <setting name="pwmPeriodValueStr" value="4s"/>
+                           <setting name="enableInterrupt" value="true"/>
+                           <array name="pwmChannels"/>
+                        </struct>
+                        <struct name="interruptCallbackConfig">
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="CTIMER3_IRQn"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                           </struct>
+                           <setting name="callback" value="kCTIMER_SingleCallback"/>
+                           <setting name="singleCallback" value="ctimer3_match1_callback"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="UART0_FC0" uuid="6ef47be2-d946-4171-add5-064298634c86" type="flexcomm_usart" type_id="flexcomm_usart_ed63debb5f147199906723fc49ad2e72" mode="dma" peripheral="FLEXCOMM0" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="dmaCfg" quick_selection="QuickSelection1">
+                        <struct name="dma_channels">
+                           <setting name="enable_rx_dma_channel" value="true"/>
+                           <struct name="dma_rx_channel">
+                              <setting name="DMA_source" value="kDma0RequestFlexcomm0Rx"/>
+                              <setting name="init_channel_priority" value="false"/>
+                              <setting name="dma_priority" value="kDMA_ChannelPriority0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                           <setting name="enable_tx_dma_channel" value="true"/>
+                           <struct name="dma_tx_channel">
+                              <setting name="DMA_source" value="kDma0RequestFlexcomm0Tx"/>
+                              <setting name="init_channel_priority" value="false"/>
+                              <setting name="dma_priority" value="kDMA_ChannelPriority0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                        </struct>
+                        <struct name="usart_dma_handle">
+                           <setting name="enable_custom_name" value="false"/>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="usartConfig_t">
+                        <struct name="usartConfig">
+                           <setting name="clockSource" value="FXCOMFunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="baudRate_Bps" value="115200"/>
+                           <setting name="syncMode" value="kUSART_SyncModeDisabled"/>
+                           <setting name="parityMode" value="kUSART_ParityDisabled"/>
+                           <setting name="stopBitCount" value="kUSART_OneStopBit"/>
+                           <setting name="bitCountPerChar" value="kUSART_8BitsPerChar"/>
+                           <setting name="loopback" value="false"/>
+                           <setting name="txWatermark" value="kUSART_TxFifo0"/>
+                           <setting name="rxWatermark" value="kUSART_RxFifo1"/>
+                           <setting name="enableMatchAddress" value="false"/>
+                           <struct name="matchAddressConfig">
+                              <setting name="matchAddress" value="0"/>
+                              <setting name="addressMode" value="automatic"/>
+                           </struct>
+                           <setting name="enableRx" value="true"/>
+                           <setting name="enableTx" value="true"/>
+                           <setting name="enableHardwareFlowControl" value="false"/>
+                           <setting name="enableRTS" value="false"/>
+                           <setting name="clockPolarity" value="kUSART_RxSampleOnFallingEdge"/>
+                           <setting name="enableContinuousSCLK" value="false"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="UART1_FC1" uuid="6196aa18-3dbc-49f4-9b45-9a63564b4b66" type="flexcomm_usart" type_id="flexcomm_usart_ed63debb5f147199906723fc49ad2e72" mode="dma" peripheral="FLEXCOMM1" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="dmaCfg" quick_selection="QuickSelection1">
+                        <struct name="dma_channels">
+                           <setting name="enable_rx_dma_channel" value="true"/>
+                           <struct name="dma_rx_channel">
+                              <setting name="DMA_source" value="kDma0RequestFlexcomm1Rx"/>
+                              <setting name="init_channel_priority" value="false"/>
+                              <setting name="dma_priority" value="kDMA_ChannelPriority0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                           <setting name="enable_tx_dma_channel" value="true"/>
+                           <struct name="dma_tx_channel">
+                              <setting name="DMA_source" value="kDma0RequestFlexcomm1Tx"/>
+                              <setting name="init_channel_priority" value="false"/>
+                              <setting name="dma_priority" value="kDMA_ChannelPriority0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                        </struct>
+                        <struct name="usart_dma_handle">
+                           <setting name="enable_custom_name" value="false"/>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="usartConfig_t">
+                        <struct name="usartConfig">
+                           <setting name="clockSource" value="FXCOMFunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="baudRate_Bps" value="115200"/>
+                           <setting name="syncMode" value="kUSART_SyncModeDisabled"/>
+                           <setting name="parityMode" value="kUSART_ParityDisabled"/>
+                           <setting name="stopBitCount" value="kUSART_OneStopBit"/>
+                           <setting name="bitCountPerChar" value="kUSART_8BitsPerChar"/>
+                           <setting name="loopback" value="false"/>
+                           <setting name="txWatermark" value="kUSART_TxFifo0"/>
+                           <setting name="rxWatermark" value="kUSART_RxFifo1"/>
+                           <setting name="enableMatchAddress" value="false"/>
+                           <struct name="matchAddressConfig">
+                              <setting name="matchAddress" value="0"/>
+                              <setting name="addressMode" value="automatic"/>
+                           </struct>
+                           <setting name="enableRx" value="true"/>
+                           <setting name="enableTx" value="true"/>
+                           <setting name="enableHardwareFlowControl" value="false"/>
+                           <setting name="enableRTS" value="false"/>
+                           <setting name="clockPolarity" value="kUSART_RxSampleOnFallingEdge"/>
+                           <setting name="enableContinuousSCLK" value="false"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="ADC_FC3" uuid="9d196920-43cb-4128-8fbd-6bec467ce293" type="flexcomm_spi" type_id="flexcomm_spi_481dadba00035f986f31ed9ac95af181" mode="SPI_Transfer" peripheral="FLEXCOMM3" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="transferCfg">
+                        <struct name="transfer">
+                           <setting name="init_transfer" value="false"/>
+                           <struct name="transfer_cfg">
+                              <setting name="halfDuplex" value="false"/>
+                              <setting name="txDataBufferEnable" value="true"/>
+                              <setting name="rxDataBufferEnable" value="true"/>
+                              <setting name="dataSize" value="10"/>
+                           </struct>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="fsl_spi">
+                        <setting name="spi_mode" value="kSPI_Master"/>
+                        <setting name="clockSource" value="FXCOMFunctionClock"/>
+                        <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                        <struct name="spi_master_config">
+                           <setting name="enableLoopback" value="false"/>
+                           <setting name="enableMaster" value="true"/>
+                           <setting name="polarity" value="kSPI_ClockPolarityActiveLow"/>
+                           <setting name="phase" value="kSPI_ClockPhaseSecondEdge"/>
+                           <setting name="direction" value="kSPI_MsbFirst"/>
+                           <setting name="baudRate_Bps" value="200000"/>
+                           <setting name="dataWidth" value="kSPI_Data8Bits"/>
+                           <setting name="sselNum" value="kSPI_Ssel2"/>
+                           <set name="sselPol_set">
+                              <selected/>
+                           </set>
+                           <setting name="txWatermark" value="kSPI_TxFifo0"/>
+                           <setting name="rxWatermark" value="kSPI_RxFifo1"/>
+                           <struct name="delayConfig">
+                              <setting name="preDelay" value="2"/>
+                              <setting name="postDelay" value="1"/>
+                              <setting name="frameDelay" value="0"/>
+                              <setting name="transferDelay" value="0"/>
+                           </struct>
+                        </struct>
+                        <struct name="interrupt_priority">
+                           <setting name="IRQn" value="FLEXCOMM3_IRQn"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="DIPSW_SPI" uuid="eaa59e4c-847f-4471-83fe-61511345a4f7" type="flexcomm_spi" type_id="flexcomm_spi_481dadba00035f986f31ed9ac95af181" mode="SPI_Transfer" peripheral="FLEXCOMM8" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="transferCfg">
+                        <struct name="transfer">
+                           <setting name="init_transfer" value="false"/>
+                           <struct name="transfer_cfg">
+                              <setting name="halfDuplex" value="false"/>
+                              <setting name="txDataBufferEnable" value="true"/>
+                              <setting name="rxDataBufferEnable" value="true"/>
+                              <setting name="dataSize" value="10"/>
+                           </struct>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="fsl_spi">
+                        <setting name="spi_mode" value="kSPI_Master"/>
+                        <setting name="clockSource" value="FXCOMFunctionClock"/>
+                        <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                        <struct name="spi_master_config">
+                           <setting name="enableLoopback" value="false"/>
+                           <setting name="enableMaster" value="true"/>
+                           <setting name="polarity" value="kSPI_ClockPolarityActiveLow"/>
+                           <setting name="phase" value="kSPI_ClockPhaseFirstEdge"/>
+                           <setting name="direction" value="kSPI_MsbFirst"/>
+                           <setting name="baudRate_Bps" value="100000"/>
+                           <setting name="dataWidth" value="kSPI_Data8Bits"/>
+                           <setting name="sselNum" value="kSPI_Ssel1"/>
+                           <set name="sselPol_set">
+                              <selected>
+                                 <id>kSPI_Spol1ActiveHigh</id>
+                              </selected>
+                           </set>
+                           <setting name="txWatermark" value="kSPI_TxFifo0"/>
+                           <setting name="rxWatermark" value="kSPI_RxFifo1"/>
+                           <struct name="delayConfig">
+                              <setting name="preDelay" value="1"/>
+                              <setting name="postDelay" value="0"/>
+                              <setting name="frameDelay" value="0"/>
+                              <setting name="transferDelay" value="0"/>
+                           </struct>
+                        </struct>
+                        <struct name="interrupt_priority">
+                           <setting name="IRQn" value="FLEXCOMM8_IRQn"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="CJC_ADC0" uuid="19a37425-f8a1-461a-805d-a9bf4d6c3177" type="lpadc" type_id="lpadc_ddcc12878b96237847ab78b571214e1c" mode="LPADC" peripheral="ADC0" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_lpadc">
+                        <struct name="lpadcConfig">
+                           <setting name="clockSource" value="AsynchronousFunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="enableInDozeMode" value="true"/>
+                           <setting name="conversionAverageMode" value="kLPADC_ConversionAverage128"/>
+                           <setting name="offsetCalibration" value="yes"/>
+                           <setting name="autoCalibrate" value="true"/>
+                           <setting name="enableAnalogPreliminary" value="true"/>
+                           <setting name="powerUpDelay" value="0x80"/>
+                           <setting name="referenceVoltageSource" value="kLPADC_ReferenceVoltageAlt3"/>
+                           <setting name="powerLevelMode" value="kLPADC_PowerLevelAlt4"/>
+                           <setting name="triggerPriorityPolicy" value="kLPADC_TriggerPriorityPreemptImmediately"/>
+                           <setting name="enableConvPause" value="false"/>
+                           <setting name="convPauseDelay" value="0"/>
+                           <setting name="FIFO0Watermark" value="0"/>
+                           <setting name="FIFO1Watermark" value="1"/>
+                           <setting name="FIFO0WatermarkDMA" value="false"/>
+                           <setting name="FIFO1WatermarkDMA" value="false"/>
+                        </struct>
+                        <array name="lpadcConvCommandConfig">
+                           <struct name="0">
+                              <setting name="user_commandId" value="CJC0_Cmd"/>
+                              <setting name="commandId" value="1"/>
+                              <setting name="chainedNextCommandNumber" value="0"/>
+                              <setting name="sampleChannelMode" value="kLPADC_SampleChannelSingleEndSideA"/>
+                              <setting name="channelNumber" value="CH.3"/>
+                              <setting name="enableAutoChannelIncrement" value="false"/>
+                              <setting name="loopCount" value="0"/>
+                              <setting name="hardwareAverageMode" value="kLPADC_HardwareAverageCount128"/>
+                              <setting name="sampleTimeMode" value="kLPADC_SampleTimeADCK131"/>
+                              <setting name="hardwareCompareMode" value="kLPADC_HardwareCompareDisabled"/>
+                              <setting name="hardwareCompareValueHigh" value="0"/>
+                              <setting name="hardwareCompareValueLow" value="0"/>
+                              <setting name="conversionResoultuionMode" value="kLPADC_ConversionResolutionHigh"/>
+                              <setting name="enableWaitTrigger" value="false"/>
+                           </struct>
+                           <struct name="1">
+                              <setting name="user_commandId" value="CJC1_Cmd"/>
+                              <setting name="commandId" value="2"/>
+                              <setting name="chainedNextCommandNumber" value="0"/>
+                              <setting name="sampleChannelMode" value="kLPADC_SampleChannelSingleEndSideA"/>
+                              <setting name="channelNumber" value="CH.2"/>
+                              <setting name="enableAutoChannelIncrement" value="false"/>
+                              <setting name="loopCount" value="0"/>
+                              <setting name="hardwareAverageMode" value="kLPADC_HardwareAverageCount128"/>
+                              <setting name="sampleTimeMode" value="kLPADC_SampleTimeADCK131"/>
+                              <setting name="hardwareCompareMode" value="kLPADC_HardwareCompareDisabled"/>
+                              <setting name="hardwareCompareValueHigh" value="0"/>
+                              <setting name="hardwareCompareValueLow" value="0"/>
+                              <setting name="conversionResoultuionMode" value="kLPADC_ConversionResolutionHigh"/>
+                              <setting name="enableWaitTrigger" value="false"/>
+                           </struct>
+                           <struct name="2">
+                              <setting name="user_commandId" value="ChipTemp_Cmd"/>
+                              <setting name="commandId" value="3"/>
+                              <setting name="chainedNextCommandNumber" value="0"/>
+                              <setting name="sampleChannelMode" value="kLPADC_SampleChannelDiffBothSide"/>
+                              <setting name="channelNumber" value="CH.26A"/>
+                              <setting name="enableAutoChannelIncrement" value="false"/>
+                              <setting name="loopCount" value="1"/>
+                              <setting name="hardwareAverageMode" value="kLPADC_HardwareAverageCount128"/>
+                              <setting name="sampleTimeMode" value="kLPADC_SampleTimeADCK131"/>
+                              <setting name="hardwareCompareMode" value="kLPADC_HardwareCompareDisabled"/>
+                              <setting name="hardwareCompareValueHigh" value="0"/>
+                              <setting name="hardwareCompareValueLow" value="0"/>
+                              <setting name="conversionResoultuionMode" value="kLPADC_ConversionResolutionHigh"/>
+                              <setting name="enableWaitTrigger" value="false"/>
+                           </struct>
+                        </array>
+                        <array name="lpadcConvTriggerConfig">
+                           <struct name="0">
+                              <setting name="user_triggerId" value="CJC0_Trig"/>
+                              <setting name="triggerId" value="0"/>
+                              <setting name="targetCommandId" value="1"/>
+                              <setting name="delayPower" value="0"/>
+                              <setting name="priority" value="false"/>
+                              <setting name="channelAFIFOSelect" value="0"/>
+                              <setting name="channelBFIFOSelect" value="0"/>
+                              <setting name="enableHardwareTrigger" value="false"/>
+                           </struct>
+                           <struct name="1">
+                              <setting name="user_triggerId" value="CJC1_Trig"/>
+                              <setting name="triggerId" value="1"/>
+                              <setting name="targetCommandId" value="2"/>
+                              <setting name="delayPower" value="0"/>
+                              <setting name="priority" value="false"/>
+                              <setting name="channelAFIFOSelect" value="0"/>
+                              <setting name="channelBFIFOSelect" value="0"/>
+                              <setting name="enableHardwareTrigger" value="false"/>
+                           </struct>
+                           <struct name="2">
+                              <setting name="user_triggerId" value="ChipTemp_Trig"/>
+                              <setting name="triggerId" value="2"/>
+                              <setting name="targetCommandId" value="3"/>
+                              <setting name="delayPower" value="0"/>
+                              <setting name="priority" value="false"/>
+                              <setting name="channelAFIFOSelect" value="1"/>
+                              <setting name="channelBFIFOSelect" value="1"/>
+                              <setting name="enableHardwareTrigger" value="false"/>
+                           </struct>
+                        </array>
+                        <struct name="IRQ_cfg">
+                           <set name="interrupt_type">
+                              <selected>
+                                 <id>kLPADC_FIFO0WatermarkInterruptEnable</id>
+                                 <id>kLPADC_FIFO1WatermarkInterruptEnable</id>
+                              </selected>
+                           </set>
+                           <setting name="enable_irq" value="true"/>
+                           <struct name="adc_interrupt">
+                              <setting name="IRQn" value="ADC0_IRQn"/>
+                              <setting name="enable_interrrupt" value="enabled"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="DAC_FC5" uuid="f4e74c4d-7202-44f4-9dba-3c97374be421" type="flexcomm_spi" type_id="flexcomm_spi_481dadba00035f986f31ed9ac95af181" mode="SPI_Transfer" peripheral="FLEXCOMM5" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="transferCfg">
+                        <struct name="transfer">
+                           <setting name="init_transfer" value="false"/>
+                           <struct name="transfer_cfg">
+                              <setting name="halfDuplex" value="false"/>
+                              <setting name="txDataBufferEnable" value="true"/>
+                              <setting name="rxDataBufferEnable" value="true"/>
+                              <setting name="dataSize" value="10"/>
+                           </struct>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="fsl_spi">
+                        <setting name="spi_mode" value="kSPI_Master"/>
+                        <setting name="clockSource" value="FXCOMFunctionClock"/>
+                        <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                        <struct name="spi_master_config">
+                           <setting name="enableLoopback" value="false"/>
+                           <setting name="enableMaster" value="true"/>
+                           <setting name="polarity" value="kSPI_ClockPolarityActiveLow"/>
+                           <setting name="phase" value="kSPI_ClockPhaseFirstEdge"/>
+                           <setting name="direction" value="kSPI_MsbFirst"/>
+                           <setting name="baudRate_Bps" value="500000"/>
+                           <setting name="dataWidth" value="kSPI_Data8Bits"/>
+                           <setting name="sselNum" value="kSPI_Ssel1"/>
+                           <set name="sselPol_set">
+                              <selected/>
+                           </set>
+                           <setting name="txWatermark" value="kSPI_TxFifo0"/>
+                           <setting name="rxWatermark" value="kSPI_RxFifo1"/>
+                           <struct name="delayConfig">
+                              <setting name="preDelay" value="1"/>
+                              <setting name="postDelay" value="0"/>
+                              <setting name="frameDelay" value="0"/>
+                              <setting name="transferDelay" value="0"/>
+                           </struct>
+                        </struct>
+                        <struct name="interrupt_priority">
+                           <setting name="IRQn" value="FLEXCOMM5_IRQn"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="MEM_FC7" uuid="75db0451-7bd6-4f8d-8add-932d11038cca" type="flexcomm_spi" type_id="flexcomm_spi_481dadba00035f986f31ed9ac95af181" mode="SPI_Transfer" peripheral="FLEXCOMM7" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="transferCfg">
+                        <struct name="transfer">
+                           <setting name="init_transfer" value="false"/>
+                           <struct name="transfer_cfg">
+                              <setting name="halfDuplex" value="false"/>
+                              <setting name="txDataBufferEnable" value="true"/>
+                              <setting name="rxDataBufferEnable" value="true"/>
+                              <setting name="dataSize" value="10"/>
+                           </struct>
+                           <setting name="init_callback" value="false"/>
+                           <setting name="callback_fcn" value=""/>
+                           <setting name="user_data" value=""/>
+                        </struct>
+                     </config_set>
+                     <config_set name="fsl_spi">
+                        <setting name="spi_mode" value="kSPI_Master"/>
+                        <setting name="clockSource" value="FXCOMFunctionClock"/>
+                        <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                        <struct name="spi_master_config">
+                           <setting name="enableLoopback" value="false"/>
+                           <setting name="enableMaster" value="true"/>
+                           <setting name="polarity" value="kSPI_ClockPolarityActiveLow"/>
+                           <setting name="phase" value="kSPI_ClockPhaseSecondEdge"/>
+                           <setting name="direction" value="kSPI_MsbFirst"/>
+                           <setting name="baudRate_Bps" value="500000"/>
+                           <setting name="dataWidth" value="kSPI_Data8Bits"/>
+                           <setting name="sselNum" value="kSPI_Ssel1"/>
+                           <set name="sselPol_set">
+                              <selected/>
+                           </set>
+                           <setting name="txWatermark" value="kSPI_TxFifo0"/>
+                           <setting name="rxWatermark" value="kSPI_RxFifo1"/>
+                           <struct name="delayConfig">
+                              <setting name="preDelay" value="2"/>
+                              <setting name="postDelay" value="0"/>
+                              <setting name="frameDelay" value="0"/>
+                              <setting name="transferDelay" value="0"/>
+                           </struct>
+                        </struct>
+                        <struct name="interrupt_priority">
+                           <setting name="IRQn" value="FLEXCOMM7_IRQn"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="COMM_CTIMER4" uuid="ae79a981-2c75-44e7-b4e6-eb56cf262281" type="ctimer" type_id="ctimer_44573e4bbd77c18d33bceb2e7900a074" mode="Capture_Match" peripheral="CTIMER4" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="fsl_ctimer">
+                        <struct name="ctimerConfig">
+                           <setting name="mode" value="kCTIMER_TimerMode"/>
+                           <setting name="clockSource" value="FunctionClock"/>
+                           <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
+                           <setting name="timerPrescaler" value="100"/>
+                        </struct>
+                        <setting name="EnableTimerInInit" value="false"/>
+                        <array name="matchChannels">
+                           <struct name="0">
+                              <setting name="matchChannelPrefixId" value="Match_0"/>
+                              <setting name="matchChannel" value="kCTIMER_Match_1"/>
+                              <setting name="matchValueStr" value="1ms"/>
+                              <setting name="enableCounterReset" value="true"/>
+                              <setting name="enableCounterStop" value="true"/>
+                              <setting name="outControl" value="kCTIMER_Output_NoAction"/>
+                              <setting name="outPinInitValue" value="low"/>
+                              <setting name="enableInterrupt" value="true"/>
+                           </struct>
+                        </array>
+                        <array name="captureChannels"/>
+                        <struct name="interruptCallbackConfig">
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="CTIMER4_IRQn"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                           </struct>
+                           <setting name="callback" value="kCTIMER_SingleCallback"/>
+                           <setting name="singleCallback" value="COMM_TMOut_callback"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="CRC_ENGINE" uuid="ad9c648f-8108-4ced-baaa-7605dd8f925e" type="lpc_crc" type_id="lpc_crc_5f5f079056dd2a843b86fbb64c18c8cd" mode="general" peripheral="CRC_ENGINE" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="fsl_crc">
+                        <struct name="crc_config">
+                           <setting name="polynomial" value="kCRC_Polynomial_CRC_16"/>
+                           <setting name="reverseIn" value="true"/>
+                           <setting name="complementIn" value="false"/>
+                           <setting name="reverseOut" value="true"/>
+                           <setting name="complementOut" value="false"/>
+                           <setting name="seed" value="0xffff"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="PINT" uuid="1f1609af-57cc-4db3-854c-426638858204" type="pint" type_id="pint_cf4a806bb2a6c1ffced58ae2ed7b43af" mode="interrupt_mode" peripheral="PINT" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="general">
+                        <array name="interrupt_array">
+                           <struct name="0">
+                              <setting name="interrupt_id" value="INT_0"/>
+                              <setting name="interrupt_selection" value="PINT.0"/>
+                              <setting name="interrupt_type" value="kPINT_PinIntEnableRiseEdge"/>
+                              <setting name="callback_function" value="drv_level_detect_callback"/>
+                              <setting name="enable_callback" value="true"/>
+                              <struct name="interrupt">
+                                 <setting name="IRQn" value="PIN_INT0_IRQn"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
+                              </struct>
+                           </struct>
+                        </array>
+                     </config_set>
+                  </instance>
+                  <instance name="PINT_CLK" uuid="aeeb2dea-f8ec-421c-9c40-890254f3ee5a" type="pint" type_id="pint_cf4a806bb2a6c1ffced58ae2ed7b43af" mode="interrupt_mode" peripheral="PINT" enabled="true" comment="" custom_name_enabled="true" editing_lock="false">
+                     <config_set name="general">
+                        <array name="interrupt_array">
+                           <struct name="0">
+                              <setting name="interrupt_id" value="INT_1"/>
+                              <setting name="interrupt_selection" value="PINT.1"/>
+                              <setting name="interrupt_type" value="kPINT_PinIntEnableRiseEdge"/>
+                              <setting name="callback_function" value="drv_internalbus_clk_callback"/>
+                              <setting name="enable_callback" value="true"/>
+                              <struct name="interrupt">
+                                 <setting name="IRQn" value="PIN_INT1_IRQn"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
+                              </struct>
+                           </struct>
+                        </array>
+                     </config_set>
+                  </instance>
+                  <instance name="MRT0" uuid="3e6e60af-030d-4a8e-a9e0-3a5066422173" type="mrt" type_id="mrt_ec4ff9f008b2eee803e5f398b3b3325f" mode="general_config" peripheral="MRT0" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="fsl_mrt" quick_selection="default">
+                        <setting name="mrtOperationMode" value="HSM"/>
+                        <struct name="clockSettingMRT">
+                           <setting name="clockSource" value="BusInterfaceClock"/>
+                           <setting name="clockSourceFreq" value="ClocksTool_DefaultInit"/>
+                        </struct>
+                        <array name="mrtChannels"/>
+                        <struct name="interruptVector">
+                           <setting name="enableInterrupt" value="false"/>
+                           <struct name="interrupt">
+                              <setting name="IRQn" value="MRT0_IRQn"/>
+                              <setting name="enable_interrrupt" value="enabled"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
+                              <setting name="enable_custom_name" value="false"/>
+                           </struct>
+                        </struct>
+                     </config_set>
+                  </instance>
+               </instances>
+            </functional_group>
+         </functional_groups>
+         <components>
+            <component name="system" uuid="846dfc1d-342c-4af5-ae82-560f64861f45" type_id="system_54b53072540eeeb8f8e9343e71f28176">
+               <config_set_global name="global_system_definitions">
+                  <setting name="user_definitions" value=""/>
+                  <setting name="user_includes" value=""/>
+               </config_set_global>
+            </component>
+            <component name="uart_cmsis_common" uuid="24751cc3-315c-488f-8e0d-73ea37099646" type_id="uart_cmsis_common_9cb8e302497aa696fdbb5a4fd622c2a8">
+               <config_set_global name="global_USART_CMSIS_common" quick_selection="default"/>
+            </component>
+            <component name="gpio_adapter_common" uuid="eecd7ea7-ff41-4c3b-97ef-520c2989264e" type_id="gpio_adapter_common_57579b9ac814fe26bf95df0a384c36b6">
+               <config_set_global name="global_gpio_adapter_common" quick_selection="default"/>
+            </component>
+            <component name="msg" uuid="d3dee227-3169-4665-bc8d-585f5b6d4f40" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
+               <config_set_global name="global_messages"/>
+            </component>
+            <component name="generic_uart" uuid="ae314133-5184-4371-86ff-ed7dc2a53d1a" type_id="generic_uart_8cae00565451cf2346eb1b8c624e73a6">
+               <config_set_global name="global_uart"/>
+            </component>
+            <component name="generic_enet" uuid="206eaa5c-b340-4fa0-aeb8-3696f7e81c00" type_id="generic_enet_74db5c914f0ddbe47d86af40cb77a619">
+               <config_set_global name="global_enet"/>
+            </component>
+            <component name="generic_can" uuid="60e2be7e-77df-4475-8407-13a49a1555ff" type_id="generic_can_1bfdd78b1af214566c1f23cf6a582d80">
+               <config_set_global name="global_can"/>
+            </component>
+         </components>
+      </periphs>
+      <tee name="TEE" version="4.0" enabled="false" update_project_code="true">
+         <generated_project_files/>
+         <tee_profile>
+            <processor_version>N/A</processor_version>
+         </tee_profile>
+      </tee>
+   </tools>
+</configuration>
