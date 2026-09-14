@@ -448,6 +448,18 @@ status_t L02_Rs485Dma_CompleteReceive(l02_rs485_channel_t channel, size_t frameL
     status = L02_Rs485Dma_GetReceiveCount(channel, &receivedCount);
     if (status != kStatus_Success)
     {
+        /*
+         * DMA may fill the buffer between the L03 count check and this call.
+         * In that case the SDK handle is already idle and the ISR has published
+         * rxDmaFullPending, so it is safe to finalize the requested prefix.
+         */
+        if ((status == kStatus_NoTransferInProgress) &&
+            context->rxDmaFullPending &&
+            (frameLength <= context->rxCapacity))
+        {
+            L02_Rs485Dma_FinalizeReceive(context, frameLength);
+            return kStatus_Success;
+        }
         return status;
     }
     if (frameLength > receivedCount)
