@@ -103,18 +103,24 @@ int main(void) {
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
-    /* Initialize the PRINTF/SCANF debug console explicitly. */
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
+    /* FLEXCOMM0 is owned exclusively by the debug console in this build. */
     BOARD_InitDebugConsole();
+#endif
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
     {
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
         PRINTF("System Tick Setup Failed!\r\n");
+#endif
         while (1) {};
     }
 
 
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
     PRINTF("\r\nHello World\r\n");
+#endif
 
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;

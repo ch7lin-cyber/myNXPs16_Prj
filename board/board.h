@@ -10,24 +10,23 @@
  * @brief   Board initialization header file.
  */
 
-/* This is an empty template for board specific configuration.*/
-
 #ifndef _BOARD_H_
 #define _BOARD_H_
 
-/**
- * @brief	The board name
- */
+#include "ProductFeatureConfig.h"
+
 #define BOARD_NAME "board"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif /* __cplusplus */
 
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
 /**
- * @brief 	Initialize board specific settings.
+ * @brief Initialize FLEXCOMM0 for the NXP debug console.
  */
 void BOARD_InitDebugConsole(void);
+#endif
 
 #if defined(__cplusplus)
 }

@@ -12,6 +12,9 @@
 
 #include <stdint.h>
 #include "board.h"
+
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
+
 #include "fsl_clock.h"
 #include "fsl_debug_console.h"
 
@@ -32,3 +35,5 @@ void BOARD_InitDebugConsole(void)
                           kSerialPort_Uart,
                           uartClockFreq);
 }
+
+#endif /* PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE */
