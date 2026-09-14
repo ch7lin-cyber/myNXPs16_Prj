@@ -1,0 +1,4 @@
+[submodule "_Modules/PlatformCore"]
+	path = _Modules/PlatformCore
+	url = https://github.com/ch7lin-cyber/platForm.git
+	branch = branch1_systemPlatform
