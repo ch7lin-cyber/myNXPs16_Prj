@@ -44,20 +44,22 @@
 /* TODO: insert other definitions and declarations here. */
 
 
-void ctimer0_match0_callback(uint32_t flags);
-void ctimer1_match0_callback(uint32_t flags);
+//void ctimer0_match0_callback(uint32_t flags);
+//void ctimer1_match0_callback(uint32_t flags);
 void ctimer2_match3_callback(uint32_t flags);
 void ctimer3_match1_callback(uint32_t flags);
 
-void ctimer0_match0_callback(uint32_t flags)
+/*
+//void ctimer0_match0_callback(uint32_t flags)
 {
 
 }
 
-void ctimer1_match0_callback(uint32_t flags)
+//void ctimer1_match0_callback(uint32_t flags)
 {
 
 }
+*/
 
 void ctimer2_match3_callback(uint32_t flags)
 {
@@ -86,6 +88,13 @@ void drv_level_detect_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
 
 }
+volatile uint32_t g_systemTick100us = 0U;
+
+void SysTick_Handler(void)
+{
+    g_systemTick100us++;
+}
+
 
 /*
  * @brief   Application entry point.
