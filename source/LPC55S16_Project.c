@@ -43,6 +43,50 @@
 
 /* TODO: insert other definitions and declarations here. */
 
+
+void ctimer0_match0_callback(uint32_t flags);
+void ctimer1_match0_callback(uint32_t flags);
+void ctimer2_match3_callback(uint32_t flags);
+void ctimer3_match1_callback(uint32_t flags);
+
+void ctimer0_match0_callback(uint32_t flags)
+{
+
+}
+
+void ctimer1_match0_callback(uint32_t flags)
+{
+
+}
+
+void ctimer2_match3_callback(uint32_t flags)
+{
+
+}
+
+void ctimer3_match1_callback(uint32_t flags)
+{
+
+}
+
+void COMM_TMOut_callback(uint32_t flags);
+
+void COMM_TMOut_callback(uint32_t flags)
+{
+
+}
+
+
+void drv_internalbus_clk_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
+{
+
+}
+
+void drv_level_detect_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
+{
+
+}
+
 /*
  * @brief   Application entry point.
  */
@@ -57,6 +101,14 @@ int main(void) {
     BOARD_InitDebugConsole();
 #endif
 
+    // use 0.1ms as base tick
+    if (SysTick_Config(SystemCoreClock / 10000))
+    {
+        PRINTF("System Tick Setup Failed!\n");
+        while (1) {};
+    }
+
+
     PRINTF("Hello World\n");
 
     /* Force the counter to be placed into memory. */
@@ -67,6 +119,10 @@ int main(void) {
         /* 'Dummy' NOP to allow source level single stepping of
             tight while() loop */
         __asm volatile ("nop");
+
+
+        WWDT_Refresh(WWDT);
+
     }
     return 0 ;
 }
