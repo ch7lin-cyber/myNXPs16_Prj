@@ -41,6 +41,7 @@
 #include "fsl_debug_console.h"
 #include "l02_rs485_direction.h"
 #include "l02_rs485_dma.h"
+#include "l03_product_modbus.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -113,6 +114,7 @@ int main(void) {
     /* Keep every available RS-485 transceiver in receive mode at startup. */
     (void)L02_Rs485Direction_Init();
     (void)L02_Rs485Dma_Init();
+    (void)L03_ProductModbus_Init();
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
@@ -137,6 +139,7 @@ int main(void) {
          * requests the final post-TX delay and DIR switch back to receive.
          */
         L02_Rs485Dma_Process();
+        L03_ProductModbus_Process();
 
         i++ ;
         /* 'Dummy' NOP to allow source level single stepping of

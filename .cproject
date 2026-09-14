@@ -132,6 +132,9 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/source}&quot;"/>
 																	<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Config}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L02_BSP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L03_System}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
 </option>
@@ -339,6 +342,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L02_BSP"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L03_System"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
@@ -476,6 +480,9 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/source}&quot;"/>
 																	<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Config}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L02_BSP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L03_System}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
 </option>
@@ -679,6 +686,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L02_BSP"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L03_System"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
