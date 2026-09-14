@@ -39,6 +39,7 @@
 #include "clock_config.h"
 #include "LPC55S16.h"
 #include "fsl_debug_console.h"
+#include "l02_rs485_direction.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -107,6 +108,9 @@ int main(void) {
     /* FLEXCOMM0 is owned exclusively by the debug console in this build. */
     BOARD_InitDebugConsole();
 #endif
+
+    /* Keep every available RS-485 transceiver in receive mode at startup. */
+    (void)L02_Rs485Direction_Init();
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
