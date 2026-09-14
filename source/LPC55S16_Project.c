@@ -40,6 +40,7 @@
 #include "LPC55S16.h"
 #include "fsl_debug_console.h"
 #include "l02_rs485_direction.h"
+#include "l02_rs485_dma.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -111,6 +112,7 @@ int main(void) {
 
     /* Keep every available RS-485 transceiver in receive mode at startup. */
     (void)L02_Rs485Direction_Init();
+    (void)L02_Rs485Dma_Init();
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
@@ -130,6 +132,12 @@ int main(void) {
     volatile static int i = 0 ;
     /* Enter an infinite loop, just incrementing a counter. */
     while(1) {
+        /*
+         * Deferred RS-485 work runs outside IRQ context. A TXIDLE callback
+         * requests the final post-TX delay and DIR switch back to receive.
+         */
+        L02_Rs485Dma_Process();
+
         i++ ;
         /* 'Dummy' NOP to allow source level single stepping of
             tight while() loop */
