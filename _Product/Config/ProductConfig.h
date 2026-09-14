@@ -25,7 +25,13 @@
 #endif
 
 #ifndef PRODUCT_MODBUS_FC1_FRAME_TIMEOUT_US
+#if (PRODUCT_MODBUS_FC1_PROTOCOL == PRODUCT_MODBUS_PROTOCOL_ASCII)
+/* ASCII ends at CRLF; this is only the maximum inter-character guard time. */
+#define PRODUCT_MODBUS_FC1_FRAME_TIMEOUT_US (1000000U)
+#else
+/* Modbus Serial Line recommendation above 19200 baud. */
 #define PRODUCT_MODBUS_FC1_FRAME_TIMEOUT_US (1750U)
+#endif
 #endif
 
 #if ((PRODUCT_MODBUS_FC1_ENABLE != 0U) && (PRODUCT_MODBUS_FC1_ENABLE != 1U))

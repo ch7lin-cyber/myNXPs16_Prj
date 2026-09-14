@@ -53,6 +53,22 @@ status_t L02_Rs485Dma_SetReceiveTimeoutUs(l02_rs485_channel_t channel, uint32_t 
 status_t L02_Rs485Dma_StartReceive(l02_rs485_channel_t channel, uint8_t *buffer, size_t capacity);
 
 /*!
+ * @brief Read the current DMA byte count without stopping reception.
+ *
+ * Returns kStatus_NoTransferInProgress when RX is not active.
+ */
+status_t L02_Rs485Dma_GetReceiveCount(l02_rs485_channel_t channel, size_t *count);
+
+/*!
+ * @brief Stop active DMA and publish the requested leading bytes as one frame.
+ *
+ * This supports delimiter-based protocols such as Modbus ASCII. Any bytes
+ * already received after frameLength are discarded; a Modbus master must wait
+ * for the slave response before sending its next request.
+ */
+status_t L02_Rs485Dma_CompleteReceive(l02_rs485_channel_t channel, size_t frameLength);
+
+/*!
  * @brief Take the completed frame length and release the channel for a new RX.
  *
  * The received bytes are already in the buffer supplied to StartReceive().

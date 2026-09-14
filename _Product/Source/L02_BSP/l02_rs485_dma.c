@@ -387,6 +387,81 @@ status_t L02_Rs485Dma_StartReceive(l02_rs485_channel_t channel, uint8_t *buffer,
     return status;
 }
 
+status_t L02_Rs485Dma_GetReceiveCount(l02_rs485_channel_t channel, size_t *count)
+{
+    l02_rs485_dma_context_t *context;
+    const l02_rs485_dma_hardware_t *hardware;
+    uint32_t receivedCount;
+    status_t status;
+
+    if ((count == NULL) || !L02_Rs485Dma_IsChannelIndexValid(channel))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    context = &s_rs485DmaContext[(uint32_t)channel];
+    hardware = &s_rs485DmaHardware[(uint32_t)channel];
+    if (!context->initialized)
+    {
+        return kStatus_InvalidArgument;
+    }
+    if (context->rxState != kL02_Rs485DmaRxActive)
+    {
+        return kStatus_NoTransferInProgress;
+    }
+
+    status = USART_TransferGetReceiveCountDMA(
+        hardware->usart,
+        hardware->usartDmaHandle,
+        &receivedCount);
+    if (status == kStatus_Success)
+    {
+        *count = (size_t)receivedCount;
+    }
+
+    return status;
+}
+
+status_t L02_Rs485Dma_CompleteReceive(l02_rs485_channel_t channel, size_t frameLength)
+{
+    l02_rs485_dma_context_t *context;
+    const l02_rs485_dma_hardware_t *hardware;
+    size_t receivedCount;
+    status_t status;
+
+    if ((frameLength == 0U) || !L02_Rs485Dma_IsChannelIndexValid(channel))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    context = &s_rs485DmaContext[(uint32_t)channel];
+    hardware = &s_rs485DmaHardware[(uint32_t)channel];
+    if (!context->initialized)
+    {
+        return kStatus_InvalidArgument;
+    }
+    if (context->rxState != kL02_Rs485DmaRxActive)
+    {
+        return kStatus_NoTransferInProgress;
+    }
+
+    status = L02_Rs485Dma_GetReceiveCount(channel, &receivedCount);
+    if (status != kStatus_Success)
+    {
+        return status;
+    }
+    if (frameLength > receivedCount)
+    {
+        return kStatus_OutOfRange;
+    }
+
+    USART_EnableRxDMA(hardware->usart, false);
+    USART_TransferAbortReceiveDMA(hardware->usart, hardware->usartDmaHandle);
+    L02_Rs485Dma_FinalizeReceive(context, frameLength);
+
+    return kStatus_Success;
+}
+
 status_t L02_Rs485Dma_TakeReceivedFrame(l02_rs485_channel_t channel, size_t *length)
 {
     l02_rs485_dma_context_t *context;

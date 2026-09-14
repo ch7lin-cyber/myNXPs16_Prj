@@ -31,6 +31,7 @@ typedef struct _l03_product_modbus_context
     l03_product_modbus_statistics_t statistics;
     uint8_t rxBuffer[MODBUS_ASCII_MAX_ADU_LENGTH];
     uint8_t txBuffer[MODBUS_ASCII_MAX_ADU_LENGTH];
+    size_t rxScannedLength;
     bool initialized;
 } l03_product_modbus_context_t;
 
@@ -53,6 +54,7 @@ static status_t L03_ProductModbus_StartReceive(void)
         L03_ProductModbus_GetRxCapacity());
     if (status == kStatus_Success)
     {
+        s_productModbus.rxScannedLength = 0U;
         s_productModbus.state = kL03_ProductModbusReceiving;
     }
     else
@@ -62,6 +64,49 @@ static status_t L03_ProductModbus_StartReceive(void)
     }
 
     return status;
+}
+
+static status_t L03_ProductModbus_DetectAsciiEnd(void)
+{
+    size_t receivedCount;
+    size_t index;
+    status_t status;
+
+    if (s_productModbus.protocol != SERIAL_PROTOCOL_MODBUS_ASCII)
+    {
+        return kStatus_Success;
+    }
+
+    status = L02_Rs485Dma_GetReceiveCount(
+        kL02_Rs485Channel1,
+        &receivedCount);
+    if (status == kStatus_NoTransferInProgress)
+    {
+        /* L02 may already have completed the buffer or timeout frame. */
+        return kStatus_Success;
+    }
+    if (status != kStatus_Success)
+    {
+        return status;
+    }
+
+    for (index = s_productModbus.rxScannedLength;
+         index < receivedCount;
+         index++)
+    {
+        if ((index != 0U) &&
+            (s_productModbus.rxBuffer[index - 1U] == MODBUS_ASCII_CR_CHARACTER) &&
+            (s_productModbus.rxBuffer[index] == MODBUS_ASCII_LF_CHARACTER))
+        {
+            s_productModbus.rxScannedLength = index + 1U;
+            return L02_Rs485Dma_CompleteReceive(
+                kL02_Rs485Channel1,
+                index + 1U);
+        }
+    }
+
+    s_productModbus.rxScannedLength = receivedCount;
+    return kStatus_Success;
 }
 
 static ModbusSlaveResult_t L03_ProductModbus_ProcessFrame(
@@ -166,6 +211,15 @@ void L03_ProductModbus_Process(void)
 
     if (s_productModbus.state == kL03_ProductModbusReceiving)
     {
+        status = L03_ProductModbus_DetectAsciiEnd();
+        if (status != kStatus_Success)
+        {
+            s_productModbus.statistics.transportErrors++;
+            (void)L02_Rs485Dma_CancelReceive(kL02_Rs485Channel1);
+            s_productModbus.state = kL03_ProductModbusStopped;
+            return;
+        }
+
         status = L02_Rs485Dma_TakeReceivedFrame(
             kL02_Rs485Channel1,
             &rxLength);
