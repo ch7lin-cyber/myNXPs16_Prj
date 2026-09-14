@@ -2,6 +2,7 @@
 ** ###################################################################
 **     Processors:          LPC55S16JBD100
 **                          LPC55S16JBD64
+**                          LPC55S16JEV59
 **                          LPC55S16JEV98
 **
 **     Compilers:           GNU C Compiler
@@ -18,7 +19,6 @@
 **
 **     Copyright 1997-2016 Freescale Semiconductor, Inc.
 **     Copyright 2016-2021 NXP
-**     All rights reserved.
 **
 **     SPDX-License-Identifier: BSD-3-Clause
 **
@@ -6715,8 +6715,14 @@ typedef struct {
  */
 #define CDOG_STATUS_NUMILSEQF(x)                 (((uint32_t)(((uint32_t)(x)) << CDOG_STATUS_NUMILSEQF_SHIFT)) & CDOG_STATUS_NUMILSEQF_MASK)
 
-#define CDOG_STATUS_CURST_MASK                   (0xF000000U)
-#define CDOG_STATUS_CURST_SHIFT                  (24U)
+#define CDOG_STATUS_uN_iMps_MASK                 (0xF000000U)
+#define CDOG_STATUS_uN_iMps_SHIFT                (24U)
+/*! uN_iMps - Un implemented
+ */
+#define CDOG_STATUS_uN_iMps(x)                   (((uint32_t)(((uint32_t)(x)) << CDOG_STATUS_uN_iMps_SHIFT)) & CDOG_STATUS_uN_iMps_MASK)
+
+#define CDOG_STATUS_CURST_MASK                   (0xF0000000U)
+#define CDOG_STATUS_CURST_SHIFT                  (28U)
 /*! CURST - Current State
  */
 #define CDOG_STATUS_CURST(x)                     (((uint32_t)(((uint32_t)(x)) << CDOG_STATUS_CURST_SHIFT)) & CDOG_STATUS_CURST_MASK)
@@ -7717,6 +7723,10 @@ typedef struct {
 #endif
 /** Interrupt vectors for the CTIMER peripheral type */
 #define CTIMER_IRQS                              { CTIMER0_IRQn, CTIMER1_IRQn, CTIMER2_IRQn, CTIMER3_IRQn, CTIMER4_IRQn }
+/* Backward compatibility for bitfield SHADOW */
+#define CTIMER_MSR_MATCH_SHADOW_MASK   CTIMER_MSR_SHADOW_MASK
+#define CTIMER_MSR_MATCH_SHADOW_SHIFT   CTIMER_MSR_SHADOW_SHIFT
+#define CTIMER_MSR_MATCH_SHADOW   CTIMER_MSR_SHADOW
 
 /*!
  * @}
@@ -17831,7 +17841,7 @@ typedef struct {
   __IO uint32_t MISCCTRL;                          /**< Dummy Control bus to PMU [Reset by: PoR, Pin Reset, Brown Out Detectors Reset, Deep Power Down Reset, Software Reset], offset: 0x90 */
        uint8_t RESERVED_10[4];
   __IO uint32_t RTCOSC32K;                         /**< RTC 1 KHZ and 1 Hz clocks source control register [Reset by: PoR, Brown Out Detectors Reset], offset: 0x98 */
-  __IO uint32_t OSTIMERr;                          /**< OS Timer control register [Reset by: PoR, Brown Out Detectors Reset], offset: 0x9C */
+    __IO uint32_t OSTIMERr;                          /**< OS Timer control register [Reset by: PoR, Brown Out Detectors Reset], offset: 0x9C */
        uint8_t RESERVED_11[24];
   __IO uint32_t PDRUNCFG0;                         /**< Controls the power to various analog blocks [Reset by: PoR, Pin Reset, Brown Out Detectors Reset, Deep Power Down Reset, Software Reset], offset: 0xB8 */
        uint8_t RESERVED_12[4];
@@ -31026,7 +31036,7 @@ typedef struct {
   __IO uint32_t USB1_VBUS_DETECT_TOG;              /**< USB PHY VBUS Detect Control Register, offset: 0xCC */
   __I  uint32_t USB1_VBUS_DET_STAT;                /**< USB PHY VBUS Detector Status Register, offset: 0xD0 */
        uint8_t RESERVED_2[44];
-  __IO uint32_t ANACTRLr;                          /**< USB PHY Analog Control Register, offset: 0x100 */
+  __IO uint32_t ANACTRLr;                          /**< USB PHY Analog Control Register, offset: 0x100, 'r' suffix has been added to avoid a clash with peripheral base pointer macro 'ANACTRL' */
   __IO uint32_t ANACTRL_SET;                       /**< USB PHY Analog Control Register, offset: 0x104 */
   __IO uint32_t ANACTRL_CLR;                       /**< USB PHY Analog Control Register, offset: 0x108 */
   __IO uint32_t ANACTRL_TOG;                       /**< USB PHY Analog Control Register, offset: 0x10C */
