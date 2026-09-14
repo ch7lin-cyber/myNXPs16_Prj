@@ -10,15 +10,25 @@
  * @brief   Board initialization file.
  */
 
-/* This is an empty template for board specific configuration.*/
-
 #include <stdint.h>
 #include "board.h"
+#include "fsl_clock.h"
+#include "fsl_debug_console.h"
+
+#define BOARD_DEBUG_CONSOLE_INSTANCE (0U)
+#define BOARD_DEBUG_CONSOLE_BAUDRATE (115200U)
 
 /**
- * @brief Set up and initialize all required blocks and functions related to the board hardware.
+ * @brief Initialize the FLEXCOMM0 UART debug console.
  */
 void BOARD_InitDebugConsole(void)
 {
-    /* The user initialization should be placed here */
+    uint32_t uartClockFreq;
+
+    uartClockFreq = CLOCK_GetFlexCommClkFreq(BOARD_DEBUG_CONSOLE_INSTANCE);
+
+    (void)DbgConsole_Init(BOARD_DEBUG_CONSOLE_INSTANCE,
+                          BOARD_DEBUG_CONSOLE_BAUDRATE,
+                          kSerialPort_Uart,
+                          uartClockFreq);
 }
