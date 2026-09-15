@@ -132,7 +132,7 @@ int main(void) {
 
 
 #if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-    PRINTF("\r\nHello World\r\n");
+    PRINTF("\r\nHello World my S16 test \r\n");
 #endif
 
     /* Force the counter to be placed into memory. */
