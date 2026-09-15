@@ -46,12 +46,12 @@
 
 /* TODO: insert other definitions and declarations here. */
 
-void ctimer0_match0_callback(uint32_t flags);
-void ctimer1_match0_callback(uint32_t flags);
+//void ctimer0_match0_callback(uint32_t flags);
+//void ctimer1_match0_callback(uint32_t flags);
 void ctimer2_match3_callback(uint32_t flags);
 void ctimer3_match1_callback(uint32_t flags);
 void COMM_TMOut_callback(uint32_t flags);
-
+/*
 void ctimer0_match0_callback(uint32_t flags)
 {
     (void)flags;
@@ -61,7 +61,7 @@ void ctimer1_match0_callback(uint32_t flags)
 {
     (void)flags;
 }
-
+*/
 void ctimer2_match3_callback(uint32_t flags)
 {
     (void)flags;
