@@ -42,6 +42,7 @@
 #include "l02_rs485_direction.h"
 #include "l02_rs485_dma.h"
 #include "l03_product_modbus.h"
+#include "product_application.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -120,6 +121,13 @@ int main(void) {
     (void)L02_Rs485Direction_Init();
     (void)L02_Rs485Dma_Init();
     (void)L03_ProductModbus_Init();
+    if (!ProductApplication_Init())
+    {
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
+        PRINTF("Product application initialization failed!\r\n");
+#endif
+        while (1) {};
+    }
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
@@ -145,6 +153,7 @@ int main(void) {
          */
         L02_Rs485Dma_Process();
         L03_ProductModbus_Process();
+        ProductApplication_Process();
 
         i++ ;
         /* 'Dummy' NOP to allow source level single stepping of
