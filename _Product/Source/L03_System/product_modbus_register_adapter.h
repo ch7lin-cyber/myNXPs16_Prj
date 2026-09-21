@@ -54,6 +54,10 @@ bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(
 void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
     product_temperature_input_config_t *config);
 
+/* Revision increases after each effective Apply that publishes an event. */
+uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
+    void);
+
 /* Query and read values staged by FC06/FC10 but not applied yet. */
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void);
 void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(

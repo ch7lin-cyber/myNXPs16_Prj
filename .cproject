@@ -137,6 +137,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService}&quot;"/>
 </option>
 								<option id="gnu.c.compiler.option.include.files.198073405" name="Include files (-include)" superClass="gnu.c.compiler.option.include.files" useByScannerDiscovery="false"/>
 								<option id="com.crt.advproject.gcc.exe.debug.option.optimization.level.592239516" name="Optimization Level" superClass="com.crt.advproject.gcc.exe.debug.option.optimization.level" useByScannerDiscovery="true"/>
@@ -345,6 +346,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L03_System"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
 					</sourceEntries>
 				</configuration>
@@ -485,6 +487,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService}&quot;"/>
 </option>
 								<option id="gnu.c.compiler.option.include.files.210098015" name="Include files (-include)" superClass="gnu.c.compiler.option.include.files" useByScannerDiscovery="false"/>
 								<option id="gnu.c.compiler.option.optimization.flags.1295978661" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-fno-common" valueType="string"/>
@@ -689,6 +692,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L03_System"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
 					</sourceEntries>
 				</configuration>

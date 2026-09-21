@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "EventService.h"
 #include "product_modbus_register_adapter.h"
 
 static void TestDefaultRegisterImage(void)
@@ -53,6 +54,7 @@ static void TestWritableConfiguration(void)
     const uint16_t sensorAndLinearization[2] = {95U, 48U};
     const uint16_t invalidSensorAndLinearization[2] = {96U, 48U};
     const uint16_t applyKey[1] = {PRODUCT_MODBUS_APPLY_KEY_VALUE};
+    TemperatureInputConfigurationChangedEvent_t event;
 
     ProductModbusRegisterAdapter_GetInterface(&interface);
     ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
@@ -105,10 +107,90 @@ static void TestWritableConfiguration(void)
     assert(activeConfig.filterTimeConstantSeconds == 2.0F);
     assert(activeConfig.sensorType == 95U);
     assert(activeConfig.tcLinearization == 48U);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision() ==
+           1U);
+    assert(EventService_GetTemperatureInputConfigurationChanged(0U, &event));
+    assert(event.configuration_revision == 1U);
+    assert(event.changed_mask == EVENT_TEMPERATURE_INPUT_CHANGE_ALL);
+    assert(event.old_configuration.filter_time_constant_seconds == 0.5F);
+    assert(event.old_configuration.sensor_type == 62U);
+    assert(event.old_configuration.tc_linearization == 46U);
+    assert(event.new_configuration.filter_time_constant_seconds == 2.0F);
+    assert(event.new_configuration.sensor_type == 95U);
+    assert(event.new_configuration.tc_linearization == 48U);
+    assert(EventService_Acknowledge(
+        event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+    assert(!EventService_IsTemperatureInputConfigurationChangedPending(0U));
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
                PRODUCT_MODBUS_APPLY_KEY_VALUE) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+}
+
+static void TestEventBlocksApplyUntilAcknowledged(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_temperature_input_config_t activeConfig;
+    TemperatureInputConfigurationChangedEvent_t event;
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS, 62U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(EventService_GetTemperatureInputConfigurationChanged(0U, &event));
+    assert(event.changed_mask == EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE);
+    assert(event.configuration_revision == 2U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS, 95U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_APPLY_KEY_VALUE) ==
+           MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&activeConfig);
+    assert(activeConfig.sensorType == 62U);
+    assert(ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig());
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision() ==
+           2U);
+
+    assert(EventService_Acknowledge(
+        event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&activeConfig);
+    assert(activeConfig.sensorType == 95U);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision() ==
+           3U);
+    assert(EventService_GetTemperatureInputConfigurationChanged(0U, &event));
+    assert(EventService_Acknowledge(
+        event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+}
+
+static void TestApplyWithoutEffectiveChangeDoesNotRaiseEvent(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t revision;
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
+    revision =
+        ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision();
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS, 95U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision() ==
+           revision);
+    assert(!EventService_IsTemperatureInputConfigurationChangedPending(0U));
 }
 
 static void TestSingleWriteIsPending(void)
@@ -157,6 +239,8 @@ int main(void)
     TestMonitorAndReadOnlyRegisters();
     TestSingleWriteIsPending();
     TestWritableConfiguration();
+    TestEventBlocksApplyUntilAcknowledged();
+    TestApplyWithoutEffectiveChangeDoesNotRaiseEvent();
     TestInvalidRanges();
     return 0;
 }

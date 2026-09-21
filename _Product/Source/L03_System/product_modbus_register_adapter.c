@@ -5,6 +5,8 @@
 
 #include "product_modbus_register_adapter.h"
 
+#include "EventService.h"
+
 #include <stddef.h>
 #include <string.h>
 
@@ -31,11 +33,14 @@
 #define PRODUCT_TC_LINEARIZATION_S                 (84U)
 #define PRODUCT_TC_LINEARIZATION_T                 (93U)
 
+#define PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL    (0U)
+
 typedef struct _product_modbus_register_context
 {
     product_temperature_input_monitor_t monitor;
     product_temperature_input_config_t activeConfig;
     product_temperature_input_config_t pendingConfig;
+    uint16_t configurationRevision;
     bool pendingDirty;
 } product_modbus_register_context_t;
 
@@ -44,6 +49,7 @@ static product_modbus_register_context_t s_registerContext =
     {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
     {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
     {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
+    0U,
     false
 };
 
@@ -165,6 +171,13 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
     product_modbus_register_context_t *registerContext,
     uint16_t applyKey)
 {
+    product_temperature_input_config_t oldConfig;
+    EventTemperatureInputConfiguration_t oldEventConfig;
+    EventTemperatureInputConfiguration_t newEventConfig;
+    uint32_t changedMask = 0U;
+    uint16_t oldRevision;
+    uint16_t newRevision;
+
     if (applyKey != PRODUCT_MODBUS_APPLY_KEY_VALUE)
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
@@ -175,7 +188,68 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
         return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
     }
 
+    if (registerContext->activeConfig.filterTimeConstantSeconds !=
+        registerContext->pendingConfig.filterTimeConstantSeconds)
+    {
+        changedMask |=
+            EVENT_TEMPERATURE_INPUT_CHANGE_FILTER_TIME_CONSTANT;
+    }
+    if (registerContext->activeConfig.sensorType !=
+        registerContext->pendingConfig.sensorType)
+    {
+        changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE;
+    }
+    if (registerContext->activeConfig.tcLinearization !=
+        registerContext->pendingConfig.tcLinearization)
+    {
+        changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_TC_LINEARIZATION;
+    }
+
+    if (changedMask == 0U)
+    {
+        registerContext->pendingDirty = false;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (EventService_IsTemperatureInputConfigurationChangedPending(
+            PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL))
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    oldConfig = registerContext->activeConfig;
+    oldRevision = registerContext->configurationRevision;
+    oldEventConfig.filter_time_constant_seconds =
+        oldConfig.filterTimeConstantSeconds;
+    oldEventConfig.sensor_type = oldConfig.sensorType;
+    oldEventConfig.tc_linearization = oldConfig.tcLinearization;
+    newEventConfig.filter_time_constant_seconds =
+        registerContext->pendingConfig.filterTimeConstantSeconds;
+    newEventConfig.sensor_type = registerContext->pendingConfig.sensorType;
+    newEventConfig.tc_linearization =
+        registerContext->pendingConfig.tcLinearization;
+
+    newRevision = (uint16_t)(oldRevision + 1U);
+    if (newRevision == 0U)
+    {
+        newRevision = 1U;
+    }
+
     registerContext->activeConfig = registerContext->pendingConfig;
+    registerContext->configurationRevision = newRevision;
+    if (!EventService_RaiseTemperatureInputConfigurationChanged(
+            PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL,
+            newRevision,
+            changedMask,
+            &oldEventConfig,
+            &newEventConfig,
+            NULL))
+    {
+        registerContext->activeConfig = oldConfig;
+        registerContext->configurationRevision = oldRevision;
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
     registerContext->pendingDirty = false;
     return MODBUS_EXCEPTION_NONE;
 }
@@ -329,6 +403,12 @@ void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
     {
         *config = s_registerContext.activeConfig;
     }
+}
+
+uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
+    void)
+{
+    return s_registerContext.configurationRevision;
 }
 
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void)
