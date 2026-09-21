@@ -128,6 +128,8 @@ static void BuildRegisterImage(
                      &registers[5], &registers[6]);
     registers[7] = registerContext->activeConfig.sensorType;
     registers[8] = registerContext->activeConfig.tcLinearization;
+    /* The command key is never echoed back through the register image. */
+    registers[9] = 0U;
 }
 
 static ModbusExceptionCode_t ReadRegisters(
@@ -138,7 +140,7 @@ static ModbusExceptionCode_t ReadRegisters(
 {
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
-    uint16_t registerImage[9];
+    uint16_t registerImage[10];
     uint16_t sourceOffset;
 
     if ((registerContext == NULL) || (values == NULL))
@@ -156,6 +158,25 @@ static ModbusExceptionCode_t ReadRegisters(
                              PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS);
     (void)memcpy(values, &registerImage[sourceOffset],
                  (size_t)quantity * sizeof(values[0]));
+    return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t ApplyPendingConfiguration(
+    product_modbus_register_context_t *registerContext,
+    uint16_t applyKey)
+{
+    if (applyKey != PRODUCT_MODBUS_APPLY_KEY_VALUE)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    if (!registerContext->pendingDirty)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    registerContext->activeConfig = registerContext->pendingConfig;
+    registerContext->pendingDirty = false;
     return MODBUS_EXCEPTION_NONE;
 }
 
@@ -192,6 +213,11 @@ static ModbusExceptionCode_t WriteSingleRegister(
         registerContext->pendingConfig.tcLinearization = value;
         registerContext->pendingDirty = true;
         return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (address == PRODUCT_MODBUS_APPLY_KEY_ADDRESS)
+    {
+        return ApplyPendingConfiguration(registerContext, value);
     }
 
     return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
@@ -253,6 +279,11 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         }
         pendingConfig.sensorType = values[0];
         pendingConfig.tcLinearization = values[1];
+    }
+    else if ((starting_address == PRODUCT_MODBUS_APPLY_KEY_ADDRESS) &&
+             (quantity == 1U))
+    {
+        return ApplyPendingConfiguration(registerContext, values[0]);
     }
     else
     {

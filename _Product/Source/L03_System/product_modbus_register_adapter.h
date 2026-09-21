@@ -24,7 +24,9 @@ extern "C" {
 #define PRODUCT_MODBUS_FILTERED_PV_ADDRESS                   (0x1005U)
 #define PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS                   (0x1007U)
 #define PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS              (0x1008U)
-#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1008U)
+#define PRODUCT_MODBUS_APPLY_KEY_ADDRESS                     (0x1009U)
+#define PRODUCT_MODBUS_APPLY_KEY_VALUE                       (0xA5A5U)
+#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1009U)
 
 typedef struct _product_temperature_input_monitor
 {

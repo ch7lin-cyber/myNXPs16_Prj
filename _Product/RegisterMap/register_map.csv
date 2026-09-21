@@ -5,3 +5,4 @@ Index,STD_BusClassID,STD_BusInstanceID,STD_BusMemberID,ClassName,Module,MemberNa
 4,57,1,4,"Temperature Input",1,"Filtered Process Value","Engineering value after the configured input filter.","-99999.0 to 99999.0",,"IEEE Float32","R","Holding Register","0x1005",2,"High Word First"
 5,57,1,5,"Temperature Input",1,"Sensor Type","Select the sensor input family.","Off (62); Thermocouple (95); RTD 100 Ohm (113); RTD 1000 Ohm (114)","Off (62)","Enumeration16","R/W","Holding Register","0x1007",1,"N/A"
 6,57,1,6,"Temperature Input",1,"TC Linearization","Select thermocouple linearization when Sensor Type is Thermocouple.","B (11); C (15); D (23); E (26); J (46); K (48); N (58); R (80); S (84); T (93)","J (46)","Enumeration16","R/W","Holding Register","0x1008",1,"N/A"
+7,57,1,7,"Temperature Input",1,"Apply Key","Write 0xA5A5 to atomically promote all valid Pending values to Active. Read returns zero.","0xA5A5",,"Unsigned16","W","Holding Register","0x1009",1,"N/A"
