@@ -45,12 +45,16 @@ static void TestMonitorAndReadOnlyRegisters(void)
 static void TestWritableConfiguration(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    product_temperature_input_config_t config;
+    product_temperature_input_config_t activeConfig;
+    product_temperature_input_config_t pendingConfig;
+    uint16_t activeRegisters[6];
     const uint16_t filterTwoSeconds[2] = {0x4000U, 0x0000U};
     const uint16_t sensorAndLinearization[2] = {95U, 48U};
     const uint16_t invalidSensorAndLinearization[2] = {96U, 48U};
 
     ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
+    assert(!ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig());
     assert(interface.write_multiple_registers(
                interface.context, 0x1003U,
                filterTwoSeconds, 2U) == MODBUS_EXCEPTION_NONE);
@@ -58,18 +62,64 @@ static void TestWritableConfiguration(void)
                interface.context, 0x1007U,
                sensorAndLinearization, 2U) == MODBUS_EXCEPTION_NONE);
 
-    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&config);
-    assert(config.filterTimeConstantSeconds == 2.0F);
-    assert(config.sensorType == 95U);
-    assert(config.tcLinearization == 48U);
+    assert(ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig());
+    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&activeConfig);
+    ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+        &pendingConfig);
+    assert(activeConfig.filterTimeConstantSeconds == 0.5F);
+    assert(activeConfig.sensorType == 62U);
+    assert(activeConfig.tcLinearization == 46U);
+    assert(pendingConfig.filterTimeConstantSeconds == 2.0F);
+    assert(pendingConfig.sensorType == 95U);
+    assert(pendingConfig.tcLinearization == 48U);
+
+    assert(interface.read_holding_registers(
+               interface.context, 0x1003U, 6U, activeRegisters) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(activeRegisters[0] == 0x3F00U);
+    assert(activeRegisters[1] == 0x0000U);
+    assert(activeRegisters[4] == 62U);
+    assert(activeRegisters[5] == 46U);
 
     assert(interface.write_multiple_registers(
                interface.context, 0x1007U,
                invalidSensorAndLinearization, 2U) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&config);
-    assert(config.sensorType == 95U);
-    assert(config.tcLinearization == 48U);
+    ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+        &pendingConfig);
+    assert(pendingConfig.sensorType == 95U);
+    assert(pendingConfig.tcLinearization == 48U);
+
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
+    assert(!ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig());
+    ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+        &pendingConfig);
+    assert(pendingConfig.filterTimeConstantSeconds == 0.5F);
+    assert(pendingConfig.sensorType == 62U);
+    assert(pendingConfig.tcLinearization == 46U);
+}
+
+static void TestSingleWriteIsPending(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_temperature_input_config_t activeConfig;
+    product_temperature_input_config_t pendingConfig;
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
+
+    assert(interface.write_single_register(
+               interface.context, 0x1007U, 95U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig());
+
+    ProductModbusRegisterAdapter_GetTemperatureInputConfig(&activeConfig);
+    ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+        &pendingConfig);
+    assert(activeConfig.sensorType == 62U);
+    assert(pendingConfig.sensorType == 95U);
+
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig();
 }
 
 static void TestInvalidRanges(void)
@@ -94,6 +144,7 @@ int main(void)
     TestDefaultRegisterImage();
     TestMonitorAndReadOnlyRegisters();
     TestWritableConfiguration();
+    TestSingleWriteIsPending();
     TestInvalidRanges();
     return 0;
 }

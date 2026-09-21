@@ -34,13 +34,17 @@
 typedef struct _product_modbus_register_context
 {
     product_temperature_input_monitor_t monitor;
-    product_temperature_input_config_t config;
+    product_temperature_input_config_t activeConfig;
+    product_temperature_input_config_t pendingConfig;
+    bool pendingDirty;
 } product_modbus_register_context_t;
 
 static product_modbus_register_context_t s_registerContext =
 {
     {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
-    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J}
+    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
+    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
+    false
 };
 
 static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
@@ -118,12 +122,12 @@ static void BuildRegisterImage(
     FloatToRegisters(registerContext->monitor.unfilteredProcessValue,
                      &registers[0], &registers[1]);
     registers[2] = registerContext->monitor.inputError;
-    FloatToRegisters(registerContext->config.filterTimeConstantSeconds,
+    FloatToRegisters(registerContext->activeConfig.filterTimeConstantSeconds,
                      &registers[3], &registers[4]);
     FloatToRegisters(registerContext->monitor.filteredProcessValue,
                      &registers[5], &registers[6]);
-    registers[7] = registerContext->config.sensorType;
-    registers[8] = registerContext->config.tcLinearization;
+    registers[7] = registerContext->activeConfig.sensorType;
+    registers[8] = registerContext->activeConfig.tcLinearization;
 }
 
 static ModbusExceptionCode_t ReadRegisters(
@@ -174,7 +178,8 @@ static ModbusExceptionCode_t WriteSingleRegister(
         {
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
-        registerContext->config.sensorType = value;
+        registerContext->pendingConfig.sensorType = value;
+        registerContext->pendingDirty = true;
         return MODBUS_EXCEPTION_NONE;
     }
 
@@ -184,7 +189,8 @@ static ModbusExceptionCode_t WriteSingleRegister(
         {
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
-        registerContext->config.tcLinearization = value;
+        registerContext->pendingConfig.tcLinearization = value;
+        registerContext->pendingDirty = true;
         return MODBUS_EXCEPTION_NONE;
     }
 
@@ -207,7 +213,7 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
-    pendingConfig = registerContext->config;
+    pendingConfig = registerContext->pendingConfig;
 
     if ((starting_address == PRODUCT_MODBUS_FILTER_TIME_CONSTANT_ADDRESS) &&
         (quantity == 2U))
@@ -253,7 +259,8 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
 
-    registerContext->config = pendingConfig;
+    registerContext->pendingConfig = pendingConfig;
+    registerContext->pendingDirty = true;
     return MODBUS_EXCEPTION_NONE;
 }
 
@@ -289,6 +296,26 @@ void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
 {
     if (config != NULL)
     {
-        *config = s_registerContext.config;
+        *config = s_registerContext.activeConfig;
     }
+}
+
+bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void)
+{
+    return s_registerContext.pendingDirty;
+}
+
+void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+    product_temperature_input_config_t *config)
+{
+    if (config != NULL)
+    {
+        *config = s_registerContext.pendingConfig;
+    }
+}
+
+void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void)
+{
+    s_registerContext.pendingConfig = s_registerContext.activeConfig;
+    s_registerContext.pendingDirty = false;
 }

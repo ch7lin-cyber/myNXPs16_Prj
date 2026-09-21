@@ -48,9 +48,17 @@ void ProductModbusRegisterAdapter_GetInterface(
 bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(
     const product_temperature_input_monitor_t *monitor);
 
-/* Read the currently applied writable configuration. */
+/* Read the Active configuration currently used by the product. */
 void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
     product_temperature_input_config_t *config);
+
+/* Query and read values staged by FC06/FC10 but not applied yet. */
+bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void);
+void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+    product_temperature_input_config_t *config);
+
+/* Cancel all staged writes and restore Pending from Active. */
+void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void);
 
 #ifdef __cplusplus
 }
