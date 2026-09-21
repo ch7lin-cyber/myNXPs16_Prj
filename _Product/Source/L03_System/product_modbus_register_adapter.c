@@ -396,6 +396,24 @@ uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
     return s_registerContext.configurationRevision;
 }
 
+bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfig(
+    const product_temperature_input_config_t *config,
+    uint16_t configuration_revision)
+{
+    if ((config == NULL) || (configuration_revision == 0U) ||
+        !IsFilterTimeConstantValid(config->filterTimeConstantSeconds) ||
+        !IsSensorTypeValid(config->sensorType) ||
+        !IsTcLinearizationValid(config->tcLinearization))
+    {
+        return false;
+    }
+    s_registerContext.activeConfig = *config;
+    s_registerContext.pendingConfig = *config;
+    s_registerContext.configurationRevision = configuration_revision;
+    s_registerContext.pendingDirty = false;
+    return true;
+}
+
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void)
 {
     return s_registerContext.pendingDirty;

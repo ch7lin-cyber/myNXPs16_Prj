@@ -44,6 +44,7 @@
 #include "l03_product_modbus.h"
 #include "product_application.h"
 #include "product_pwm_driver.h"
+#include "product_nvm_driver.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -136,6 +137,13 @@ int main(void) {
     {
 #if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
         PRINTF("Product PWM driver initialization failed!\r\n");
+#endif
+        while (1) {};
+    }
+    if (!ProductNvmDriver_Init())
+    {
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
+        PRINTF("Product NVM driver initialization failed!\r\n");
 #endif
         while (1) {};
     }

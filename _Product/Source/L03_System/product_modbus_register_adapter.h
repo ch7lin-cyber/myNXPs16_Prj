@@ -58,6 +58,11 @@ void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
 uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
     void);
 
+/* Restore a CRC-verified configuration during startup before Modbus runs. */
+bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfig(
+    const product_temperature_input_config_t *config,
+    uint16_t configuration_revision);
+
 /* Query and read values staged by FC06/FC10 but not applied yet. */
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void);
 void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
