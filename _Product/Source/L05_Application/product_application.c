@@ -4,6 +4,7 @@
 
 #include "AlarmConfigurationEventConsumer.h"
 #include "EventService.h"
+#include "FaultService.h"
 #include "NvmConfigurationEventConsumer.h"
 #include "NvmService.h"
 #include "PwmOutputService.h"
@@ -25,6 +26,8 @@ static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 
 bool ProductApplication_Init(void)
 {
+    FaultService_Initialize();
+
     if (!EventService_ConfigureTemperatureInputRequiredAckMask(
             EVENT_ACK_ALARM | EVENT_ACK_SAFETY | EVENT_ACK_NVM))
     {
