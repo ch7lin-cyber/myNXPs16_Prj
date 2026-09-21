@@ -61,7 +61,8 @@ typedef enum _adi_ad7124_status
     kAdiAd7124_Timeout = -3,
     kAdiAd7124_CrcError = -4,
     kAdiAd7124_InvalidRegister = -5,
-    kAdiAd7124_UnexpectedDevice = -6
+    kAdiAd7124_UnexpectedDevice = -6,
+    kAdiAd7124_NotReady = -7
 } adi_ad7124_status_t;
 
 typedef enum _adi_ad7124_variant
@@ -103,6 +104,10 @@ adi_ad7124_status_t ADI_AD7124_WriteRegister(
     uint8_t address,
     uint32_t value);
 adi_ad7124_status_t ADI_AD7124_ReadData(
+    adi_ad7124_device_t *device,
+    uint32_t *code,
+    uint8_t *channel);
+adi_ad7124_status_t ADI_AD7124_TryReadData(
     adi_ad7124_device_t *device,
     uint32_t *code,
     uint8_t *channel);

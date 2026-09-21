@@ -10,6 +10,7 @@ typedef struct _mock_transport
 {
     uint32_t resetCount;
     uint32_t delayMs;
+    uint8_t statusValue;
     uint8_t lastWrite[8];
     size_t lastWriteLength;
 } mock_transport_t;
@@ -34,11 +35,17 @@ static bool MockTransfer(void *context, uint8_t *data, size_t length)
     mock->lastWriteLength = length;
     if (data[0] == 0x40U)
     {
-        data[1] = 0x00U;
+        data[1] = mock->statusValue;
     }
     else if (data[0] == 0x45U)
     {
         data[1] = ADI_AD7124_ID_8_STANDARD;
+    }
+    else if (data[0] == 0x42U)
+    {
+        data[1] = 0x12U;
+        data[2] = 0x34U;
+        data[3] = 0x56U;
     }
     return true;
 }
@@ -90,10 +97,32 @@ static void TestInitAndWrite(void)
     assert(mock.lastWrite[2] == 0x23U);
 }
 
+static void TestNonBlockingRead(void)
+{
+    mock_transport_t mock = {0U};
+    adi_ad7124_device_t device = {0U};
+    uint32_t code;
+    uint8_t channel;
+
+    device.transfer = MockTransfer;
+    device.transportContext = &mock;
+
+    mock.statusValue = 0x80U;
+    assert(ADI_AD7124_TryReadData(&device, &code, &channel) ==
+           kAdiAd7124_NotReady);
+
+    mock.statusValue = 0x03U;
+    assert(ADI_AD7124_TryReadData(&device, &code, &channel) ==
+           kAdiAd7124_Ok);
+    assert(code == 0x123456UL);
+    assert(channel == 3U);
+}
+
 int main(void)
 {
     TestRegisterSizes();
     TestCrc();
     TestInitAndWrite();
+    TestNonBlockingRead();
     return 0;
 }

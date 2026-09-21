@@ -12,6 +12,7 @@
 #include "peripherals.h"
 
 #define PRODUCT_AD7124_MAX_TRANSFER_SIZE (8U)
+#define PRODUCT_AD7124_INIT_POLL_LIMIT   (256UL)
 
 typedef struct _product_ad7124_transport
 {
@@ -114,7 +115,8 @@ adi_ad7124_status_t ProductAd7124_InitDevice(uint8_t deviceIndex)
     device->transfer = ProductAd7124_Transfer;
     device->delayMs = ProductAd7124_DelayMs;
     device->transportContext = &s_transport[deviceIndex];
-    device->pollLimit = ADI_AD7124_DEFAULT_POLL_LIMIT;
+    /* Bound startup time when a module is absent from the shared SPI bus. */
+    device->pollLimit = PRODUCT_AD7124_INIT_POLL_LIMIT;
     device->expectedVariant = kAdiAd7124_AnyVariant;
     return ADI_AD7124_Init(device);
 }

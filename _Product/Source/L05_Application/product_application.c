@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "AlarmConfigurationEventConsumer.h"
+#include "AnalogInputService.h"
 #include "EventService.h"
 #include "FaultService.h"
 #include "NvmConfigurationEventConsumer.h"
@@ -11,6 +12,7 @@
 #include "SafetyConfigurationEventConsumer.h"
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
+#include "product_adc_driver.h"
 
 static bool g_last_pwm_inhibited = true;
 
@@ -26,7 +28,19 @@ static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 
 bool ProductApplication_Init(void)
 {
+    AnalogInputStatus_t adc_status;
+
     FaultService_Initialize();
+
+    if (!ProductAdcDriver_Init())
+    {
+        return false;
+    }
+    adc_status = AnalogInputService_Initialize(HAL_ADC_DEVICE_COUNT);
+    if (adc_status == ANALOG_INPUT_STATUS_INVALID_ARGUMENT)
+    {
+        return false;
+    }
 
     if (!EventService_ConfigureTemperatureInputRequiredAckMask(
             EVENT_ACK_ALARM | EVENT_ACK_SAFETY | EVENT_ACK_NVM))
@@ -85,6 +99,7 @@ bool ProductApplication_Init(void)
 
 void ProductApplication_Process(void)
 {
+    (void)AnalogInputService_Process();
     (void)AlarmConfigurationEventConsumer_Process(0U);
     (void)SafetyConfigurationEventConsumer_Process(0U);
     (void)NvmConfigurationEventConsumer_Process(0U);

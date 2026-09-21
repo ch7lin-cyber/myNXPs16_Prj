@@ -318,6 +318,39 @@ adi_ad7124_status_t ADI_AD7124_ReadData(
     return status;
 }
 
+adi_ad7124_status_t ADI_AD7124_TryReadData(
+    adi_ad7124_device_t *device,
+    uint32_t *code,
+    uint8_t *channel)
+{
+    uint32_t statusValue;
+    adi_ad7124_status_t status;
+
+    if ((device == NULL) || (code == NULL))
+    {
+        return kAdiAd7124_InvalidArgument;
+    }
+
+    status = ReadRegisterUnchecked(device, ADI_AD7124_STATUS_REG,
+                                   &statusValue);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+    if ((statusValue & ADI_AD7124_STATUS_RDY_MASK) != 0U)
+    {
+        return kAdiAd7124_NotReady;
+    }
+
+    status = ReadRegisterUnchecked(device, ADI_AD7124_DATA_REG, code);
+    if ((status == kAdiAd7124_Ok) && (channel != NULL))
+    {
+        *channel = (uint8_t)(statusValue &
+                             ADI_AD7124_STATUS_CHANNEL_MASK);
+    }
+    return status;
+}
+
 adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device)
 {
     uint32_t idValue;
