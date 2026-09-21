@@ -16,6 +16,13 @@
 #define ADI_AD7124_RESET_BYTE_COUNT       (8U)
 #define ADI_AD7124_POST_RESET_DELAY_MS    (4U)
 #define ADI_AD7124_MAX_TRANSACTION_SIZE   (8U)
+#define ADI_AD7124_ADC_CONTROL_REF_EN      (1UL << 8U)
+#define ADI_AD7124_CHANNEL_ENABLE          (1UL << 15U)
+#define ADI_AD7124_CONFIG_BIPOLAR          (1UL << 11U)
+#define ADI_AD7124_CONFIG_REF_BUFP         (1UL << 8U)
+#define ADI_AD7124_CONFIG_REF_BUFM         (1UL << 7U)
+#define ADI_AD7124_CONFIG_AIN_BUFP         (1UL << 6U)
+#define ADI_AD7124_CONFIG_AIN_BUFM         (1UL << 5U)
 
 static adi_ad7124_status_t Transfer(
     adi_ad7124_device_t *device,
@@ -385,4 +392,114 @@ adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device)
     }
     device->initialized = true;
     return kAdiAd7124_Ok;
+}
+
+adi_ad7124_status_t ADI_AD7124_Configure(
+    adi_ad7124_device_t *device,
+    const adi_ad7124_setup_config_t *setups,
+    uint8_t setupCount,
+    const adi_ad7124_channel_config_t *channels,
+    uint8_t channelCount)
+{
+    uint32_t control;
+    uint32_t value;
+    uint8_t index;
+    adi_ad7124_status_t status;
+    bool internalReferenceRequired = false;
+
+    if ((device == NULL) || !device->initialized || (setups == NULL) ||
+        (setupCount == 0U) || (setupCount > ADI_AD7124_MAX_SETUP_COUNT) ||
+        (channels == NULL) || (channelCount == 0U) ||
+        (channelCount > ADI_AD7124_MAX_CHANNEL_COUNT))
+    {
+        return kAdiAd7124_InvalidArgument;
+    }
+
+    for (index = 0U; index < setupCount; index++)
+    {
+        const adi_ad7124_setup_config_t *setup = &setups[index];
+        if ((setup->setup >= ADI_AD7124_MAX_SETUP_COUNT) ||
+            (setup->reference > 3U) || (setup->gain > 7U) ||
+            (setup->filter > 7U) || (setup->filterWord > 0x07FFU))
+        {
+            return kAdiAd7124_InvalidArgument;
+        }
+        value = setup->bipolar ? ADI_AD7124_CONFIG_BIPOLAR : 0U;
+        if (setup->inputBufferEnabled)
+        {
+            value |= ADI_AD7124_CONFIG_AIN_BUFP |
+                     ADI_AD7124_CONFIG_AIN_BUFM;
+        }
+        if (setup->referenceBufferEnabled)
+        {
+            value |= ADI_AD7124_CONFIG_REF_BUFP |
+                     ADI_AD7124_CONFIG_REF_BUFM;
+        }
+        value |= ((uint32_t)setup->reference << 3U) |
+                 (uint32_t)setup->gain;
+        status = ADI_AD7124_WriteRegister(
+            device, (uint8_t)(ADI_AD7124_CONFIG0_REG + setup->setup), value);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+        value = ((uint32_t)setup->filter << 21U) |
+                (uint32_t)setup->filterWord;
+        status = ADI_AD7124_WriteRegister(
+            device, (uint8_t)(ADI_AD7124_FILTER0_REG + setup->setup), value);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+        internalReferenceRequired |= (setup->reference == 2U);
+    }
+
+    /* Remove reset defaults and stale channel selections before applying map. */
+    for (index = 0U; index < ADI_AD7124_MAX_CHANNEL_COUNT; index++)
+    {
+        status = ADI_AD7124_WriteRegister(
+            device, (uint8_t)(ADI_AD7124_CHANNEL0_REG + index), 0U);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+    }
+    for (index = 0U; index < channelCount; index++)
+    {
+        const adi_ad7124_channel_config_t *channel = &channels[index];
+        if ((channel->channel >= ADI_AD7124_MAX_CHANNEL_COUNT) ||
+            (channel->setup >= ADI_AD7124_MAX_SETUP_COUNT) ||
+            (channel->positiveInput > 31U) || (channel->negativeInput > 31U))
+        {
+            return kAdiAd7124_InvalidArgument;
+        }
+        value = channel->enabled ? ADI_AD7124_CHANNEL_ENABLE : 0U;
+        value |= ((uint32_t)channel->setup << 12U) |
+                 ((uint32_t)channel->positiveInput << 5U) |
+                 (uint32_t)channel->negativeInput;
+        status = ADI_AD7124_WriteRegister(
+            device, (uint8_t)(ADI_AD7124_CHANNEL0_REG + channel->channel),
+            value);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+    }
+
+    status = ADI_AD7124_ReadRegister(device, ADI_AD7124_ADC_CONTROL_REG,
+                                     &control);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+    if (internalReferenceRequired)
+    {
+        control |= ADI_AD7124_ADC_CONTROL_REF_EN;
+    }
+    else
+    {
+        control &= ~ADI_AD7124_ADC_CONTROL_REF_EN;
+    }
+    return ADI_AD7124_WriteRegister(device, ADI_AD7124_ADC_CONTROL_REG,
+                                    control);
 }

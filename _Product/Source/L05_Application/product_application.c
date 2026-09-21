@@ -29,10 +29,28 @@ static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 bool ProductApplication_Init(void)
 {
     AnalogInputStatus_t adc_status;
+    uint8_t adc_device;
+    uint8_t adc_route_count;
 
     FaultService_Initialize();
 
     if (!ProductAdcDriver_Init())
+    {
+        return false;
+    }
+    for (adc_device = 0U; adc_device < HAL_ADC_DEVICE_COUNT; adc_device++)
+    {
+        if (AnalogInputService_SetDeviceConfiguration(
+                adc_device,
+                ProductAdcDriver_GetDeviceConfig(adc_device)) !=
+            ANALOG_INPUT_STATUS_OK)
+        {
+            return false;
+        }
+    }
+    if (AnalogInputService_SetRoutes(
+            ProductAdcDriver_GetRoutes(&adc_route_count), adc_route_count) !=
+        ANALOG_INPUT_STATUS_OK)
     {
         return false;
     }

@@ -13,6 +13,7 @@ typedef struct _mock_transport
     uint8_t statusValue;
     uint8_t lastWrite[8];
     size_t lastWriteLength;
+    uint32_t registers[ADI_AD7124_GAIN7_REG + 1U];
 } mock_transport_t;
 
 static bool MockTransfer(void *context, uint8_t *data, size_t length)
@@ -33,7 +34,16 @@ static bool MockTransfer(void *context, uint8_t *data, size_t length)
 
     (void)memcpy(mock->lastWrite, data, length);
     mock->lastWriteLength = length;
-    if (data[0] == 0x40U)
+    if ((data[0] < 0x40U) && (data[0] <= ADI_AD7124_GAIN7_REG))
+    {
+        uint32_t value = 0U;
+        for (index = 1U; index < length; index++)
+        {
+            value = (value << 8U) | data[index];
+        }
+        mock->registers[data[0]] = value;
+    }
+    else if (data[0] == 0x40U)
     {
         data[1] = mock->statusValue;
     }
@@ -46,6 +56,12 @@ static bool MockTransfer(void *context, uint8_t *data, size_t length)
         data[1] = 0x12U;
         data[2] = 0x34U;
         data[3] = 0x56U;
+    }
+    else if ((data[0] == (0x40U | ADI_AD7124_ADC_CONTROL_REG)) &&
+             (length == 3U))
+    {
+        data[1] = (uint8_t)(mock->registers[ADI_AD7124_ADC_CONTROL_REG] >> 8U);
+        data[2] = (uint8_t)mock->registers[ADI_AD7124_ADC_CONTROL_REG];
     }
     return true;
 }
@@ -118,11 +134,39 @@ static void TestNonBlockingRead(void)
     assert(channel == 3U);
 }
 
+static void TestConfigure(void)
+{
+    mock_transport_t mock = {0U};
+    adi_ad7124_device_t device = {0U};
+    static const adi_ad7124_setup_config_t setups[] =
+    {
+        {0U, 2U, 5U, 0U, 384U, true, true, false},
+        {1U, 0U, 4U, 0U, 384U, true, true, true}
+    };
+    static const adi_ad7124_channel_config_t channels[] =
+    {
+        {0U, 0U, 0U, 1U, true},
+        {2U, 1U, 4U, 5U, true}
+    };
+
+    device.transfer = MockTransfer;
+    device.transportContext = &mock;
+    device.initialized = true;
+    assert(ADI_AD7124_Configure(&device, setups, 2U, channels, 2U) ==
+           kAdiAd7124_Ok);
+    assert(mock.registers[ADI_AD7124_CONFIG0_REG] == 0x0875U);
+    assert(mock.registers[ADI_AD7124_FILTER0_REG] == 384U);
+    assert(mock.registers[ADI_AD7124_CHANNEL0_REG] == 0x8001U);
+    assert(mock.registers[ADI_AD7124_CHANNEL0_REG + 2U] == 0x9085U);
+    assert((mock.registers[ADI_AD7124_ADC_CONTROL_REG] & 0x0100U) != 0U);
+}
+
 int main(void)
 {
     TestRegisterSizes();
     TestCrc();
     TestInitAndWrite();
     TestNonBlockingRead();
+    TestConfigure();
     return 0;
 }

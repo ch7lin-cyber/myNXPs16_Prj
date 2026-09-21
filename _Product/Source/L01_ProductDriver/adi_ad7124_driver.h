@@ -52,6 +52,8 @@ extern "C" {
 #define ADI_AD7124_ID_8_NEW               (0x17U)
 
 #define ADI_AD7124_DEFAULT_POLL_LIMIT     (10000UL)
+#define ADI_AD7124_MAX_SETUP_COUNT        (8U)
+#define ADI_AD7124_MAX_CHANNEL_COUNT      (16U)
 
 typedef enum _adi_ad7124_status
 {
@@ -71,6 +73,27 @@ typedef enum _adi_ad7124_variant
     kAdiAd7124_Variant4,
     kAdiAd7124_Variant8
 } adi_ad7124_variant_t;
+
+typedef struct _adi_ad7124_setup_config
+{
+    uint8_t setup;
+    uint8_t reference;
+    uint8_t gain;
+    uint8_t filter;
+    uint16_t filterWord;
+    bool bipolar;
+    bool inputBufferEnabled;
+    bool referenceBufferEnabled;
+} adi_ad7124_setup_config_t;
+
+typedef struct _adi_ad7124_channel_config
+{
+    uint8_t channel;
+    uint8_t setup;
+    uint8_t positiveInput;
+    uint8_t negativeInput;
+    bool enabled;
+} adi_ad7124_channel_config_t;
 
 /* Full-duplex, in-place SPI transfer. Return true on success. */
 typedef bool (*adi_ad7124_transfer_fn_t)(
@@ -111,6 +134,12 @@ adi_ad7124_status_t ADI_AD7124_TryReadData(
     adi_ad7124_device_t *device,
     uint32_t *code,
     uint8_t *channel);
+adi_ad7124_status_t ADI_AD7124_Configure(
+    adi_ad7124_device_t *device,
+    const adi_ad7124_setup_config_t *setups,
+    uint8_t setupCount,
+    const adi_ad7124_channel_config_t *channels,
+    uint8_t channelCount);
 uint8_t ADI_AD7124_ComputeCrc8(const uint8_t *data, size_t length);
 uint8_t ADI_AD7124_GetRegisterSize(uint8_t address);
 bool ADI_AD7124_IsKnownDeviceId(uint8_t id, adi_ad7124_variant_t variant);
