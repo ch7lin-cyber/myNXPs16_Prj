@@ -43,6 +43,7 @@
 #include "l02_rs485_dma.h"
 #include "l03_product_modbus.h"
 #include "product_application.h"
+#include "product_pwm_driver.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -121,6 +122,13 @@ int main(void) {
     (void)L02_Rs485Direction_Init();
     (void)L02_Rs485Dma_Init();
     (void)L03_ProductModbus_Init();
+    if (!ProductPwmDriver_Init())
+    {
+#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
+        PRINTF("Product PWM driver initialization failed!\r\n");
+#endif
+        while (1) {};
+    }
     if (!ProductApplication_Init())
     {
 #if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
