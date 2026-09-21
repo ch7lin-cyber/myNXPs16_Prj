@@ -64,6 +64,16 @@ void ctimer1_match0_callback(uint32_t flags)
     (void)flags;
 }
 */
+void ctimer0_match0_callback(uint32_t flags)
+{
+    (void)flags;
+}
+
+void ctimer1_match0_callback(uint32_t flags)
+{
+    (void)flags;
+}
+
 void ctimer2_match3_callback(uint32_t flags)
 {
     (void)flags;

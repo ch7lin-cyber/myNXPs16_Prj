@@ -61,6 +61,9 @@ static HalPwmStatus_t ProductPwmInitialize(void *driver_context)
     {
         return HAL_PWM_STATUS_IO_ERROR;
     }
+    /* Wizard enabled the period interrupt; PWM output does not require it. */
+    CTIMER_DisableInterrupts(context->base,
+                             kCTIMER_Match3InterruptEnable);
     CTIMER_StartTimer(context->base);
     return HAL_PWM_STATUS_OK;
 }
