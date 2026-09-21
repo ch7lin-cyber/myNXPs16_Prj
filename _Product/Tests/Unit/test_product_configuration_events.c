@@ -2,6 +2,7 @@
 
 #include "AlarmConfigurationEventConsumer.h"
 #include "EventService.h"
+#include "SafetyConfigurationEventConsumer.h"
 #include "product_application.h"
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
@@ -10,6 +11,7 @@ int main(void)
 {
     ModbusSlaveRegisterInterface_t interface;
     AlarmConfigurationRange_t range;
+    SafetyConfigurationRange_t safety_range;
     const uint16_t thermocouple_k[2] =
         {PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K};
 
@@ -32,6 +34,12 @@ int main(void)
     assert(range.setpoint_minimum == -270.0F);
     assert(range.setpoint_maximum == 1372.0F);
     assert(range.configuration_revision == 1U);
+    assert(SafetyConfigurationEventConsumer_GetRange(0U, &safety_range));
+    assert(safety_range.input_enabled);
+    assert(!safety_range.output_inhibit);
+    assert(safety_range.measurement_minimum == -270.0F);
+    assert(safety_range.measurement_maximum == 1372.0F);
+    assert(safety_range.configuration_revision == 1U);
 
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS,
@@ -43,5 +51,10 @@ int main(void)
     assert(AlarmConfigurationEventConsumer_GetRange(0U, &range));
     assert(!range.input_enabled);
     assert(range.configuration_revision == 2U);
+    assert(SafetyConfigurationEventConsumer_GetRange(0U, &safety_range));
+    assert(!safety_range.input_enabled);
+    assert(safety_range.output_inhibit);
+    assert(SafetyConfigurationEventConsumer_IsOutputInhibited(0U));
+    assert(safety_range.configuration_revision == 2U);
     return 0;
 }
