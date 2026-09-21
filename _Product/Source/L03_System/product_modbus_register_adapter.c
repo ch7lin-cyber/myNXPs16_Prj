@@ -1,1 +1,294 @@
-LyoKICogQ29weXJpZ2h0IDIwMjYKICogU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6IEJTRC0zLUNsYXVzZQogKi8KCiNpbmNsdWRlICJwcm9kdWN0X21vZGJ1c19yZWdpc3Rlcl9hZGFwdGVyLmgiCgojaW5jbHVkZSA8c3RkZGVmLmg+CiNpbmNsdWRlIDxzdHJpbmcuaD4KCiNkZWZpbmUgUFJPRFVDVF9URU1QRVJBVFVSRV9WQUxVRV9NSU4gICAgICAgICAgICAgICgtOTk5OTkuMEYpCiNkZWZpbmUgUFJPRFVDVF9URU1QRVJBVFVSRV9WQUxVRV9NQVggICAgICAgICAgICAgICg5OTk5OS4wRikKI2RlZmluZSBQUk9EVUNUX0ZJTFRFUl9USU1FX0NPTlNUQU5UX01JTl9TRUNPTkRTICAgKDAuMEYpCiNkZWZpbmUgUFJPRFVDVF9GSUxURVJfVElNRV9DT05TVEFOVF9NQVhfU0VDT05EUyAgICg2MC4wRikKCiNkZWZpbmUgUFJPRFVDVF9JTlBVVF9FUlJPUl9OT05FICAgICAgICAgICAgICAgICAgICg2MVUpCgojZGVmaW5lIFBST0RVQ1RfU0VOU09SX1RZUEVfT0ZGICAgICAgICAgICAgICAgICAgICAoNjJVKQojZGVmaW5lIFBST0RVQ1RfU0VOU09SX1RZUEVfVEhFUk1PQ09VUExFICAgICAgICAgICAoOTVVKQojZGVmaW5lIFBST0RVQ1RfU0VOU09SX1RZUEVfUlREXzEwMF9PSE0gICAgICAgICAgICAoMTEzVSkKI2RlZmluZSBQUk9EVUNUX1NFTlNPUl9UWVBFX1JURF8xMDAwX09ITSAgICAgICAgICAgKDExNFUpCgojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9CICAgICAgICAgICAgICAgICAoMTFVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9DICAgICAgICAgICAgICAgICAoMTVVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9EICAgICAgICAgICAgICAgICAoMjNVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9FICAgICAgICAgICAgICAgICAoMjZVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9KICAgICAgICAgICAgICAgICAoNDZVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9LICAgICAgICAgICAgICAgICAoNDhVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9OICAgICAgICAgICAgICAgICAoNThVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9SICAgICAgICAgICAgICAgICAoODBVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9TICAgICAgICAgICAgICAgICAoODRVKQojZGVmaW5lIFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9UICAgICAgICAgICAgICAgICAoOTNVKQoKdHlwZWRlZiBzdHJ1Y3QgX3Byb2R1Y3RfbW9kYnVzX3JlZ2lzdGVyX2NvbnRleHQKewogICAgcHJvZHVjdF90ZW1wZXJhdHVyZV9pbnB1dF9tb25pdG9yX3QgbW9uaXRvcjsKICAgIHByb2R1Y3RfdGVtcGVyYXR1cmVfaW5wdXRfY29uZmlnX3QgY29uZmlnOwp9IHByb2R1Y3RfbW9kYnVzX3JlZ2lzdGVyX2NvbnRleHRfdDsKCnN0YXRpYyBwcm9kdWN0X21vZGJ1c19yZWdpc3Rlcl9jb250ZXh0X3Qgc19yZWdpc3RlckNvbnRleHQgPQp7CiAgICB7MC4wRiwgUFJPRFVDVF9JTlBVVF9FUlJPUl9OT05FLCAwLjBGfSwKICAgIHswLjVGLCBQUk9EVUNUX1NFTlNPUl9UWVBFX09GRiwgUFJPRFVDVF9UQ19MSU5FQVJJWkFUSU9OX0p9Cn07CgpzdGF0aWMgdm9pZCBGbG9hdFRvUmVnaXN0ZXJzKGZsb2F0IHZhbHVlLCB1aW50MTZfdCAqaGlnaFdvcmQsIHVpbnQxNl90ICpsb3dXb3JkKQp7CiAgICB1aW50MzJfdCBiaXRzOwoKICAgICh2b2lkKW1lbWNweSgmYml0cywgJnZhbHVlLCBzaXplb2YoYml0cykpOwogICAgKmhpZ2hXb3JkID0gKHVpbnQxNl90KShiaXRzID4+IDE2VSk7CiAgICAqbG93V29yZCA9ICh1aW50MTZfdCkoYml0cyAmIDB4RkZGRlUpOwp9CgpzdGF0aWMgZmxvYXQgUmVnaXN0ZXJzVG9GbG9hdCh1aW50MTZfdCBoaWdoV29yZCwgdWludDE2X3QgbG93V29yZCkKewogICAgdWludDMyX3QgYml0cyA9ICgodWludDMyX3QpaGlnaFdvcmQgPDwgMTZVKSB8ICh1aW50MzJfdClsb3dXb3JkOwogICAgZmxvYXQgdmFsdWU7CgogICAgKHZvaWQpbWVtY3B5KCZ2YWx1ZSwgJmJpdHMsIHNpemVvZih2YWx1ZSkpOwogICAgcmV0dXJuIHZhbHVlOwp9CgpzdGF0aWMgYm9vbCBJc1RlbXBlcmF0dXJlVmFsdWVWYWxpZChmbG9hdCB2YWx1ZSkKewogICAgLyogTmFOIGZhaWxzIGJvdGggb3JkZXJlZCBjb21wYXJpc29uczsgaW5maW5pdGllcyBleGNlZWQgdGhlIGxpbWl0cy4gKi8KICAgIHJldHVybiAodmFsdWUgPj0gUFJPRFVDVF9URU1QRVJBVFVSRV9WQUxVRV9NSU4pICYmCiAgICAgICAgICAgKHZhbHVlIDw9IFBST0RVQ1RfVEVNUEVSQVRVUkVfVkFMVUVfTUFYKTsKfQoKc3RhdGljIGJvb2wgSXNGaWx0ZXJUaW1lQ29uc3RhbnRWYWxpZChmbG9hdCB2YWx1ZSkKewogICAgLyogS2VlcCB0aGlzIGZyZWVzdGFuZGluZzogZG8gbm90IGludHJvZHVjZSBhIGxpYm0gX19pc2Zpbml0ZWYgc3ltYm9sLiAqLwogICAgcmV0dXJuICh2YWx1ZSA+PSBQUk9EVUNUX0ZJTFRFUl9USU1FX0NPTlNUQU5UX01JTl9TRUNPTkRTKSAmJgogICAgICAgICAgICh2YWx1ZSA8PSBQUk9EVUNUX0ZJTFRFUl9USU1FX0NPTlNUQU5UX01BWF9TRUNPTkRTKTsKfQoKc3RhdGljIGJvb2wgSXNTZW5zb3JUeXBlVmFsaWQodWludDE2X3QgdmFsdWUpCnsKICAgIHJldHVybiAodmFsdWUgPT0gUFJPRFVDVF9TRU5TT1JfVFlQRV9PRkYpIHx8CiAgICAgICAgICAgKHZhbHVlID09IFBST0RVQ1RfU0VOU09SX1RZUEVfVEhFUk1PQ09VUExFKSB8fAogICAgICAgICAgICh2YWx1ZSA9PSBQUk9EVUNUX1NFTlNPUl9UWVBFX1JURF8xMDBfT0hNKSB8fAogICAgICAgICAgICh2YWx1ZSA9PSBQUk9EVUNUX1NFTlNPUl9UWVBFX1JURF8xMDAwX09ITSk7Cn0KCnN0YXRpYyBib29sIElzVGNMaW5lYXJpemF0aW9uVmFsaWQodWludDE2X3QgdmFsdWUpCnsKICAgIHJldHVybiAodmFsdWUgPT0gUFJPRFVDVF9UQ19MSU5FQVJJWkFUSU9OX0IpIHx8CiAgICAgICAgICAgKHZhbHVlID09IFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9DKSB8fAogICAgICAgICAgICh2YWx1ZSA9PSBQUk9EVUNUX1RDX0xJTkVBUklaQVRJT05fRCkgfHwKICAgICAgICAgICAodmFsdWUgPT0gUFJPRFVDVF9UQ19MSU5FQVJJWkFUSU9OX0UpIHx8CiAgICAgICAgICAgKHZhbHVlID09IFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9KKSB8fAogICAgICAgICAgICh2YWx1ZSA9PSBQUk9EVUNUX1RDX0xJTkVBUklaQVRJT05fSykgfHwKICAgICAgICAgICAodmFsdWUgPT0gUFJPRFVDVF9UQ19MSU5FQVJJWkFUSU9OX04pIHx8CiAgICAgICAgICAgKHZhbHVlID09IFBST0RVQ1RfVENfTElORUFSSVpBVElPTl9SKSB8fAogICAgICAgICAgICh2YWx1ZSA9PSBQUk9EVUNUX1RDX0xJTkVBUklaQVRJT05fUykgfHwKICAgICAgICAgICAodmFsdWUgPT0gUFJPRFVDVF9UQ19MSU5FQVJJWkFUSU9OX1QpOwp9CgpzdGF0aWMgYm9vbCBJc1JlZ2lzdGVyUmFuZ2VWYWxpZCh1aW50MTZfdCBzdGFydGluZ0FkZHJlc3MsIHVpbnQxNl90IHF1YW50aXR5KQp7CiAgICB1aW50MzJfdCBlbmRpbmdBZGRyZXNzOwoKICAgIGlmIChxdWFudGl0eSA9PSAwVSkKICAgIHsKICAgICAgICByZXR1cm4gZmFsc2U7CiAgICB9CgogICAgZW5kaW5nQWRkcmVzcyA9ICh1aW50MzJfdClzdGFydGluZ0FkZHJlc3MgKyAodWludDMyX3QpcXVhbnRpdHkgLSAxVUw7CiAgICByZXR1cm4gKHN0YXJ0aW5nQWRkcmVzcyA+PSBQUk9EVUNUX01PREJVU19URU1QRVJBVFVSRV9JTlBVVF9CQVNFX0FERFJFU1MpICYmCiAgICAgICAgICAgKGVuZGluZ0FkZHJlc3MgPD0gUFJPRFVDVF9NT0RCVVNfVEVNUEVSQVRVUkVfSU5QVVRfTEFTVF9BRERSRVNTKTsKfQoKc3RhdGljIHZvaWQgQnVpbGRSZWdpc3RlckltYWdlKAogICAgY29uc3QgcHJvZHVjdF9tb2RidXNfcmVnaXN0ZXJfY29udGV4dF90ICpyZWdpc3RlckNvbnRleHQsCiAgICB1aW50MTZfdCAqcmVnaXN0ZXJzKQp7CiAgICBGbG9hdFRvUmVnaXN0ZXJzKHJlZ2lzdGVyQ29udGV4dC0+bW9uaXRvci51bmZpbHRlcmVkUHJvY2Vzc1ZhbHVlLAogICAgICAgICAgICAgICAgICAgICAmcmVnaXN0ZXJzWzBdLCAmcmVnaXN0ZXJzWzFdKTsKICAgIHJlZ2lzdGVyc1syXSA9IHJlZ2lzdGVyQ29udGV4dC0+bW9uaXRvci5pbnB1dEVycm9yOwogICAgRmxvYXRUb1JlZ2lzdGVycyhyZWdpc3RlckNvbnRleHQtPmNvbmZpZy5maWx0ZXJUaW1lQ29uc3RhbnRTZWNvbmRzLAogICAgICAgICAgICAgICAgICAgICAmcmVnaXN0ZXJzWzNdLCAmcmVnaXN0ZXJzWzRdKTsKICAgIEZsb2F0VG9SZWdpc3RlcnMocmVnaXN0ZXJDb250ZXh0LT5tb25pdG9yLmZpbHRlcmVkUHJvY2Vzc1ZhbHVlLAogICAgICAgICAgICAgICAgICAgICAmcmVnaXN0ZXJzWzVdLCAmcmVnaXN0ZXJzWzZdKTsKICAgIHJlZ2lzdGVyc1s3XSA9IHJlZ2lzdGVyQ29udGV4dC0+Y29uZmlnLnNlbnNvclR5cGU7CiAgICByZWdpc3RlcnNbOF0gPSByZWdpc3RlckNvbnRleHQtPmNvbmZpZy50Y0xpbmVhcml6YXRpb247Cn0KCnN0YXRpYyBNb2RidXNFeGNlcHRpb25Db2RlX3QgUmVhZFJlZ2lzdGVycygKICAgIHZvaWQgKmNvbnRleHQsCiAgICB1aW50MTZfdCBzdGFydGluZ19hZGRyZXNzLAogICAgdWludDE2X3QgcXVhbnRpdHksCiAgICB1aW50MTZfdCAqdmFsdWVzKQp7CiAgICBwcm9kdWN0X21vZGJ1c19yZWdpc3Rlcl9jb250ZXh0X3QgKnJlZ2lzdGVyQ29udGV4dCA9CiAgICAgICAgKHByb2R1Y3RfbW9kYnVzX3JlZ2lzdGVyX2NvbnRleHRfdCAqKWNvbnRleHQ7CiAgICB1aW50MTZfdCByZWdpc3RlckltYWdlWzldOwogICAgdWludDE2X3Qgc291cmNlT2Zmc2V0OwoKICAgIGlmICgocmVnaXN0ZXJDb250ZXh0ID09IE5VTEwpIHx8ICh2YWx1ZXMgPT0gTlVMTCkpCiAgICB7CiAgICAgICAgcmV0dXJuIE1PREJVU19FWENFUFRJT05fU0VSVkVSX0RFVklDRV9GQUlMVVJFOwogICAgfQoKICAgIGlmICghSXNSZWdpc3RlclJhbmdlVmFsaWQoc3RhcnRpbmdfYWRkcmVzcywgcXVhbnRpdHkpKQogICAgewogICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9BRERSRVNTOwogICAgfQoKICAgIEJ1aWxkUmVnaXN0ZXJJbWFnZShyZWdpc3RlckNvbnRleHQsIHJlZ2lzdGVySW1hZ2UpOwogICAgc291cmNlT2Zmc2V0ID0gKHVpbnQxNl90KShzdGFydGluZ19hZGRyZXNzIC0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICBQUk9EVUNUX01PREJVU19URU1QRVJBVFVSRV9JTlBVVF9CQVNFX0FERFJFU1MpOwogICAgKHZvaWQpbWVtY3B5KHZhbHVlcywgJnJlZ2lzdGVySW1hZ2Vbc291cmNlT2Zmc2V0XSwKICAgICAgICAgICAgICAgICAoc2l6ZV90KXF1YW50aXR5ICogc2l6ZW9mKHZhbHVlc1swXSkpOwogICAgcmV0dXJuIE1PREJVU19FWENFUFRJT05fTk9ORTsKfQoKc3RhdGljIE1vZGJ1c0V4Y2VwdGlvbkNvZGVfdCBXcml0ZVNpbmdsZVJlZ2lzdGVyKAogICAgdm9pZCAqY29udGV4dCwKICAgIHVpbnQxNl90IGFkZHJlc3MsCiAgICB1aW50MTZfdCB2YWx1ZSkKewogICAgcHJvZHVjdF9tb2RidXNfcmVnaXN0ZXJfY29udGV4dF90ICpyZWdpc3RlckNvbnRleHQgPQogICAgICAgIChwcm9kdWN0X21vZGJ1c19yZWdpc3Rlcl9jb250ZXh0X3QgKiljb250ZXh0OwoKICAgIGlmIChyZWdpc3RlckNvbnRleHQgPT0gTlVMTCkKICAgIHsKICAgICAgICByZXR1cm4gTU9EQlVTX0VYQ0VQVElPTl9TRVJWRVJfREVWSUNFX0ZBSUxVUkU7CiAgICB9CgogICAgaWYgKGFkZHJlc3MgPT0gUFJPRFVDVF9NT0RCVVNfU0VOU09SX1RZUEVfQUREUkVTUykKICAgIHsKICAgICAgICBpZiAoIUlzU2Vuc29yVHlwZVZhbGlkKHZhbHVlKSkKICAgICAgICB7CiAgICAgICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9WQUxVRTsKICAgICAgICB9CiAgICAgICAgcmVnaXN0ZXJDb250ZXh0LT5jb25maWcuc2Vuc29yVHlwZSA9IHZhbHVlOwogICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX05PTkU7CiAgICB9CgogICAgaWYgKGFkZHJlc3MgPT0gUFJPRFVDVF9NT0RCVVNfVENfTElORUFSSVpBVElPTl9BRERSRVNTKQogICAgewogICAgICAgIGlmICghSXNUY0xpbmVhcml6YXRpb25WYWxpZCh2YWx1ZSkpCiAgICAgICAgewogICAgICAgICAgICByZXR1cm4gTU9EQlVTX0VYQ0VQVElPTl9JTExFR0FMX0RBVEFfVkFMVUU7CiAgICAgICAgfQogICAgICAgIHJlZ2lzdGVyQ29udGV4dC0+Y29uZmlnLnRjTGluZWFyaXphdGlvbiA9IHZhbHVlOwogICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX05PTkU7CiAgICB9CgogICAgcmV0dXJuIE1PREJVU19FWENFUFRJT05fSUxMRUdBTF9EQVRBX0FERFJFU1M7Cn0KCnN0YXRpYyBNb2RidXNFeGNlcHRpb25Db2RlX3QgV3JpdGVNdWx0aXBsZVJlZ2lzdGVycygKICAgIHZvaWQgKmNvbnRleHQsCiAgICB1aW50MTZfdCBzdGFydGluZ19hZGRyZXNzLAogICAgY29uc3QgdWludDE2X3QgKnZhbHVlcywKICAgIHVpbnQxNl90IHF1YW50aXR5KQp7CiAgICBwcm9kdWN0X21vZGJ1c19yZWdpc3Rlcl9jb250ZXh0X3QgKnJlZ2lzdGVyQ29udGV4dCA9CiAgICAgICAgKHByb2R1Y3RfbW9kYnVzX3JlZ2lzdGVyX2NvbnRleHRfdCAqKWNvbnRleHQ7CiAgICBwcm9kdWN0X3RlbXBlcmF0dXJlX2lucHV0X2NvbmZpZ190IHBlbmRpbmdDb25maWc7CiAgICBmbG9hdCBmaWx0ZXJUaW1lQ29uc3RhbnQ7CgogICAgaWYgKChyZWdpc3RlckNvbnRleHQgPT0gTlVMTCkgfHwgKHZhbHVlcyA9PSBOVUxMKSkKICAgIHsKICAgICAgICByZXR1cm4gTU9EQlVTX0VYQ0VQVElPTl9TRVJWRVJfREVWSUNFX0ZBSUxVUkU7CiAgICB9CgogICAgcGVuZGluZ0NvbmZpZyA9IHJlZ2lzdGVyQ29udGV4dC0+Y29uZmlnOwoKICAgIGlmICgoc3RhcnRpbmdfYWRkcmVzcyA9PSBQUk9EVUNUX01PREJVU19GSUxURVJfVElNRV9DT05TVEFOVF9BRERSRVNTKSAmJgogICAgICAgIChxdWFudGl0eSA9PSAyVSkpCiAgICB7CiAgICAgICAgZmlsdGVyVGltZUNvbnN0YW50ID0gUmVnaXN0ZXJzVG9GbG9hdCh2YWx1ZXNbMF0sIHZhbHVlc1sxXSk7CiAgICAgICAgaWYgKCFJc0ZpbHRlclRpbWVDb25zdGFudFZhbGlkKGZpbHRlclRpbWVDb25zdGFudCkpCiAgICAgICAgewogICAgICAgICAgICByZXR1cm4gTU9EQlVTX0VYQ0VQVElPTl9JTExFR0FMX0RBVEFfVkFMVUU7CiAgICAgICAgfQogICAgICAgIHBlbmRpbmdDb25maWcuZmlsdGVyVGltZUNvbnN0YW50U2Vjb25kcyA9IGZpbHRlclRpbWVDb25zdGFudDsKICAgIH0KICAgIGVsc2UgaWYgKChzdGFydGluZ19hZGRyZXNzID09IFBST0RVQ1RfTU9EQlVTX1NFTlNPUl9UWVBFX0FERFJFU1MpICYmCiAgICAgICAgICAgICAocXVhbnRpdHkgPT0gMVUpKQogICAgewogICAgICAgIGlmICghSXNTZW5zb3JUeXBlVmFsaWQodmFsdWVzWzBdKSkKICAgICAgICB7CiAgICAgICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9WQUxVRTsKICAgICAgICB9CiAgICAgICAgcGVuZGluZ0NvbmZpZy5zZW5zb3JUeXBlID0gdmFsdWVzWzBdOwogICAgfQogICAgZWxzZSBpZiAoKHN0YXJ0aW5nX2FkZHJlc3MgPT0gUFJPRFVDVF9NT0RCVVNfVENfTElORUFSSVpBVElPTl9BRERSRVNTKSAmJgogICAgICAgICAgICAgKHF1YW50aXR5ID09IDFVKSkKICAgIHsKICAgICAgICBpZiAoIUlzVGNMaW5lYXJpemF0aW9uVmFsaWQodmFsdWVzWzBdKSkKICAgICAgICB7CiAgICAgICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9WQUxVRTsKICAgICAgICB9CiAgICAgICAgcGVuZGluZ0NvbmZpZy50Y0xpbmVhcml6YXRpb24gPSB2YWx1ZXNbMF07CiAgICB9CiAgICBlbHNlIGlmICgoc3RhcnRpbmdfYWRkcmVzcyA9PSBQUk9EVUNUX01PREJVU19TRU5TT1JfVFlQRV9BRERSRVNTKSAmJgogICAgICAgICAgICAgKHF1YW50aXR5ID09IDJVKSkKICAgIHsKICAgICAgICBpZiAoIUlzU2Vuc29yVHlwZVZhbGlkKHZhbHVlc1swXSkgfHwKICAgICAgICAgICAgIUlzVGNMaW5lYXJpemF0aW9uVmFsaWQodmFsdWVzWzFdKSkKICAgICAgICB7CiAgICAgICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9WQUxVRTsKICAgICAgICB9CiAgICAgICAgcGVuZGluZ0NvbmZpZy5zZW5zb3JUeXBlID0gdmFsdWVzWzBdOwogICAgICAgIHBlbmRpbmdDb25maWcudGNMaW5lYXJpemF0aW9uID0gdmFsdWVzWzFdOwogICAgfQogICAgZWxzZQogICAgewogICAgICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX0lMTEVHQUxfREFUQV9BRERSRVNTOwogICAgfQoKICAgIHJlZ2lzdGVyQ29udGV4dC0+Y29uZmlnID0gcGVuZGluZ0NvbmZpZzsKICAgIHJldHVybiBNT0RCVVNfRVhDRVBUSU9OX05PTkU7Cn0KCnZvaWQgUHJvZHVjdE1vZGJ1c1JlZ2lzdGVyQWRhcHRlcl9HZXRJbnRlcmZhY2UoCiAgICBNb2RidXNTbGF2ZVJlZ2lzdGVySW50ZXJmYWNlX3QgKmludGVyZmFjZSkKewogICAgaWYgKGludGVyZmFjZSAhPSBOVUxMKQogICAgewogICAgICAgIGludGVyZmFjZS0+cmVhZF9ob2xkaW5nX3JlZ2lzdGVycyA9IFJlYWRSZWdpc3RlcnM7CiAgICAgICAgaW50ZXJmYWNlLT5yZWFkX2lucHV0X3JlZ2lzdGVycyA9IFJlYWRSZWdpc3RlcnM7CiAgICAgICAgaW50ZXJmYWNlLT53cml0ZV9zaW5nbGVfcmVnaXN0ZXIgPSBXcml0ZVNpbmdsZVJlZ2lzdGVyOwogICAgICAgIGludGVyZmFjZS0+d3JpdGVfbXVsdGlwbGVfcmVnaXN0ZXJzID0gV3JpdGVNdWx0aXBsZVJlZ2lzdGVyczsKICAgICAgICBpbnRlcmZhY2UtPmNvbnRleHQgPSAmc19yZWdpc3RlckNvbnRleHQ7CiAgICB9Cn0KCmJvb2wgUHJvZHVjdE1vZGJ1c1JlZ2lzdGVyQWRhcHRlcl9TZXRUZW1wZXJhdHVyZUlucHV0TW9uaXRvcigKICAgIGNvbnN0IHByb2R1Y3RfdGVtcGVyYXR1cmVfaW5wdXRfbW9uaXRvcl90ICptb25pdG9yKQp7CiAgICBpZiAoKG1vbml0b3IgPT0gTlVMTCkgfHwKICAgICAgICAhSXNUZW1wZXJhdHVyZVZhbHVlVmFsaWQobW9uaXRvci0+dW5maWx0ZXJlZFByb2Nlc3NWYWx1ZSkgfHwKICAgICAgICAhSXNUZW1wZXJhdHVyZVZhbHVlVmFsaWQobW9uaXRvci0+ZmlsdGVyZWRQcm9jZXNzVmFsdWUpKQogICAgewogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KCiAgICBzX3JlZ2lzdGVyQ29udGV4dC5tb25pdG9yID0gKm1vbml0b3I7CiAgICByZXR1cm4gdHJ1ZTsKfQoKdm9pZCBQcm9kdWN0TW9kYnVzUmVnaXN0ZXJBZGFwdGVyX0dldFRlbXBlcmF0dXJlSW5wdXRDb25maWcoCiAgICBwcm9kdWN0X3RlbXBlcmF0dXJlX2lucHV0X2NvbmZpZ190ICpjb25maWcpCnsKICAgIGlmIChjb25maWcgIT0gTlVMTCkKICAgIHsKICAgICAgICAqY29uZmlnID0gc19yZWdpc3RlckNvbnRleHQuY29uZmlnOwogICAgfQp9Cg==
+/*
+ * Copyright 2026
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#include "product_modbus_register_adapter.h"
+
+#include <stddef.h>
+#include <string.h>
+
+#define PRODUCT_TEMPERATURE_VALUE_MIN              (-99999.0F)
+#define PRODUCT_TEMPERATURE_VALUE_MAX              (99999.0F)
+#define PRODUCT_FILTER_TIME_CONSTANT_MIN_SECONDS   (0.0F)
+#define PRODUCT_FILTER_TIME_CONSTANT_MAX_SECONDS   (60.0F)
+
+#define PRODUCT_INPUT_ERROR_NONE                   (61U)
+
+#define PRODUCT_SENSOR_TYPE_OFF                    (62U)
+#define PRODUCT_SENSOR_TYPE_THERMOCOUPLE           (95U)
+#define PRODUCT_SENSOR_TYPE_RTD_100_OHM            (113U)
+#define PRODUCT_SENSOR_TYPE_RTD_1000_OHM           (114U)
+
+#define PRODUCT_TC_LINEARIZATION_B                 (11U)
+#define PRODUCT_TC_LINEARIZATION_C                 (15U)
+#define PRODUCT_TC_LINEARIZATION_D                 (23U)
+#define PRODUCT_TC_LINEARIZATION_E                 (26U)
+#define PRODUCT_TC_LINEARIZATION_J                 (46U)
+#define PRODUCT_TC_LINEARIZATION_K                 (48U)
+#define PRODUCT_TC_LINEARIZATION_N                 (58U)
+#define PRODUCT_TC_LINEARIZATION_R                 (80U)
+#define PRODUCT_TC_LINEARIZATION_S                 (84U)
+#define PRODUCT_TC_LINEARIZATION_T                 (93U)
+
+typedef struct _product_modbus_register_context
+{
+    product_temperature_input_monitor_t monitor;
+    product_temperature_input_config_t config;
+} product_modbus_register_context_t;
+
+static product_modbus_register_context_t s_registerContext =
+{
+    {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
+    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J}
+};
+
+static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
+{
+    uint32_t bits;
+
+    (void)memcpy(&bits, &value, sizeof(bits));
+    *highWord = (uint16_t)(bits >> 16U);
+    *lowWord = (uint16_t)(bits & 0xFFFFU);
+}
+
+static float RegistersToFloat(uint16_t highWord, uint16_t lowWord)
+{
+    uint32_t bits = ((uint32_t)highWord << 16U) | (uint32_t)lowWord;
+    float value;
+
+    (void)memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static bool IsTemperatureValueValid(float value)
+{
+    /* NaN fails both ordered comparisons; infinities exceed the limits. */
+    return (value >= PRODUCT_TEMPERATURE_VALUE_MIN) &&
+           (value <= PRODUCT_TEMPERATURE_VALUE_MAX);
+}
+
+static bool IsFilterTimeConstantValid(float value)
+{
+    /* Keep this freestanding: do not introduce a libm __isfinitef symbol. */
+    return (value >= PRODUCT_FILTER_TIME_CONSTANT_MIN_SECONDS) &&
+           (value <= PRODUCT_FILTER_TIME_CONSTANT_MAX_SECONDS);
+}
+
+static bool IsSensorTypeValid(uint16_t value)
+{
+    return (value == PRODUCT_SENSOR_TYPE_OFF) ||
+           (value == PRODUCT_SENSOR_TYPE_THERMOCOUPLE) ||
+           (value == PRODUCT_SENSOR_TYPE_RTD_100_OHM) ||
+           (value == PRODUCT_SENSOR_TYPE_RTD_1000_OHM);
+}
+
+static bool IsTcLinearizationValid(uint16_t value)
+{
+    return (value == PRODUCT_TC_LINEARIZATION_B) ||
+           (value == PRODUCT_TC_LINEARIZATION_C) ||
+           (value == PRODUCT_TC_LINEARIZATION_D) ||
+           (value == PRODUCT_TC_LINEARIZATION_E) ||
+           (value == PRODUCT_TC_LINEARIZATION_J) ||
+           (value == PRODUCT_TC_LINEARIZATION_K) ||
+           (value == PRODUCT_TC_LINEARIZATION_N) ||
+           (value == PRODUCT_TC_LINEARIZATION_R) ||
+           (value == PRODUCT_TC_LINEARIZATION_S) ||
+           (value == PRODUCT_TC_LINEARIZATION_T);
+}
+
+static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS);
+}
+
+static void BuildRegisterImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    FloatToRegisters(registerContext->monitor.unfilteredProcessValue,
+                     &registers[0], &registers[1]);
+    registers[2] = registerContext->monitor.inputError;
+    FloatToRegisters(registerContext->config.filterTimeConstantSeconds,
+                     &registers[3], &registers[4]);
+    FloatToRegisters(registerContext->monitor.filteredProcessValue,
+                     &registers[5], &registers[6]);
+    registers[7] = registerContext->config.sensorType;
+    registers[8] = registerContext->config.tcLinearization;
+}
+
+static ModbusExceptionCode_t ReadRegisters(
+    void *context,
+    uint16_t starting_address,
+    uint16_t quantity,
+    uint16_t *values)
+{
+    product_modbus_register_context_t *registerContext =
+        (product_modbus_register_context_t *)context;
+    uint16_t registerImage[9];
+    uint16_t sourceOffset;
+
+    if ((registerContext == NULL) || (values == NULL))
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (!IsRegisterRangeValid(starting_address, quantity))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    BuildRegisterImage(registerContext, registerImage);
+    sourceOffset = (uint16_t)(starting_address -
+                             PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS);
+    (void)memcpy(values, &registerImage[sourceOffset],
+                 (size_t)quantity * sizeof(values[0]));
+    return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t WriteSingleRegister(
+    void *context,
+    uint16_t address,
+    uint16_t value)
+{
+    product_modbus_register_context_t *registerContext =
+        (product_modbus_register_context_t *)context;
+
+    if (registerContext == NULL)
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS)
+    {
+        if (!IsSensorTypeValid(value))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->config.sensorType = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (address == PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS)
+    {
+        if (!IsTcLinearizationValid(value))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->config.tcLinearization = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+}
+
+static ModbusExceptionCode_t WriteMultipleRegisters(
+    void *context,
+    uint16_t starting_address,
+    const uint16_t *values,
+    uint16_t quantity)
+{
+    product_modbus_register_context_t *registerContext =
+        (product_modbus_register_context_t *)context;
+    product_temperature_input_config_t pendingConfig;
+    float filterTimeConstant;
+
+    if ((registerContext == NULL) || (values == NULL))
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    pendingConfig = registerContext->config;
+
+    if ((starting_address == PRODUCT_MODBUS_FILTER_TIME_CONSTANT_ADDRESS) &&
+        (quantity == 2U))
+    {
+        filterTimeConstant = RegistersToFloat(values[0], values[1]);
+        if (!IsFilterTimeConstantValid(filterTimeConstant))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.filterTimeConstantSeconds = filterTimeConstant;
+    }
+    else if ((starting_address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS) &&
+             (quantity == 1U))
+    {
+        if (!IsSensorTypeValid(values[0]))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.sensorType = values[0];
+    }
+    else if ((starting_address == PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS) &&
+             (quantity == 1U))
+    {
+        if (!IsTcLinearizationValid(values[0]))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.tcLinearization = values[0];
+    }
+    else if ((starting_address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS) &&
+             (quantity == 2U))
+    {
+        if (!IsSensorTypeValid(values[0]) ||
+            !IsTcLinearizationValid(values[1]))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.sensorType = values[0];
+        pendingConfig.tcLinearization = values[1];
+    }
+    else
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    registerContext->config = pendingConfig;
+    return MODBUS_EXCEPTION_NONE;
+}
+
+void ProductModbusRegisterAdapter_GetInterface(
+    ModbusSlaveRegisterInterface_t *interface)
+{
+    if (interface != NULL)
+    {
+        interface->read_holding_registers = ReadRegisters;
+        interface->read_input_registers = ReadRegisters;
+        interface->write_single_register = WriteSingleRegister;
+        interface->write_multiple_registers = WriteMultipleRegisters;
+        interface->context = &s_registerContext;
+    }
+}
+
+bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(
+    const product_temperature_input_monitor_t *monitor)
+{
+    if ((monitor == NULL) ||
+        !IsTemperatureValueValid(monitor->unfilteredProcessValue) ||
+        !IsTemperatureValueValid(monitor->filteredProcessValue))
+    {
+        return false;
+    }
+
+    s_registerContext.monitor = *monitor;
+    return true;
+}
+
+void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
+    product_temperature_input_config_t *config)
+{
+    if (config != NULL)
+    {
+        *config = s_registerContext.config;
+    }
+}
