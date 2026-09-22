@@ -23,6 +23,8 @@ static const int32_t s_rtd_cu50_measurement_boundaries_milliohm
     [PRODUCT_RTD_CU50_MEASUREMENT_BOUNDARY_COUNT] =
 {
     /* TODO: resistance_0, resistance_1, ... resistance_N */
+    19, 4300, 8580, 12860, 17140, 21420, 25700, 29980, 34260, 38540, //10
+    42820, 47100, 51380,
 };
 
 /*
@@ -33,6 +35,9 @@ static const ProductRtdCu50MeasurementCoefficient_t
     s_rtd_cu50_measurement_coefficients[PRODUCT_RTD_CU50_MEASUREMENT_SEGMENT_COUNT] =
 {
     /* TODO: {slope_0, intercept_0}, ... {slope_N-1, intercept_N-1} */
+    {467, -70088},   {467, -70075},   {467, -70063},   {467, -70050},   {467, -70038}, //5
+    {467, -70026},   {467, -70013},   {467, -70001},   {467, -69988},   {467, -69976}, //10
+    {467, -69967},   {467, -69951},
 };
 
 static PiecewiseLinearSegment_t
