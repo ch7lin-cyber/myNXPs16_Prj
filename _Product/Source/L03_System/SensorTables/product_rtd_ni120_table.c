@@ -23,6 +23,9 @@ static const int32_t s_rtd_ni120_measurement_boundaries_shifted_milliohm
     [PRODUCT_RTD_NI120_MEASUREMENT_BOUNDARY_COUNT] =
 {
     /* TODO: resistance_0, resistance_1, ... resistance_N */
+    99, 13100, 26120, 39260, 52650, 66500, 81020, 96290, 112400, 129340, //10
+    147140, 165790, 185350, 205800, 227270, 249960, 274030, 299640, 326810, 355570, //20
+    385940, 416720,
 };
 
 /*
@@ -34,6 +37,11 @@ static const ProductRtdNi120MeasurementCoefficient_t
     s_rtd_ni120_measurement_coefficients[PRODUCT_RTD_NI120_MEASUREMENT_SEGMENT_COUNT] =
 {
     /* TODO: {slope_0, intercept_0}, ... {slope_N-1, intercept_N-1} */
+    {154, -100163}, {154, -100199}, {152, -99676}, {149, -98448}, {144, -95742}, //5
+    {138, -91739}, {131, -86061}, {124, -79326}, {118, -72557}, {112, -64786}, //10
+    {107, -57365}, {102, -49037}, { 98, -41598}, { 93, -31318}, { 88, -19921}, //15
+    { 83,  -7385}, { 78,   6340}, { 74, 18280}, { 70, 31223}, { 66, 45371}, //20
+    { 65,  49152},
 };
 
 static PiecewiseLinearSegment_t
