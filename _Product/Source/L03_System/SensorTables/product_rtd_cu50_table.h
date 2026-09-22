@@ -13,9 +13,10 @@ extern "C" {
 #define PRODUCT_RTD_CU50_EXTENDED_MARGIN_MC            (20000L)
 
 /* TODO: Enter this sensor's resistance-to-temperature table parameters. */
-#define PRODUCT_RTD_CU50_MEASUREMENT_SEGMENT_COUNT     (0U)
+#define PRODUCT_RTD_CU50_MEASUREMENT_SEGMENT_COUNT     (12U)
 #define PRODUCT_RTD_CU50_MEASUREMENT_BOUNDARY_COUNT    \
     (PRODUCT_RTD_CU50_MEASUREMENT_SEGMENT_COUNT + 1U)
+#define PRODUCT_RTD_CU50_INPUT_SHIFT_MILLIOHM          (-35000L)
 #define PRODUCT_RTD_CU50_MEASUREMENT_COEFFICIENT_SCALE (100UL)
 
 const PiecewiseLinearTable_t *ProductRtdCu50Table_GetMeasurementTable(void);
@@ -26,4 +27,3 @@ bool ProductRtdCu50Table_IsReady(void);
 #endif
 
 #endif /* PRODUCT_RTD_CU50_TABLE_H */
-

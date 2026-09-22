@@ -62,7 +62,16 @@ at `0U` while editing; set it to `1U` only after validation.
 | Cu50 | `product_rtd_cu50_table` | -50 to 150 | Awaiting coefficients |
 | Pt1000 | `product_rtd_pt1000_table` | -200 to 850 | Awaiting coefficients |
 
-RTD table input is calibrated resistance in milliohm. Fill each
-`TODO: USER TABLE DATA` block and the segment count in its header. Keep
+RTD table input is calibrated resistance in milliohm. Its coefficient input is
+shifted before evaluating `y = ax + b`:
+
+```text
+shifted_resistance_milliohm = resistance_milliohm + input_shift_milliohm
+temperature_mC = slope * shifted_resistance_milliohm / coefficient_scale
+                 + intercept_mC
+```
+
+Fill each `TODO: USER TABLE DATA` block, segment count and
+`INPUT_SHIFT_MILLIOHM` in its header. Keep
 `PRODUCT_RTD_<TYPE>_TABLE_COMPLETE` at `0U` while editing; set it to `1U`
 only after validation.

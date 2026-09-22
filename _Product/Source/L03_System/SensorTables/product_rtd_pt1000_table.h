@@ -16,6 +16,7 @@ extern "C" {
 #define PRODUCT_RTD_PT1000_MEASUREMENT_SEGMENT_COUNT     (0U)
 #define PRODUCT_RTD_PT1000_MEASUREMENT_BOUNDARY_COUNT    \
     (PRODUCT_RTD_PT1000_MEASUREMENT_SEGMENT_COUNT + 1U)
+#define PRODUCT_RTD_PT1000_INPUT_SHIFT_MILLIOHM          (0L)
 #define PRODUCT_RTD_PT1000_MEASUREMENT_COEFFICIENT_SCALE (100UL)
 
 const PiecewiseLinearTable_t *ProductRtdPt1000Table_GetMeasurementTable(void);
@@ -26,4 +27,3 @@ bool ProductRtdPt1000Table_IsReady(void);
 #endif
 
 #endif /* PRODUCT_RTD_PT1000_TABLE_H */
-

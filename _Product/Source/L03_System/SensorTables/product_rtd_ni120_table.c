@@ -16,10 +16,10 @@ typedef struct
 
 /*
  * TODO: USER TABLE DATA
- * Enter MEASUREMENT_SEGMENT_COUNT + 1 strictly increasing resistance
- * boundaries. Unit: milliohm.
+ * Enter MEASUREMENT_SEGMENT_COUNT + 1 strictly increasing boundaries.
+ * Each value is resistance_milliohm + PRODUCT_RTD_NI120_INPUT_SHIFT_MILLIOHM.
  */
-static const int32_t s_rtd_ni120_measurement_boundaries_milliohm
+static const int32_t s_rtd_ni120_measurement_boundaries_shifted_milliohm
     [PRODUCT_RTD_NI120_MEASUREMENT_BOUNDARY_COUNT] =
 {
     /* TODO: resistance_0, resistance_1, ... resistance_N */
@@ -27,7 +27,8 @@ static const int32_t s_rtd_ni120_measurement_boundaries_milliohm
 
 /*
  * TODO: USER TABLE DATA
- * temperature_mC = slope * resistance_milliohm / 100 + intercept_mC
+ * shifted_resistance_milliohm = resistance_milliohm + input_shift_milliohm
+ * temperature_mC = slope * shifted_resistance_milliohm / 100 + intercept_mC
  */
 static const ProductRtdNi120MeasurementCoefficient_t
     s_rtd_ni120_measurement_coefficients[PRODUCT_RTD_NI120_MEASUREMENT_SEGMENT_COUNT] =
@@ -58,15 +59,19 @@ static void InitializeTable(void)
     for (index = 0U; index < PRODUCT_RTD_NI120_MEASUREMENT_SEGMENT_COUNT; index++)
     {
         s_rtd_ni120_measurement_segments[index].x_min =
-            s_rtd_ni120_measurement_boundaries_milliohm[index];
+            s_rtd_ni120_measurement_boundaries_shifted_milliohm[index] -
+            PRODUCT_RTD_NI120_INPUT_SHIFT_MILLIOHM;
         s_rtd_ni120_measurement_segments[index].x_max =
-            s_rtd_ni120_measurement_boundaries_milliohm[index + 1U];
+            s_rtd_ni120_measurement_boundaries_shifted_milliohm[index + 1U] -
+            PRODUCT_RTD_NI120_INPUT_SHIFT_MILLIOHM;
         s_rtd_ni120_measurement_segments[index].slope =
             s_rtd_ni120_measurement_coefficients[index].slope;
         s_rtd_ni120_measurement_segments[index].intercept =
-            (int64_t)s_rtd_ni120_measurement_coefficients[index]
-                .intercept_millicelsius *
-            PRODUCT_RTD_NI120_MEASUREMENT_COEFFICIENT_SCALE;
+            ((int64_t)s_rtd_ni120_measurement_coefficients[index].slope *
+             PRODUCT_RTD_NI120_INPUT_SHIFT_MILLIOHM) +
+            ((int64_t)s_rtd_ni120_measurement_coefficients[index]
+                 .intercept_millicelsius *
+             PRODUCT_RTD_NI120_MEASUREMENT_COEFFICIENT_SCALE);
     }
 
     s_table_initialized = true;
@@ -97,4 +102,3 @@ bool ProductRtdNi120Table_IsReady(void)
 }
 
 #endif /* PRODUCT_RTD_NI120_TABLE_COMPLETE */
-
