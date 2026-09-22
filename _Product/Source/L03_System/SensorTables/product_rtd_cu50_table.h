@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define PRODUCT_RTD_CU50_TABLE_COMPLETE                (0U)
+#define PRODUCT_RTD_CU50_TABLE_COMPLETE                (1U)
 #define PRODUCT_RTD_CU50_MIN_MILLICELSIUS              (-50000L)
 #define PRODUCT_RTD_CU50_MAX_MILLICELSIUS              (150000L)
 #define PRODUCT_RTD_CU50_EXTENDED_MARGIN_MC            (20000L)
