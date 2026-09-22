@@ -35,6 +35,32 @@ bool ProductTemperatureRangeResolver_Resolve(
         return true;
     }
 
+    if (configuration->sensor_type == PRODUCT_SENSOR_TYPE_RTD_JPT100)
+    {
+        *minimum = -20.0F;
+        *maximum = 400.0F;
+        return true;
+    }
+    if (configuration->sensor_type == PRODUCT_SENSOR_TYPE_RTD_NI120)
+    {
+        *minimum = -80.0F;
+        *maximum = 300.0F;
+        return true;
+    }
+    if (configuration->sensor_type == PRODUCT_SENSOR_TYPE_RTD_CU50)
+    {
+        *minimum = -50.0F;
+        *maximum = 150.0F;
+        return true;
+    }
+    if ((configuration->sensor_type >= PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V) &&
+        (configuration->sensor_type <= PRODUCT_SENSOR_TYPE_CURRENT_4_20MA))
+    {
+        *minimum = -1999.0F;
+        *maximum = 19999.0F;
+        return true;
+    }
+
     if (configuration->sensor_type != PRODUCT_SENSOR_TYPE_THERMOCOUPLE)
     {
         return false;
@@ -43,41 +69,53 @@ bool ProductTemperatureRangeResolver_Resolve(
     switch (configuration->tc_linearization)
     {
         case PRODUCT_TC_LINEARIZATION_B:
-            *minimum = 0.0F;
-            *maximum = 1820.0F;
+            *minimum = 100.0F;
+            *maximum = 1800.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_C:
             *minimum = 0.0F;
-            *maximum = 2320.0F;
+            *maximum = 2300.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_D:
             *minimum = 0.0F;
-            *maximum = 2495.0F;
+            *maximum = 2300.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_E:
-            *minimum = -270.0F;
-            *maximum = 1000.0F;
+            *minimum = 0.0F;
+            *maximum = 600.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_J:
-            *minimum = -210.0F;
+            *minimum = -200.0F;
             *maximum = 1200.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_K:
-            *minimum = -270.0F;
-            *maximum = 1372.0F;
+            *minimum = -200.0F;
+            *maximum = 1300.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_N:
-            *minimum = -270.0F;
+            *minimum = -200.0F;
             *maximum = 1300.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_R:
         case PRODUCT_TC_LINEARIZATION_S:
-            *minimum = -50.0F;
-            *maximum = 1768.0F;
+            *minimum = 0.0F;
+            *maximum = 1700.0F;
             return true;
         case PRODUCT_TC_LINEARIZATION_T:
-            *minimum = -270.0F;
+            *minimum = -200.0F;
             *maximum = 400.0F;
+            return true;
+        case PRODUCT_TC_LINEARIZATION_L:
+            *minimum = -200.0F;
+            *maximum = 850.0F;
+            return true;
+        case PRODUCT_TC_LINEARIZATION_U:
+            *minimum = -200.0F;
+            *maximum = 500.0F;
+            return true;
+        case PRODUCT_TC_LINEARIZATION_TXK:
+            *minimum = -150.0F;
+            *maximum = 800.0F;
             return true;
         default:
             return false;

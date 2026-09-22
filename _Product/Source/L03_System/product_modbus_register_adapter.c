@@ -7,6 +7,7 @@
 #include "product_temperature_input_types.h"
 
 #include "EventService.h"
+#include "FactoryCalibrationService.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -75,7 +76,15 @@ static bool IsSensorTypeValid(uint16_t value)
     return (value == PRODUCT_SENSOR_TYPE_OFF) ||
            (value == PRODUCT_SENSOR_TYPE_THERMOCOUPLE) ||
            (value == PRODUCT_SENSOR_TYPE_RTD_100_OHM) ||
-           (value == PRODUCT_SENSOR_TYPE_RTD_1000_OHM);
+           (value == PRODUCT_SENSOR_TYPE_RTD_1000_OHM) ||
+           (value == PRODUCT_SENSOR_TYPE_RTD_JPT100) ||
+           (value == PRODUCT_SENSOR_TYPE_RTD_NI120) ||
+           (value == PRODUCT_SENSOR_TYPE_RTD_CU50) ||
+           (value == PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V) ||
+           (value == PRODUCT_SENSOR_TYPE_VOLTAGE_0_10V) ||
+           (value == PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV) ||
+           (value == PRODUCT_SENSOR_TYPE_CURRENT_0_20MA) ||
+           (value == PRODUCT_SENSOR_TYPE_CURRENT_4_20MA);
 }
 
 static bool IsTcLinearizationValid(uint16_t value)
@@ -89,7 +98,10 @@ static bool IsTcLinearizationValid(uint16_t value)
            (value == PRODUCT_TC_LINEARIZATION_N) ||
            (value == PRODUCT_TC_LINEARIZATION_R) ||
            (value == PRODUCT_TC_LINEARIZATION_S) ||
-           (value == PRODUCT_TC_LINEARIZATION_T);
+           (value == PRODUCT_TC_LINEARIZATION_T) ||
+           (value == PRODUCT_TC_LINEARIZATION_L) ||
+           (value == PRODUCT_TC_LINEARIZATION_U) ||
+           (value == PRODUCT_TC_LINEARIZATION_TXK);
 }
 
 static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
@@ -104,6 +116,43 @@ static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
     endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
     return (startingAddress >= PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS) &&
            (endingAddress <= PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS);
+}
+
+static bool IsFactoryCalibrationRangeValid(uint16_t startingAddress,
+                                           uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_FACTORY_CAL_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_FACTORY_CAL_LAST_ADDRESS);
+}
+
+static void Int32ToRegisters(int32_t value, uint16_t *high, uint16_t *low)
+{
+    uint32_t bits = (uint32_t)value;
+    *high = (uint16_t)(bits >> 16U);
+    *low = (uint16_t)bits;
+}
+
+static void BuildFactoryCalibrationImage(uint16_t *registers)
+{
+    FactoryCalibrationSnapshot_t snapshot;
+    (void)memset(registers, 0, 14U * sizeof(registers[0]));
+    FactoryCalibrationService_GetSnapshot(&snapshot);
+    registers[3] = snapshot.input;
+    registers[4] = (uint16_t)snapshot.profile;
+    registers[5] = (uint16_t)snapshot.state;
+    registers[6] = (uint16_t)snapshot.error;
+    Int32ToRegisters(snapshot.live_uv, &registers[7], &registers[8]);
+    Int32ToRegisters(snapshot.pending_zero_uv,
+                     &registers[9], &registers[10]);
+    Int32ToRegisters(snapshot.pending_span_uv,
+                     &registers[11], &registers[12]);
+    registers[13] = snapshot.revision;
 }
 
 static void BuildRegisterImage(
@@ -132,6 +181,7 @@ static ModbusExceptionCode_t ReadRegisters(
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
     uint16_t registerImage[10];
+    uint16_t factoryImage[14];
     uint16_t sourceOffset;
 
     if ((registerContext == NULL) || (values == NULL))
@@ -139,6 +189,15 @@ static ModbusExceptionCode_t ReadRegisters(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
+    if (IsFactoryCalibrationRangeValid(starting_address, quantity))
+    {
+        BuildFactoryCalibrationImage(factoryImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_FACTORY_CAL_BASE_ADDRESS);
+        (void)memcpy(values, &factoryImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
     if (!IsRegisterRangeValid(starting_address, quantity))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
@@ -150,6 +209,38 @@ static ModbusExceptionCode_t ReadRegisters(
     (void)memcpy(values, &registerImage[sourceOffset],
                  (size_t)quantity * sizeof(values[0]));
     return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t ExecuteFactoryCalibrationCommand(uint16_t command)
+{
+    FactoryCalibrationSnapshot_t snapshot;
+    bool success;
+
+    FactoryCalibrationService_GetSnapshot(&snapshot);
+    switch (command)
+    {
+        case PRODUCT_FACTORY_CAL_COMMAND_SELECT:
+            success = FactoryCalibrationService_Select(snapshot.input,
+                                                        snapshot.profile);
+            break;
+        case PRODUCT_FACTORY_CAL_COMMAND_CAPTURE_ZERO:
+            success = FactoryCalibrationService_CaptureZero();
+            break;
+        case PRODUCT_FACTORY_CAL_COMMAND_CAPTURE_SPAN:
+            success = FactoryCalibrationService_CaptureSpan();
+            break;
+        case PRODUCT_FACTORY_CAL_COMMAND_APPLY:
+            success = FactoryCalibrationService_Apply();
+            break;
+        case PRODUCT_FACTORY_CAL_COMMAND_ABORT:
+            FactoryCalibrationService_Abort();
+            success = true;
+            break;
+        default:
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    return success ? MODBUS_EXCEPTION_NONE :
+                     MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
 }
 
 static ModbusExceptionCode_t ApplyPendingConfiguration(
@@ -252,6 +343,37 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
+    if (address == PRODUCT_MODBUS_FACTORY_CAL_UNLOCK1_ADDRESS)
+    {
+        FactoryCalibrationService_SetUnlockKey1(value);
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (address == PRODUCT_MODBUS_FACTORY_CAL_UNLOCK2_ADDRESS)
+    {
+        FactoryCalibrationService_SetUnlockKey2(value);
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (address == PRODUCT_MODBUS_FACTORY_CAL_INPUT_ADDRESS)
+    {
+        FactoryCalibrationSnapshot_t snapshot;
+        FactoryCalibrationService_GetSnapshot(&snapshot);
+        return FactoryCalibrationService_Select(
+                   (uint8_t)value, snapshot.profile) ?
+                   MODBUS_EXCEPTION_NONE : MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    if (address == PRODUCT_MODBUS_FACTORY_CAL_PROFILE_ADDRESS)
+    {
+        FactoryCalibrationSnapshot_t snapshot;
+        FactoryCalibrationService_GetSnapshot(&snapshot);
+        return FactoryCalibrationService_Select(
+                   snapshot.input, (FactoryCalibrationProfile_t)value) ?
+                   MODBUS_EXCEPTION_NONE : MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    if (address == PRODUCT_MODBUS_FACTORY_CAL_COMMAND_ADDRESS)
+    {
+        return ExecuteFactoryCalibrationCommand(value);
+    }
+
     if (address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS)
     {
         if (!IsSensorTypeValid(value))
@@ -299,6 +421,14 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     }
 
     pendingConfig = registerContext->pendingConfig;
+
+    if ((starting_address == PRODUCT_MODBUS_FACTORY_CAL_UNLOCK1_ADDRESS) &&
+        (quantity == 2U))
+    {
+        FactoryCalibrationService_SetUnlockKey1(values[0]);
+        FactoryCalibrationService_SetUnlockKey2(values[1]);
+        return MODBUS_EXCEPTION_NONE;
+    }
 
     if ((starting_address == PRODUCT_MODBUS_FILTER_TIME_CONSTANT_ADDRESS) &&
         (quantity == 2U))

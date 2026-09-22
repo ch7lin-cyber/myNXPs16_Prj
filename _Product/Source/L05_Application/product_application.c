@@ -6,6 +6,7 @@
 #include "AnalogInputService.h"
 #include "EventService.h"
 #include "FaultService.h"
+#include "FactoryCalibrationService.h"
 #include "NvmConfigurationEventConsumer.h"
 #include "NvmService.h"
 #include "PwmOutputService.h"
@@ -33,6 +34,7 @@ bool ProductApplication_Init(void)
     uint8_t adc_route_count;
 
     FaultService_Initialize();
+    FactoryCalibrationService_Initialize();
 
     if (!ProductAdcDriver_Init())
     {
@@ -117,7 +119,17 @@ bool ProductApplication_Init(void)
 
 void ProductApplication_Process(void)
 {
+    uint8_t input;
     (void)AnalogInputService_Process();
+    for (input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
+    {
+        AnalogInputSample_t sample;
+        if (AnalogInputService_GetLatestByInput(input, &sample))
+        {
+            FactoryCalibrationService_UpdateLiveMicrovolts(
+                input, sample.microvolts);
+        }
+    }
     (void)AlarmConfigurationEventConsumer_Process(0U);
     (void)SafetyConfigurationEventConsumer_Process(0U);
     (void)NvmConfigurationEventConsumer_Process(0U);

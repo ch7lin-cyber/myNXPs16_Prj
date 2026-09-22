@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "HalAdc.h"
+#include "HalAdcMeasurement.h"
 #include "ProductAdcConfig.h"
 #include "adi_ad7124_driver.h"
 #include "product_ad7124_driver.h"
@@ -173,6 +174,10 @@ static HalAdcStatus_t ProductAdcTryRead(
         (ProductAdcDriverContext_t *)driver_context;
     adi_ad7124_device_t *device;
     adi_ad7124_status_t status;
+    const HalAdcChannelConfig_t *channel_config = NULL;
+    const HalAdcSetupConfig_t *setup;
+    uint32_t reference_uv;
+    uint8_t index;
 
     if ((context == NULL) || (sample == NULL))
     {
@@ -187,7 +192,42 @@ static HalAdcStatus_t ProductAdcTryRead(
 
     status = ADI_AD7124_TryReadData(
         device, &sample->raw_code, &sample->channel);
-    return MapDriverStatus(status);
+    if (status != kAdiAd7124_Ok)
+    {
+        return MapDriverStatus(status);
+    }
+    for (index = 0U;
+         index < g_device_config[context->device_index].channel_count;
+         index++)
+    {
+        if (g_device_config[context->device_index].channels[index].channel ==
+            sample->channel)
+        {
+            channel_config =
+                &g_device_config[context->device_index].channels[index];
+            break;
+        }
+    }
+    if (channel_config == NULL)
+    {
+        return HAL_ADC_STATUS_DEVICE_ERROR;
+    }
+    setup = &g_setups[channel_config->setup];
+    reference_uv =
+        (setup->reference == HAL_ADC_REFERENCE_INTERNAL) ?
+            PRODUCT_ADC_INTERNAL_REFERENCE_UV :
+        (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_1) ?
+            PRODUCT_ADC_EXTERNAL_REFERENCE1_UV :
+        (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_2) ?
+            PRODUCT_ADC_EXTERNAL_REFERENCE2_UV :
+            PRODUCT_ADC_SUPPLY_REFERENCE_UV;
+    if (!HalAdcMeasurement_CodeToMicrovolts(
+            sample->raw_code, reference_uv, (uint16_t)setup->gain,
+            setup->bipolar, &sample->microvolts))
+    {
+        return HAL_ADC_STATUS_DEVICE_ERROR;
+    }
+    return HAL_ADC_STATUS_OK;
 }
 
 bool ProductAdcDriver_Init(void)
