@@ -123,6 +123,7 @@ Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινγN{α:-jZ.¶›­–)ή³SΓχ†ΦΒfW'6–φγÒ#γ"Vζ6φF–ζsÒ%UDb
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/NvmService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/FaultService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService/SensorTables}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/FactoryCalibrationService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/Alarm}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/Safety}&quot;"/>
@@ -342,6 +343,7 @@ Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινγN{α:-jZ.¶›­–)ή³SΓχ†ΦΒfW'6–φγÒ#γ"Vζ6φF–ζsÒ%UDb
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/NvmService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/FaultService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService/SensorTables"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/FactoryCalibrationService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L02_PlatformHAL/src"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/src"/>
