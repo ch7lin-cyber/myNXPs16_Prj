@@ -14,6 +14,15 @@ extern "C" {
 #define PRODUCT_TC_K_CJC_INTERVAL_MC           (10000L)
 #define PRODUCT_TC_K_COEFFICIENT_SCALE         (1000000UL)
 
+/*** ch add @2026/09/22 */
+
+
+#define MID_TC_K_GROUP_NUMBER   77
+#define MID_TC_K_GROUP_SPLIT_NUMBER   (MID_TC_K_GROUP_NUMBER+1)
+#define MID_TC_TABLE_SHIFT_VALUE_K  6200
+
+
+/***************/
 /* x = calibrated thermocouple uV, y = temperature in 0.001 degree C. */
 const PiecewiseLinearTable_t *ProductTcKTable_GetMeasurementTable(void);
 
