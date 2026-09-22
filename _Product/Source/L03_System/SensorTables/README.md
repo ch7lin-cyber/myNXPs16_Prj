@@ -51,3 +51,18 @@ Incomplete tables must return `NULL` and must not be registered for runtime use.
 For each incomplete type, fill every `TODO: USER TABLE DATA` block and the
 measurement constants in its header. Keep `PRODUCT_TC_<TYPE>_TABLE_COMPLETE`
 at `0U` while editing; set it to `1U` only after validation.
+
+## RTD table status
+
+| Type | File stem | Rated range (degree C) | Status |
+|---|---|---:|---|
+| Pt100 | `product_rtd_pt100_table` | -200 to 850 | Awaiting coefficients |
+| JPt100 | `product_rtd_jpt100_table` | -20 to 400 | Awaiting coefficients |
+| Ni120 | `product_rtd_ni120_table` | -80 to 300 | Awaiting coefficients |
+| Cu50 | `product_rtd_cu50_table` | -50 to 150 | Awaiting coefficients |
+| Pt1000 | `product_rtd_pt1000_table` | -200 to 850 | Awaiting coefficients |
+
+RTD table input is calibrated resistance in milliohm. Fill each
+`TODO: USER TABLE DATA` block and the segment count in its header. Keep
+`PRODUCT_RTD_<TYPE>_TABLE_COMPLETE` at `0U` while editing; set it to `1U`
+only after validation.
