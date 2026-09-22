@@ -13,10 +13,10 @@ extern "C" {
 #define PRODUCT_TC_L_EXTENDED_MARGIN_MC            (20000L)
 
 /* TODO: Enter this sensor's measurement-table parameters. */
-#define PRODUCT_TC_L_MEASUREMENT_SEGMENT_COUNT     (0U)
+#define PRODUCT_TC_L_MEASUREMENT_SEGMENT_COUNT     (55U)
 #define PRODUCT_TC_L_MEASUREMENT_BOUNDARY_COUNT    \
     (PRODUCT_TC_L_MEASUREMENT_SEGMENT_COUNT + 1U)
-#define PRODUCT_TC_L_INPUT_SHIFT_UV                (0L)
+#define PRODUCT_TC_L_INPUT_SHIFT_UV                (8750L)
 #define PRODUCT_TC_L_MEASUREMENT_COEFFICIENT_SCALE (100UL)
 
 /* CJC covers -20.0 to 109.0 degree C in 10 degree C groups. */
