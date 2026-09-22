@@ -39,12 +39,13 @@
 #include "clock_config.h"
 #include "LPC55S16.h"
 #include "fsl_debug_console.h"
-#include "l02_rs485_direction.h"
-#include "l02_rs485_dma.h"
+#include "ProductFeatureConfig.h"
 #include "l03_product_modbus.h"
+#include "l03_product_modbus_master.h"
 #include "product_application.h"
 #include "product_pwm_driver.h"
 #include "product_nvm_driver.h"
+#include "product_rs485_driver.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -89,7 +90,8 @@ void COMM_TMOut_callback(uint32_t flags)
 {
     /*
      * Legacy Config Tools callback retained so peripherals.c remains linkable.
-     * L02_Rs485Dma_Init() disables COMM_CTIMER4; MRT0 now owns communication
+     * ProductRs485Driver_Initialize() disables COMM_CTIMER4; MRT0 owns
+     * communication
      * receive gaps and turnaround delays.
      */
     (void)flags;
@@ -119,55 +121,44 @@ void SysTick_Handler(void)
  * @brief   Application entry point.
  */
 int main(void) {
+    uint32_t processedTick100us = 0U;
 
     /* Init board hardware. */
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-    /* FLEXCOMM0 is owned exclusively by the debug console in this build. */
+#if (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U)
+    /* FC0 debug ownership ends when ProductRs485Driver_Initialize runs. */
     BOARD_InitDebugConsole();
+    PRINTF("\r\nLPC55S16 boot: FC0 switching to Modbus Slave\r\n");
 #endif
 
-    /* Keep every available RS-485 transceiver in receive mode at startup. */
-    (void)L02_Rs485Direction_Init();
-    (void)L02_Rs485Dma_Init();
-    (void)L03_ProductModbus_Init();
+    if (!ProductRs485Driver_Initialize())
+    {
+        while (1) {};
+    }
     if (!ProductPwmDriver_Init())
     {
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-        PRINTF("Product PWM driver initialization failed!\r\n");
-#endif
         while (1) {};
     }
     if (!ProductNvmDriver_Init())
     {
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-        PRINTF("Product NVM driver initialization failed!\r\n");
-#endif
         while (1) {};
     }
     if (!ProductApplication_Init())
     {
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-        PRINTF("Product application initialization failed!\r\n");
-#endif
+        while (1) {};
+    }
+    if (!L03_ProductModbus_Init() || !L03_ProductModbusMaster_Init())
+    {
         while (1) {};
     }
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
     {
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-        PRINTF("System Tick Setup Failed!\r\n");
-#endif
         while (1) {};
     }
-
-
-#if (PRODUCT_FC0_MODE == PRODUCT_FC0_MODE_DEBUG_CONSOLE)
-    PRINTF("\r\nHello World my S16 test \r\n");
-#endif
 
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;
@@ -177,8 +168,15 @@ int main(void) {
          * Deferred RS-485 work runs outside IRQ context. A TXIDLE callback
          * requests the final post-TX delay and DIR switch back to receive.
          */
-        L02_Rs485Dma_Process();
+        ProductRs485Driver_Process();
+        while ((uint32_t)(g_systemTick100us - processedTick100us) >= 10U)
+        {
+            processedTick100us += 10U;
+            L03_ProductModbus_Tick1ms();
+            L03_ProductModbusMaster_Tick1ms();
+        }
         L03_ProductModbus_Process();
+        L03_ProductModbusMaster_Process();
         ProductApplication_Process();
 
         i++ ;

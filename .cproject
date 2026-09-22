@@ -115,6 +115,9 @@ Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινγN{α:-jZ.¶›­–)ή³SΓχ†ΦΒfW'6–φγÒ#γ"Vζ6φF–ζsÒ%UDb
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusMaster}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/MiddlewareAdapter}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/SerialConfigurationApplyService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/PwmOutputService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/NvmService}&quot;"/>
@@ -330,6 +333,10 @@ Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινγN{α:-jZ.¶›­–)ή³SΓχ†ΦΒfW'6–φγÒ#γ"Vζ6φF–ζsÒ%UDb
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L01_ProductDriver"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusMaster"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/MiddlewareAdapter"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/SerialConfigurationApplyService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/PwmOutputService"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/NvmService"/>

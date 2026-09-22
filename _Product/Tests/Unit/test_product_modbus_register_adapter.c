@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "EventService.h"
+#include "ModbusRegisterAdapter.h"
 #include "product_modbus_register_adapter.h"
 
 static void TestDefaultRegisterImage(void)
@@ -233,6 +234,52 @@ static void TestInvalidRanges(void)
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
 }
 
+static void TestProductSerialPolicy(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    ModbusSerialPortConfiguration_t port0 =
+    {
+        {{115200UL, HAL_SERIAL_DATA_BITS_8, HAL_SERIAL_PARITY_NONE,
+          HAL_SERIAL_STOP_BITS_1},
+         SERIAL_PROTOCOL_MODBUS_RTU, SERIAL_ROLE_MODBUS_SLAVE, 1000UL},
+        2U
+    };
+    ModbusSerialPortConfiguration_t port1 = port0;
+    uint16_t value;
+
+    port1.serial.role = SERIAL_ROLE_MODBUS_MASTER;
+    port1.unit_id = 1U;
+    assert(ModbusRegisterAdapter_InitializeSerialPort(0U, &port0));
+    assert(ModbusRegisterAdapter_InitializeSerialPort(1U, &port1));
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1200U,
+               MODBUS_SERIAL_BAUD_230400) == MODBUS_EXCEPTION_NONE);
+    assert(ModbusRegisterAdapter_ReadSerialRegister(0x1210U, &value) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(value == MODBUS_SERIAL_BAUD_230400);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1204U,
+               SERIAL_PROTOCOL_RAW) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(
+               interface.context, 0x1205U,
+               SERIAL_ROLE_MODBUS_MASTER) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.write_single_register(
+               interface.context, 0x1216U, 7U) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1208U,
+               MODBUS_SERIAL_APPLY_KEY) == MODBUS_EXCEPTION_NONE);
+    assert(ModbusRegisterAdapter_IsApplyRequested(0U));
+    assert(ModbusRegisterAdapter_IsApplyRequested(1U));
+    assert(ModbusRegisterAdapter_CancelApply(0U));
+    assert(ModbusRegisterAdapter_CancelApply(1U));
+}
+
 int main(void)
 {
     TestDefaultRegisterImage();
@@ -242,5 +289,6 @@ int main(void)
     TestEventBlocksApplyUntilAcknowledged();
     TestApplyWithoutEffectiveChangeDoesNotRaiseEvent();
     TestInvalidRanges();
+    TestProductSerialPolicy();
     return 0;
 }

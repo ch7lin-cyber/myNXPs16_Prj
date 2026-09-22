@@ -8,6 +8,7 @@
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
+#include "ModbusRegisterAdapter.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -118,6 +119,73 @@ static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
            (endingAddress <= PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS);
 }
 
+static bool IsCommonSerialLineField(ModbusSerialRegisterOffset_t field)
+{
+    return ((field == MODBUS_SERIAL_REGISTER_BAUD_CODE) ||
+            (field == MODBUS_SERIAL_REGISTER_DATA_BITS) ||
+            (field == MODBUS_SERIAL_REGISTER_PARITY) ||
+            (field == MODBUS_SERIAL_REGISTER_STOP_BITS) ||
+            (field == MODBUS_SERIAL_REGISTER_PROTOCOL));
+}
+
+static ModbusExceptionCode_t WriteProductSerialRegister(
+    uint16_t address,
+    uint16_t value)
+{
+    ModbusSerialRegisterInfo_t information;
+    uint16_t peer_address;
+    ModbusExceptionCode_t result;
+
+    if (!ModbusRegisterAdapter_ResolveSerialAddress(address, &information))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+    if ((information.field == MODBUS_SERIAL_REGISTER_ROLE) ||
+        ((information.port == 1U) &&
+         (information.field == MODBUS_SERIAL_REGISTER_UNIT_ID)) ||
+        (information.access == MODBUS_REGISTER_ACCESS_READ_ONLY))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    if ((information.field == MODBUS_SERIAL_REGISTER_PROTOCOL) &&
+        (value != (uint16_t)SERIAL_PROTOCOL_MODBUS_RTU) &&
+        (value != (uint16_t)SERIAL_PROTOCOL_MODBUS_ASCII))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    if (information.field == MODBUS_SERIAL_REGISTER_APPLY)
+    {
+        result = ModbusRegisterAdapter_WriteSingleRegister(
+            NULL, 0x1208U, value);
+        if (result != MODBUS_EXCEPTION_NONE)
+        {
+            return result;
+        }
+        return ModbusRegisterAdapter_WriteSingleRegister(
+            NULL, 0x1218U, value);
+    }
+
+    result = ModbusRegisterAdapter_WriteSingleRegister(
+        NULL, address, value);
+    if ((result != MODBUS_EXCEPTION_NONE) ||
+        !IsCommonSerialLineField(information.field))
+    {
+        return result;
+    }
+
+    if (!ModbusRegisterAdapter_GetSerialAddress(
+            (information.port == 0U) ? 1U : 0U,
+            information.field,
+            &peer_address))
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    return ModbusRegisterAdapter_WriteSingleRegister(
+        NULL, peer_address, value);
+}
+
 static bool IsFactoryCalibrationRangeValid(uint16_t startingAddress,
                                            uint16_t quantity)
 {
@@ -183,10 +251,28 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t registerImage[10];
     uint16_t factoryImage[14];
     uint16_t sourceOffset;
+    ModbusSerialRegisterInfo_t serial_information;
+    uint16_t index;
 
     if ((registerContext == NULL) || (values == NULL))
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (ModbusRegisterAdapter_ResolveSerialAddress(
+            starting_address, &serial_information))
+    {
+        for (index = 0U; index < quantity; index++)
+        {
+            ModbusExceptionCode_t result =
+                ModbusRegisterAdapter_ReadSerialRegister(
+                    (uint16_t)(starting_address + index), &values[index]);
+            if (result != MODBUS_EXCEPTION_NONE)
+            {
+                return result;
+            }
+        }
+        return MODBUS_EXCEPTION_NONE;
     }
 
     if (IsFactoryCalibrationRangeValid(starting_address, quantity))
@@ -337,10 +423,17 @@ static ModbusExceptionCode_t WriteSingleRegister(
 {
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
+    ModbusSerialRegisterInfo_t serial_information;
 
     if (registerContext == NULL)
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (ModbusRegisterAdapter_ResolveSerialAddress(
+            address, &serial_information))
+    {
+        return WriteProductSerialRegister(address, value);
     }
 
     if (address == PRODUCT_MODBUS_FACTORY_CAL_UNLOCK1_ADDRESS)
@@ -414,10 +507,48 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         (product_modbus_register_context_t *)context;
     product_temperature_input_config_t pendingConfig;
     float filterTimeConstant;
+    ModbusSerialRegisterInfo_t serial_information;
 
     if ((registerContext == NULL) || (values == NULL))
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (ModbusRegisterAdapter_ResolveSerialAddress(
+            starting_address, &serial_information))
+    {
+        uint16_t index;
+        for (index = 0U; index < quantity; index++)
+        {
+            ModbusSerialRegisterInfo_t item;
+            uint16_t address = (uint16_t)(starting_address + index);
+            if (!ModbusRegisterAdapter_ResolveSerialAddress(address, &item) ||
+                (item.port != serial_information.port) ||
+                (item.field == MODBUS_SERIAL_REGISTER_ROLE) ||
+                ((item.port == 1U) &&
+                 (item.field == MODBUS_SERIAL_REGISTER_UNIT_ID)) ||
+                (item.access == MODBUS_REGISTER_ACCESS_READ_ONLY) ||
+                ((item.field == MODBUS_SERIAL_REGISTER_PROTOCOL) &&
+                 (values[index] !=
+                  (uint16_t)SERIAL_PROTOCOL_MODBUS_RTU) &&
+                 (values[index] !=
+                  (uint16_t)SERIAL_PROTOCOL_MODBUS_ASCII)) ||
+                !ModbusRegisterAdapter_IsSerialValueValid(
+                    item.field, values[index]))
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            }
+        }
+        for (index = 0U; index < quantity; index++)
+        {
+            ModbusExceptionCode_t result = WriteProductSerialRegister(
+                (uint16_t)(starting_address + index), values[index]);
+            if (result != MODBUS_EXCEPTION_NONE)
+            {
+                return result;
+            }
+        }
+        return MODBUS_EXCEPTION_NONE;
     }
 
     pendingConfig = registerContext->pendingConfig;

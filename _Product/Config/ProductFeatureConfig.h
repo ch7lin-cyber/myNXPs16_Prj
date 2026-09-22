@@ -1,24 +1,22 @@
 /*
  * Product feature configuration.
  *
- * FLEXCOMM0 has one compile-time owner. Use the debug-console mode only
- * during hardware bring-up. Select RS-485 mode before enabling Modbus on
- * channel 0 so PRINTF cannot corrupt an RTU/ASCII frame.
+ * FLEXCOMM0 is initialized as a debug console for boot/maintenance output,
+ * then ownership is transferred to the external Modbus Slave. Debug output
+ * is forbidden after ProductRs485Driver_Initialize() succeeds because an
+ * unsolicited string would corrupt the RS-485 protocol stream.
  */
 
 #ifndef PRODUCT_FEATURE_CONFIG_H_
 #define PRODUCT_FEATURE_CONFIG_H_
 
-#define PRODUCT_FC0_MODE_DEBUG_CONSOLE (0U)
-#define PRODUCT_FC0_MODE_RS485         (1U)
-
-#ifndef PRODUCT_FC0_MODE
-#define PRODUCT_FC0_MODE PRODUCT_FC0_MODE_DEBUG_CONSOLE
+#ifndef PRODUCT_FC0_BOOT_DEBUG_ENABLE
+#define PRODUCT_FC0_BOOT_DEBUG_ENABLE (1U)
 #endif
 
-#if ((PRODUCT_FC0_MODE != PRODUCT_FC0_MODE_DEBUG_CONSOLE) && \
-     (PRODUCT_FC0_MODE != PRODUCT_FC0_MODE_RS485))
-#error "PRODUCT_FC0_MODE must select DEBUG_CONSOLE or RS485"
+#if ((PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U) && \
+     (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 1U))
+#error "PRODUCT_FC0_BOOT_DEBUG_ENABLE must be 0 or 1"
 #endif
 
 #endif /* PRODUCT_FEATURE_CONFIG_H_ */
