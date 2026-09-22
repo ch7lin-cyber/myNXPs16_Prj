@@ -50,6 +50,12 @@ static const ProductTcNCjcCoefficient_t
     s_tc_n_cjc_coefficients[PRODUCT_TC_N_CJC_SEGMENT_COUNT] =
 {
     /* TODO: 13 rows: {slope_0, intercept_0}, ... {slope_12, intercept_12} */
+
+    {258, -51840}, {260, -52050}, {261, -52235}, {264, -53120}, {268, -54730},
+    {272, -56760}, {275, -58550}, {279, -61335}, {283, -64545}, {287, -68145},
+    {291, -72145}, {294, -75450}, {298, -80210},
+
+
 };
 
 static PiecewiseLinearSegment_t
