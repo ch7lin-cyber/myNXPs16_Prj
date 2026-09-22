@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define PRODUCT_TC_B_TABLE_COMPLETE                (0U)
+#define PRODUCT_TC_B_TABLE_COMPLETE                (1U)
 #define PRODUCT_TC_B_MIN_MILLICELSIUS              (100000L)
 #define PRODUCT_TC_B_MAX_MILLICELSIUS              (1800000L)
 #define PRODUCT_TC_B_EXTENDED_MARGIN_MC            (20000L)
