@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "ProductConfig.h"
 #include "EventService.h"
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
@@ -334,6 +335,29 @@ static void TestProductDiagnosticsFaultRegisters(void)
     assert(values[2] == FAULT_CODE_NONE);
 }
 
+static void TestProductVersionRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[9];
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_VERSION_BASE_ADDRESS,
+               9U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == PRODUCT_FIRMWARE_VERSION_U16);
+    assert(values[1] == PRODUCT_FIRMWARE_VERSION_SUB1_U16);
+    assert(values[2] == PRODUCT_FIRMWARE_VERSION_SUB2_U16);
+    assert(values[3] == PRODUCT_COMPATIBLE_FIRMWARE_VERSION_MIN_U16);
+    assert(values[4] == PRODUCT_COMPATIBLE_FIRMWARE_VERSION_MAX_U16);
+    assert(values[5] == PRODUCT_COMPATIBLE_PARAMETER_VERSION_MIN_U16);
+    assert(values[6] == PRODUCT_COMPATIBLE_PARAMETER_VERSION_MAX_U16);
+    assert(values[7] == PRODUCT_COMPATIBLE_SOFTWARE_VERSION_MIN_U16);
+    assert(values[8] == PRODUCT_COMPATIBLE_SOFTWARE_VERSION_MAX_U16);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_FW_VERSION_ADDRESS, 2U) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
     TestDefaultRegisterImage();
@@ -345,5 +369,6 @@ int main(void)
     TestInvalidRanges();
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
+    TestProductVersionRegisters();
     return 0;
 }

@@ -5,6 +5,7 @@
 
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
+#include "ProductConfig.h"
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
@@ -202,6 +203,18 @@ static bool IsFactoryCalibrationRangeValid(uint16_t startingAddress,
            (endingAddress <= PRODUCT_MODBUS_FACTORY_CAL_LAST_ADDRESS);
 }
 
+static bool IsVersionRangeValid(uint16_t startingAddress, uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_VERSION_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_VERSION_LAST_USED_ADDRESS);
+}
+
 static bool IsDiagnosticsRangeValid(uint16_t startingAddress,
                                     uint16_t quantity)
 {
@@ -270,6 +283,25 @@ static void BuildDiagnosticsImage(
     /* Clear Code and Clear Key are write-only and always read as zero. */
 }
 
+static void BuildVersionImage(uint16_t *registers)
+{
+    registers[0] = (uint16_t)PRODUCT_FIRMWARE_VERSION_U16;
+    registers[1] = (uint16_t)PRODUCT_FIRMWARE_VERSION_SUB1_U16;
+    registers[2] = (uint16_t)PRODUCT_FIRMWARE_VERSION_SUB2_U16;
+    registers[3] =
+        (uint16_t)PRODUCT_COMPATIBLE_FIRMWARE_VERSION_MIN_U16;
+    registers[4] =
+        (uint16_t)PRODUCT_COMPATIBLE_FIRMWARE_VERSION_MAX_U16;
+    registers[5] =
+        (uint16_t)PRODUCT_COMPATIBLE_PARAMETER_VERSION_MIN_U16;
+    registers[6] =
+        (uint16_t)PRODUCT_COMPATIBLE_PARAMETER_VERSION_MAX_U16;
+    registers[7] =
+        (uint16_t)PRODUCT_COMPATIBLE_SOFTWARE_VERSION_MIN_U16;
+    registers[8] =
+        (uint16_t)PRODUCT_COMPATIBLE_SOFTWARE_VERSION_MAX_U16;
+}
+
 static void BuildRegisterImage(
     const product_modbus_register_context_t *registerContext,
     uint16_t *registers)
@@ -296,6 +328,7 @@ static ModbusExceptionCode_t ReadRegisters(
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
     uint16_t registerImage[10];
+    uint16_t versionImage[9];
     uint16_t factoryImage[14];
     uint16_t diagnosticsImage[11];
     uint16_t sourceOffset;
@@ -323,6 +356,15 @@ static ModbusExceptionCode_t ReadRegisters(
         return MODBUS_EXCEPTION_NONE;
     }
 
+    if (IsVersionRangeValid(starting_address, quantity))
+    {
+        BuildVersionImage(versionImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_VERSION_BASE_ADDRESS);
+        (void)memcpy(values, &versionImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
     if (IsFactoryCalibrationRangeValid(starting_address, quantity))
     {
         BuildFactoryCalibrationImage(factoryImage);
