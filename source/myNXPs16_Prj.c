@@ -38,6 +38,7 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "LPC55S16.h"
+#include "fsl_pint.h"
 #include "fsl_debug_console.h"
 #include "ProductFeatureConfig.h"
 #include "l03_product_modbus.h"
@@ -66,15 +67,7 @@ void ctimer1_match0_callback(uint32_t flags)
     (void)flags;
 }
 */
-void ctimer0_match0_callback(uint32_t flags)
-{
-    (void)flags;
-}
 
-void ctimer1_match0_callback(uint32_t flags)
-{
-    (void)flags;
-}
 
 void ctimer2_match3_callback(uint32_t flags)
 {
