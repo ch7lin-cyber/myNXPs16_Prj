@@ -8,6 +8,7 @@
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
+#include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 
 #include <stddef.h>
@@ -28,6 +29,7 @@ typedef struct _product_modbus_register_context
     product_temperature_input_config_t activeConfig;
     product_temperature_input_config_t pendingConfig;
     uint16_t configurationRevision;
+    uint16_t diagnosticFaultIndex;
     bool pendingDirty;
 } product_modbus_register_context_t;
 
@@ -36,6 +38,7 @@ static product_modbus_register_context_t s_registerContext =
     {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
     {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
     {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
+    0U,
     0U,
     false
 };
@@ -199,6 +202,26 @@ static bool IsFactoryCalibrationRangeValid(uint16_t startingAddress,
            (endingAddress <= PRODUCT_MODBUS_FACTORY_CAL_LAST_ADDRESS);
 }
 
+static bool IsDiagnosticsRangeValid(uint16_t startingAddress,
+                                    uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS) &&
+           (endingAddress <=
+            PRODUCT_MODBUS_DIAGNOSTICS_LAST_USED_ADDRESS);
+}
+
+static void Uint32ToRegisters(uint32_t value, uint16_t *high, uint16_t *low)
+{
+    *high = (uint16_t)(value >> 16U);
+    *low = (uint16_t)value;
+}
+
 static void Int32ToRegisters(int32_t value, uint16_t *high, uint16_t *low)
 {
     uint32_t bits = (uint32_t)value;
@@ -221,6 +244,30 @@ static void BuildFactoryCalibrationImage(uint16_t *registers)
     Int32ToRegisters(snapshot.pending_span_uv,
                      &registers[11], &registers[12]);
     registers[13] = snapshot.revision;
+}
+
+static void BuildDiagnosticsImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    FaultRecord_t fault;
+
+    (void)memset(registers, 0, 11U * sizeof(registers[0]));
+    registers[0] = FaultService_GetActiveCount();
+    registers[1] = registerContext->diagnosticFaultIndex;
+
+    if (FaultService_GetActiveByIndex(
+            registerContext->diagnosticFaultIndex, &fault))
+    {
+        registers[2] = (uint16_t)fault.code;
+        registers[3] = fault.last_detail;
+        registers[4] = fault.last_configuration_revision;
+        Uint32ToRegisters(fault.last_event_id,
+                          &registers[5], &registers[6]);
+        Uint32ToRegisters(fault.occurrence_count,
+                          &registers[7], &registers[8]);
+    }
+    /* Clear Code and Clear Key are write-only and always read as zero. */
 }
 
 static void BuildRegisterImage(
@@ -250,6 +297,7 @@ static ModbusExceptionCode_t ReadRegisters(
         (product_modbus_register_context_t *)context;
     uint16_t registerImage[10];
     uint16_t factoryImage[14];
+    uint16_t diagnosticsImage[11];
     uint16_t sourceOffset;
     ModbusSerialRegisterInfo_t serial_information;
     uint16_t index;
@@ -281,6 +329,15 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_FACTORY_CAL_BASE_ADDRESS);
         (void)memcpy(values, &factoryImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsDiagnosticsRangeValid(starting_address, quantity))
+    {
+        BuildDiagnosticsImage(registerContext, diagnosticsImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS);
+        (void)memcpy(values, &diagnosticsImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
@@ -467,6 +524,16 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return ExecuteFactoryCalibrationCommand(value);
     }
 
+    if (address == PRODUCT_MODBUS_DIAGNOSTICS_FAULT_INDEX_ADDRESS)
+    {
+        if (value >= FaultService_GetActiveCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->diagnosticFaultIndex = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
     if (address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS)
     {
         if (!IsSensorTypeValid(value))
@@ -558,6 +625,38 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     {
         FactoryCalibrationService_SetUnlockKey1(values[0]);
         FactoryCalibrationService_SetUnlockKey2(values[1]);
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if ((starting_address == PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS) &&
+        (quantity == 2U))
+    {
+        FaultCode_t code = (FaultCode_t)values[0];
+        if ((values[1] != PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE) ||
+            !FaultService_IsActive(code))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        if (!FaultService_Clear(code))
+        {
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+        if (registerContext->diagnosticFaultIndex >=
+            FaultService_GetActiveCount())
+        {
+            registerContext->diagnosticFaultIndex = 0U;
+        }
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if ((starting_address == PRODUCT_MODBUS_DIAGNOSTICS_FAULT_INDEX_ADDRESS) &&
+        (quantity == 1U))
+    {
+        if (values[0] >= FaultService_GetActiveCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->diagnosticFaultIndex = values[0];
         return MODBUS_EXCEPTION_NONE;
     }
 

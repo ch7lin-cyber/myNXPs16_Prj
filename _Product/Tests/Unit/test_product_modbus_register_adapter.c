@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "EventService.h"
+#include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 #include "product_modbus_register_adapter.h"
 
@@ -280,6 +281,59 @@ static void TestProductSerialPolicy(void)
     assert(ModbusRegisterAdapter_CancelApply(1U));
 }
 
+static void TestProductDiagnosticsFaultRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[11];
+    const uint16_t invalidClear[2] =
+        {FAULT_CODE_NVM_ERASE_FAILED, 0x0000U};
+    const uint16_t validClear[2] =
+        {FAULT_CODE_NVM_ERASE_FAILED,
+         PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE};
+
+    FaultService_Initialize();
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(FaultService_Raise(FAULT_CODE_NVM_ERASE_FAILED,
+                              3U, 7U, 0x12345678UL));
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS,
+               11U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == 1U);
+    assert(values[1] == 0U);
+    assert(values[2] == FAULT_CODE_NVM_ERASE_FAILED);
+    assert(values[3] == 3U);
+    assert(values[4] == 7U);
+    assert(values[5] == 0x1234U);
+    assert(values[6] == 0x5678U);
+    assert(values[7] == 0U);
+    assert(values[8] == 1U);
+    assert(values[9] == 0U);
+    assert(values[10] == 0U);
+
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_KEY_ADDRESS,
+               PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.write_multiple_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS,
+               invalidClear, 2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(FaultService_IsActive(FAULT_CODE_NVM_ERASE_FAILED));
+    assert(interface.write_multiple_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS,
+               validClear, 2U) == MODBUS_EXCEPTION_NONE);
+    assert(!FaultService_IsActive(FAULT_CODE_NVM_ERASE_FAILED));
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS,
+               3U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == 0U);
+    assert(values[2] == FAULT_CODE_NONE);
+}
+
 int main(void)
 {
     TestDefaultRegisterImage();
@@ -290,5 +344,6 @@ int main(void)
     TestApplyWithoutEffectiveChangeDoesNotRaiseEvent();
     TestInvalidRanges();
     TestProductSerialPolicy();
+    TestProductDiagnosticsFaultRegisters();
     return 0;
 }
