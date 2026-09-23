@@ -115,13 +115,11 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusMaster}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L03_System}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L02_PlatformHAL/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusSlave}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L02_BSP}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L01_ProductDriver}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/Communication/SerialService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/PwmOutputService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/MiddlewareAdapter}&quot;"/>
@@ -133,10 +131,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/SerialConfigurationApplyService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/FaultService}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/EventService}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L03_SystemPlatform/SystemService/NvmService}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/Alarm}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/Safety}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Source/L05_Application}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Product/Config}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/source}&quot;"/>
@@ -347,9 +342,17 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="CMSIS"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="Debug/_Modules/PlatformCore/L03_SystemPlatform/MiddlewareAdapter"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L02_PlatformHAL/src"/>
+						<entry excluding="Communication|Communication/ModbusCore|Communication/ModbusMaster|MiddlewareAdapter|SystemService/AnalogInputService|SystemService/AnalogInputService/SensorTables|SystemService/FactoryCalibrationService" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform"/>
+						<entry excluding="ModbusCore|ModbusMaster" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusCore"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/Communication/ModbusMaster"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/MiddlewareAdapter"/>
+						<entry excluding="SensorTables" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/AnalogInputService/SensorTables"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/FactoryCalibrationService"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/src"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L01_ProductDriver"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L02_BSP"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Product/Source/L03_System"/>
