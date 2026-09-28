@@ -959,16 +959,6 @@
                   <data type="Version">2.5.0</data>
                </feature>
             </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="WWDT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data type="Boolean">true</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="Unsupported version of the WWDT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
-               <feature name="version" evaluation="equivalent">
-                  <data type="Version">2.1.2</data>
-               </feature>
-            </dependency>
             <dependency resourceType="SWComponent" resourceId="platform.drivers.ctimer" description="CTimer Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
                <feature name="enabled" evaluation="equal">
                   <data type="Boolean">true</data>
@@ -1053,11 +1043,6 @@
                <description></description>
                <options/>
                <dependencies>
-                  <dependency resourceType="ClockOutput" resourceId="WDT_clock" description="WDT_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
-                     <feature name="frequency" evaluation="greaterThan">
-                        <data type="Frequency" unit="Hz">0</data>
-                     </feature>
-                  </dependency>
                   <dependency resourceType="ClockOutput" resourceId="CTIMER2_clock" description="CTIMER2_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
                      <feature name="frequency" evaluation="greaterThan">
                         <data type="Frequency" unit="Hz">0</data>
@@ -1325,7 +1310,6 @@
                            <struct name="11"/>
                            <struct name="12"/>
                            <struct name="13"/>
-                           <struct name="14"/>
                         </array>
                         <array name="interrupts">
                            <struct name="0">
@@ -1982,8 +1966,8 @@
                            <struct name="interrupt">
                               <setting name="IRQn" value="MRT0_IRQn"/>
                               <setting name="enable_interrrupt" value="enabled"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="5"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                               <setting name="enable_custom_name" value="false"/>
                            </struct>
                         </struct>
