@@ -1,0 +1,7 @@
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_crc.c:48:6:CRC_Init	16	static
+../drivers/fsl_crc.c:81:6:CRC_GetDefaultConfig	16	static
+../drivers/fsl_crc.c:98:6:CRC_Reset	32	static
+../drivers/fsl_crc.c:111:6:CRC_WriteSeed	16	static
+../drivers/fsl_crc.c:125:6:CRC_GetConfig	24	static
+../drivers/fsl_crc.c:155:6:CRC_WriteData	32	static

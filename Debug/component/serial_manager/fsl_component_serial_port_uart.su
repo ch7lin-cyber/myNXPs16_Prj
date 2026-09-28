@@ -1,0 +1,14 @@
+E:\myGitHub2\myNXPs16_Prj\drivers/fsl_common_arm.h:717:24:DisableGlobalIRQ	16	static
+E:\myGitHub2\myNXPs16_Prj\drivers/fsl_common_arm.h:743:20:EnableGlobalIRQ	24	static
+../component/serial_manager/fsl_component_serial_port_uart.c:103:32:Serial_UartEnableReceiving	16	static
+../component/serial_manager/fsl_component_serial_port_uart.c:130:13:Serial_UartCallback	40	static
+../component/serial_manager/fsl_component_serial_port_uart.c:171:25:Serial_UartInit	32	static
+../component/serial_manager/fsl_component_serial_port_uart.c:214:25:Serial_UartDeinit	24	static
+../component/serial_manager/fsl_component_serial_port_uart.c:241:25:Serial_UartWrite	32	static
+../component/serial_manager/fsl_component_serial_port_uart.c:278:25:Serial_UartRead	24	static
+../component/serial_manager/fsl_component_serial_port_uart.c:319:25:Serial_UartCancelWrite	40	static
+../component/serial_manager/fsl_component_serial_port_uart.c:352:25:Serial_UartInstallTxCallback	32	static
+../component/serial_manager/fsl_component_serial_port_uart.c:368:25:Serial_UartInstallRxCallback	32	static
+../component/serial_manager/fsl_component_serial_port_uart.c:384:6:Serial_UartIsrFunction	24	static
+../component/serial_manager/fsl_component_serial_port_uart.c:396:25:Serial_UartEnterLowpower	24	static
+../component/serial_manager/fsl_component_serial_port_uart.c:412:25:Serial_UartExitLowpower	32	static

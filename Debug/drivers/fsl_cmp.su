@@ -1,0 +1,6 @@
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_clock.h:997:20:CLOCK_DisableClock	24	static
+../drivers/fsl_cmp.c:34:6:CMP_Init	24	static
+../drivers/fsl_cmp.c:82:6:CMP_Deinit	8	static
+../drivers/fsl_cmp.c:102:6:CMP_GetDefaultConfig	16	static
+../drivers/fsl_cmp.c:118:6:CMP_SetVREF	24	static

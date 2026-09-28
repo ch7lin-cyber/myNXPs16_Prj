@@ -1,0 +1,7 @@
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_clock.h:997:20:CLOCK_DisableClock	24	static
+../drivers/fsl_mrt.h:306:20:MRT_StopTimer	16	static
+../drivers/fsl_mrt.c:52:17:MRT_GetInstance	24	static
+../drivers/fsl_mrt.c:80:6:MRT_Init	16	static
+../drivers/fsl_mrt.c:107:6:MRT_Deinit	16	static
+../drivers/fsl_mrt.c:139:6:MRT_UpdateTimerPeriod	32	static

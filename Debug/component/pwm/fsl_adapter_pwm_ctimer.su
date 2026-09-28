@@ -1,0 +1,5 @@
+E:\myGitHub2\myNXPs16_Prj\drivers/fsl_ctimer.h:497:20:CTIMER_StartTimer	16	static
+../component/pwm/fsl_adapter_pwm_ctimer.c:39:18:HAL_PwmInit	40	static
+../component/pwm/fsl_adapter_pwm_ctimer.c:60:6:HAL_PwmDeinit	24	static
+../component/pwm/fsl_adapter_pwm_ctimer.c:83:18:HAL_PwmSetupPwm	56	static
+../component/pwm/fsl_adapter_pwm_ctimer.c:111:18:HAL_PwmUpdateDutycycle	24	static

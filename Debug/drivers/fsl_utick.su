@@ -1,0 +1,12 @@
+E:\myGitHub2\myNXPs16_Prj\CMSIS/core_cm33.h:2378:22:__NVIC_EnableIRQ	16	static
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_clock.h:997:20:CLOCK_DisableClock	24	static
+../drivers/fsl_common_arm.h:499:24:EnableIRQ	24	static
+../drivers/fsl_utick.c:66:17:UTICK_GetInstance	24	static
+../drivers/fsl_utick.c:95:6:UTICK_SetTick	32	static
+../drivers/fsl_utick.c:117:6:UTICK_Init	16	static
+../drivers/fsl_utick.c:143:6:UTICK_Deinit	16	static
+../drivers/fsl_utick.c:161:10:UTICK_GetStatusFlags	16	static
+../drivers/fsl_utick.c:174:6:UTICK_ClearStatusFlags	16	static
+../drivers/fsl_utick.c:190:6:UTICK_HandleIRQ	16	static
+../drivers/fsl_utick.c:201:6:UTICK0_DriverIRQHandler	8	static

@@ -1,0 +1,14 @@
+E:\myGitHub2\myNXPs16_Prj\CMSIS/core_cm33.h:2378:22:__NVIC_EnableIRQ	16	static
+../drivers/fsl_common_arm.h:499:24:EnableIRQ	24	static
+../drivers/fsl_usart.h:583:20:USART_EnableTxDMA	16	static
+../drivers/fsl_usart.h:598:20:USART_EnableRxDMA	16	static
+../drivers/fsl_usart_dma.c:75:13:USART_TransferSendDMACallback	32	static
+../drivers/fsl_usart_dma.c:89:13:USART_TransferReceiveDMACallback	40	static
+../drivers/fsl_usart_dma.c:117:10:USART_TransferCreateHandleDMA	32	static
+../drivers/fsl_usart_dma.c:191:10:USART_TransferSendDMA	88	static
+../drivers/fsl_usart_dma.c:243:10:USART_TransferReceiveDMA	88	static
+../drivers/fsl_usart_dma.c:290:6:USART_TransferAbortSendDMA	16	static
+../drivers/fsl_usart_dma.c:308:6:USART_TransferAbortReceiveDMA	16	static
+../drivers/fsl_usart_dma.c:330:10:USART_TransferGetReceiveCountDMA	32	static
+../drivers/fsl_usart_dma.c:358:10:USART_TransferGetSendCountDMA	32	static
+../drivers/fsl_usart_dma.c:374:6:USART_TransferDMAHandleIRQ	24	static

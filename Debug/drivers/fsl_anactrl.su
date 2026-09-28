@@ -1,0 +1,10 @@
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_clock.h:997:20:CLOCK_DisableClock	24	static
+../drivers/fsl_anactrl.c:44:17:ANACTRL_GetInstance	24	static
+../drivers/fsl_anactrl.c:67:6:ANACTRL_Init	16	static
+../drivers/fsl_anactrl.c:82:6:ANACTRL_Deinit	16	static
+../drivers/fsl_anactrl.c:99:6:ANACTRL_SetFro192M	24	static
+../drivers/fsl_anactrl.c:128:6:ANACTRL_GetDefaultFro192MConfig	16	static
+../drivers/fsl_anactrl.c:146:6:ANACTRL_SetXo32M	24	static
+../drivers/fsl_anactrl.c:197:6:ANACTRL_GetDefaultXo32MConfig	16	static
+../drivers/fsl_anactrl.c:232:10:ANACTRL_MeasureFrequency	32	static

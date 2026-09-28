@@ -1,0 +1,17 @@
+../drivers/fsl_clock.h:987:20:CLOCK_EnableClock	24	static
+../drivers/fsl_clock.h:997:20:CLOCK_DisableClock	24	static
+../drivers/fsl_puf.c:57:17:puf_waitForInit	24	static
+../drivers/fsl_puf.c:80:13:puf_powerOn	16	static
+../drivers/fsl_puf.c:110:10:PUF_PowerCycle	16	static
+../drivers/fsl_puf.c:174:6:PUF_GetDefaultConfig	16	static
+../drivers/fsl_puf.c:199:10:PUF_Init	24	static
+../drivers/fsl_puf.c:251:6:PUF_Deinit	16	static
+../drivers/fsl_puf.c:294:10:PUF_Enroll	32	static
+../drivers/fsl_puf.c:363:10:PUF_Start	32	static
+../drivers/fsl_puf.c:438:10:PUF_SetIntrinsicKey	32	static
+../drivers/fsl_puf.c:528:10:PUF_SetUserKey	40	static
+../drivers/fsl_puf.c:648:17:puf_getHwKey	32	static
+../drivers/fsl_puf.c:705:10:PUF_GetHwKey	48	static
+../drivers/fsl_puf.c:813:6:PUF_IsGetKeyAllowed	16	static
+../drivers/fsl_puf.c:839:10:PUF_GetKey	40	static
+../drivers/fsl_puf.c:935:10:PUF_Zeroize	24	static
