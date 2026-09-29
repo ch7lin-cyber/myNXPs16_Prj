@@ -1,6 +1,7 @@
 #include "product_application.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #include "AlarmConfigurationEventConsumer.h"
 #include "AnalogInputService.h"
@@ -18,7 +19,7 @@
 #include "ProductAdcConfig.h"
 #include "ProductInternalAdcConfig.h"
 
-static bool g_last_pwm_inhibited = true;
+static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
 static uint16_t g_adc_poll_elapsed_ms;
 static uint16_t g_adc_recovery_elapsed_ms;
 static uint16_t g_cjc_elapsed_ms;
@@ -31,11 +32,7 @@ static bool g_mcu_temperature_due;
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 {
     (void)context;
-    if (channel != 0U)
-    {
-        return true;
-    }
-    return SafetyConfigurationEventConsumer_IsOutputInhibited(0U);
+    return SafetyConfigurationEventConsumer_IsOutputInhibited(channel);
 }
 
 bool ProductApplication_Init(void)
@@ -124,11 +121,11 @@ bool ProductApplication_Init(void)
     }
 
     if (PwmOutputService_Initialize(
-            1U, IsPwmOutputInhibited, NULL) != PWM_OUTPUT_STATUS_OK)
+            4U, IsPwmOutputInhibited, NULL) != PWM_OUTPUT_STATUS_OK)
     {
         return false;
     }
-    g_last_pwm_inhibited = true;
+    (void)memset(g_last_pwm_inhibited, 1, sizeof(g_last_pwm_inhibited));
     g_adc_poll_elapsed_ms = 0U;
     g_adc_recovery_elapsed_ms = 0U;
     g_cjc_elapsed_ms = 0U;
@@ -220,13 +217,14 @@ void ProductApplication_Process(void)
     (void)SafetyConfigurationEventConsumer_Process(0U);
     (void)NvmConfigurationEventConsumer_Process(0U);
 
+    for (input = 0U; input < 4U; input++)
     {
         bool inhibited =
-            SafetyConfigurationEventConsumer_IsOutputInhibited(0U);
-        if (inhibited != g_last_pwm_inhibited)
+            SafetyConfigurationEventConsumer_IsOutputInhibited(input);
+        if (inhibited != g_last_pwm_inhibited[input])
         {
-            (void)PwmOutputService_RefreshSafety(0U);
-            g_last_pwm_inhibited = inhibited;
+            (void)PwmOutputService_RefreshSafety(input);
+            g_last_pwm_inhibited[input] = inhibited;
         }
     }
 }

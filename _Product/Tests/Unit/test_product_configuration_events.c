@@ -29,6 +29,17 @@ static HalPwmStatus_t MockPwmSetDuty(void *context, uint16_t duty_permille)
     return HAL_PWM_STATUS_OK;
 }
 
+static HalPwmStatus_t MockPwmSetPeriod(
+    void *context,
+    uint32_t period_ms,
+    HalPwmPeriodUpdateMode_t update_mode)
+{
+    (void)context;
+    (void)period_ms;
+    (void)update_mode;
+    return HAL_PWM_STATUS_OK;
+}
+
 static HalNvmStatus_t MockNvmInitialize(void *context)
 {
     (void)context;
@@ -82,13 +93,20 @@ int main(void)
     const uint16_t thermocouple_k[2] =
         {PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K};
     static const HalPwmDriverOps_t pwm_ops =
-        {MockPwmInitialize, MockPwmSetDuty};
+        {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
     static const HalNvmDriverOps_t nvm_ops =
         {MockNvmInitialize, MockNvmRead, MockNvmErase, MockNvmProgram};
 
     assert(EventService_Initialize(EVENT_ACK_SERIAL_REQUIRED_DEFAULT));
     (void)memset(g_nvm_storage, 0xFF, sizeof(g_nvm_storage));
-    assert(HalPwm_RegisterDriver(0U, &pwm_ops, NULL) == HAL_PWM_STATUS_OK);
+    {
+        uint8_t pwm_channel;
+        for (pwm_channel = 0U; pwm_channel < 4U; pwm_channel++)
+        {
+            assert(HalPwm_RegisterDriver(
+                       pwm_channel, &pwm_ops, NULL) == HAL_PWM_STATUS_OK);
+        }
+    }
     assert(HalNvm_RegisterDriver(&nvm_ops, NULL) == HAL_NVM_STATUS_OK);
     assert(ProductApplication_Init());
     assert(g_hardware_duty_permille == 0U);
