@@ -54,6 +54,33 @@
 
 #define PRODUCT_BOOT_DEBUG_TX_TIMEOUT_US (10000U)
 
+typedef enum
+{
+    kProductBootStageReset = 0U,
+    kProductBootStageBoardInitialized = 1U,
+    kProductBootStagePwmInitialized = 2U,
+    kProductBootStageNvmInitialized = 3U,
+    kProductBootStageApplicationInitialized = 4U,
+    kProductBootStageRs485Initialized = 5U,
+    kProductBootStageModbusInitialized = 6U,
+    kProductBootStageRunning = 7U
+} ProductBootStage_t;
+
+typedef enum
+{
+    kProductBootErrorNone = 0U,
+    kProductBootErrorPwm = 1U,
+    kProductBootErrorNvm = 2U,
+    kProductBootErrorApplication = 3U,
+    kProductBootErrorRs485 = 4U,
+    kProductBootErrorModbus = 5U,
+    kProductBootErrorSysTick = 6U
+} ProductBootError_t;
+
+/* Keep these visible in the debugger even when boot cannot print a message. */
+volatile uint32_t g_productBootStage = (uint32_t)kProductBootStageReset;
+volatile uint32_t g_productBootError = (uint32_t)kProductBootErrorNone;
+
 void ctimer0_match0_callback(uint32_t flags);
 void ctimer1_match0_callback(uint32_t flags);
 void ctimer2_match3_callback(uint32_t flags);
@@ -106,6 +133,28 @@ void drv_level_detect_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 
 static volatile uint32_t g_systemTick100us = 0U;
 
+#if (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U)
+static void ProductBootDebugWrite(const char *message)
+{
+    if (ProductRs485Direction_BeginTransmit(kProductRs485Channel0) == kStatus_Success)
+    {
+        (void)DbgConsole_BlockingPrintf("%s", message);
+        (void)ProductRs485Direction_EndTransmitBlocking(
+            kProductRs485Channel0,
+            PRODUCT_BOOT_DEBUG_TX_TIMEOUT_US);
+    }
+}
+#endif
+
+static void ProductBootHalt(ProductBootError_t error)
+{
+    g_productBootError = (uint32_t)error;
+    while (1)
+    {
+        __asm volatile ("nop");
+    }
+}
+
 void SysTick_Handler(void)
 {
     /* None-OS product timebase: 10 ticks form the 1 ms service tick. */
@@ -123,49 +172,52 @@ int main(void) {
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
+    g_productBootStage = (uint32_t)kProductBootStageBoardInitialized;
 #if (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U)
-    /*
-     * FC0 is connected through RS-485. Complete the boot message while
-     * Debug Console still owns the USART, then release it to the DMA driver.
-     */
     BOARD_InitDebugConsole();
-    if (ProductRs485Direction_BeginTransmit(kProductRs485Channel0) == kStatus_Success)
+    ProductBootDebugWrite("\r\nLPC55S16 boot: initializing product\r\n");
+#endif
+
+    if (!ProductPwmDriver_Init())
     {
-        (void)DbgConsole_BlockingPrintf(
-            "\r\nLPC55S16 boot: FC0 switching to Modbus Slave\r\n");
-        (void)ProductRs485Direction_EndTransmitBlocking(
-            kProductRs485Channel0,
-            PRODUCT_BOOT_DEBUG_TX_TIMEOUT_US);
+        ProductBootHalt(kProductBootErrorPwm);
     }
+    g_productBootStage = (uint32_t)kProductBootStagePwmInitialized;
+    if (!ProductNvmDriver_Init())
+    {
+        ProductBootHalt(kProductBootErrorNvm);
+    }
+    g_productBootStage = (uint32_t)kProductBootStageNvmInitialized;
+    if (!ProductApplication_Init())
+    {
+        ProductBootHalt(kProductBootErrorApplication);
+    }
+    g_productBootStage = (uint32_t)kProductBootStageApplicationInitialized;
+
+#if (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U)
+    /* Release FC0 only after every product service needed by Modbus is ready. */
+    ProductBootDebugWrite(
+        "\r\nLPC55S16 boot: FC0 switching to Modbus Slave\r\n");
     (void)DbgConsole_Deinit();
 #endif
 
     if (!ProductRs485Driver_Initialize())
     {
-        while (1) {};
+        ProductBootHalt(kProductBootErrorRs485);
     }
-    if (!ProductPwmDriver_Init())
-    {
-        while (1) {};
-    }
-    if (!ProductNvmDriver_Init())
-    {
-        while (1) {};
-    }
-    if (!ProductApplication_Init())
-    {
-        while (1) {};
-    }
+    g_productBootStage = (uint32_t)kProductBootStageRs485Initialized;
     if (!L03_ProductModbus_Init() || !L03_ProductModbusMaster_Init())
     {
-        while (1) {};
+        ProductBootHalt(kProductBootErrorModbus);
     }
+    g_productBootStage = (uint32_t)kProductBootStageModbusInitialized;
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
     {
-        while (1) {};
+        ProductBootHalt(kProductBootErrorSysTick);
     }
+    g_productBootStage = (uint32_t)kProductBootStageRunning;
 
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;

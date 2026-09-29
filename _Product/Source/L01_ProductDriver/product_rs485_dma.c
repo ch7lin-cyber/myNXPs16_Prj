@@ -82,6 +82,11 @@ static volatile uint32_t s_rs485MrtEvents;
 static uint32_t s_rs485MrtClockHz;
 static bool s_rs485MrtInitialized;
 
+/* Live debugger diagnostics; indices 0 and 1 correspond to FC0 and FC1. */
+volatile uint32_t g_productRs485RxCurrentBytes[kProductRs485ChannelCount];
+volatile uint32_t g_productRs485RxLastFrameBytes[kProductRs485ChannelCount];
+volatile uint32_t g_productRs485RxCompletedFrames[kProductRs485ChannelCount];
+
 static bool ProductRs485Dma_IsChannelIndexValid(product_rs485_channel_t channel)
 {
     return ((uint32_t)channel < (uint32_t)kProductRs485ChannelCount);
@@ -282,6 +287,9 @@ static status_t ProductRs485Dma_InitChannel(product_rs485_channel_t channel)
 static void ProductRs485Dma_FinalizeReceive(product_rs485_dma_context_t *context, size_t length)
 {
     ProductRs485Dma_StopMrtTimer(ProductRs485Dma_GetReceiveTimerChannel(context->channel));
+    g_productRs485RxCurrentBytes[(uint32_t)context->channel] = (uint32_t)length;
+    g_productRs485RxLastFrameBytes[(uint32_t)context->channel] = (uint32_t)length;
+    g_productRs485RxCompletedFrames[(uint32_t)context->channel]++;
     context->rxFrameLength = length;
     context->rxFrameTimingError = context->rxTimingError;
     context->rxState = (length != 0U) ? kProductRs485DmaRxFrameReady : kProductRs485DmaRxIdle;
@@ -355,6 +363,7 @@ static void ProductRs485Dma_ProcessReceive(product_rs485_dma_context_t *context)
     {
         return;
     }
+    g_productRs485RxCurrentBytes[(uint32_t)context->channel] = receivedCount;
 
     if (timerElapsed && context->rxHasData)
     {
@@ -412,7 +421,15 @@ static void ProductRs485Dma_ProcessReceive(product_rs485_dma_context_t *context)
 
 status_t ProductRs485Dma_Init(void)
 {
+    uint32_t channel;
     status_t status = ProductRs485Dma_InitMrt();
+
+    for (channel = 0U; channel < (uint32_t)kProductRs485ChannelCount; channel++)
+    {
+        g_productRs485RxCurrentBytes[channel] = 0U;
+        g_productRs485RxLastFrameBytes[channel] = 0U;
+        g_productRs485RxCompletedFrames[channel] = 0U;
+    }
 
     if (status != kStatus_Success)
     {
@@ -684,6 +701,7 @@ status_t ProductRs485Dma_StartReceive(product_rs485_channel_t channel, uint8_t *
     context->rxHasData = false;
     context->rxTimingError = false;
     context->rxFrameTimingError = false;
+    g_productRs485RxCurrentBytes[(uint32_t)channel] = 0U;
 
     status = USART_TransferReceiveDMA(hardware->usart, hardware->usartDmaHandle, &transfer);
     if (status != kStatus_Success)
