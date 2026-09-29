@@ -782,7 +782,7 @@ instance:
         - commandId: '1'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.3'
+        - channelNumber: 'CH.2'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -797,7 +797,7 @@ instance:
         - commandId: '2'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.2'
+        - channelNumber: 'CH.3'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -877,7 +877,7 @@ const lpadc_config_t CJC_ADC0_config = {
 lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 3U,
+    .channelNumber = 2U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
@@ -891,7 +891,7 @@ lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   },
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 2U,
+    .channelNumber = 3U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
