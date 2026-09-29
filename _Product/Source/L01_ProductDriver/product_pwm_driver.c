@@ -27,18 +27,19 @@ typedef struct
     uint8_t timer_index;
     uint32_t period_ticks;
     uint16_t duty_permille;
+    bool shadow_reload_enabled;
 } ProductPwmDriverContext_t;
 
 static ProductPwmDriverContext_t g_pwm_context[PRODUCT_PWM_CHANNEL_COUNT] =
 {
     {OUT1_CTIMER0_PERIPHERAL, OUT1_CTIMER0_PWM_PERIOD_CH,
-     kCTIMER_Match_0, 0U, 0U, 0U},
+     kCTIMER_Match_0, 0U, 0U, 0U, false},
     {OUT2_CTIMER1_PERIPHERAL, OUT2_CTIMER1_PWM_PERIOD_CH,
-     kCTIMER_Match_0, 1U, 0U, 0U},
+     kCTIMER_Match_0, 1U, 0U, 0U, false},
     {OUT3_CTIMER3_PERIPHERAL, OUT3_CTIMER3_PWM_PERIOD_CH,
-     kCTIMER_Match_1, 3U, 0U, 0U},
+     kCTIMER_Match_1, 3U, 0U, 0U, false},
     {OUT4_CTIMER2_PERIPHERAL, OUT4_CTIMER2_PWM_PERIOD_CH,
-     kCTIMER_Match_3, 2U, 0U, 0U}
+     kCTIMER_Match_3, 2U, 0U, 0U, false}
 };
 
 static uint32_t ProductPwmCalculatePulseMatch(
@@ -82,6 +83,7 @@ static HalPwmStatus_t ProductPwmApplyImmediate(
     CTIMER_Reset(context->base);
     CTIMER_StartTimer(context->base);
     context->period_ticks = period_ticks;
+    context->shadow_reload_enabled = false;
     return HAL_PWM_STATUS_OK;
 }
 
@@ -132,9 +134,12 @@ static HalPwmStatus_t ProductPwmSetDuty(
     context->duty_permille = duty_permille;
     pulse_match = ProductPwmCalculatePulseMatch(
         context->period_ticks, duty_permille);
-    CTIMER_UpdatePwmPulsePeriod(context->base,
-                               context->pulse_channel,
-                               pulse_match);
+    if (!context->shadow_reload_enabled)
+    {
+        CTIMER_UpdatePwmPulsePeriod(context->base,
+                                   context->pulse_channel,
+                                   pulse_match);
+    }
     CTIMER_SetShadowValue(context->base,
                          context->pulse_channel,
                          pulse_match);
@@ -181,6 +186,7 @@ static HalPwmStatus_t ProductPwmSetPeriod(
     CTIMER_EnableMatchChannelReload(
         context->base, context->pulse_channel, true);
     context->period_ticks = period_ticks;
+    context->shadow_reload_enabled = true;
     return HAL_PWM_STATUS_OK;
 }
 
