@@ -14,13 +14,19 @@
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
+#include "product_internal_adc_driver.h"
 #include "ProductAdcConfig.h"
+#include "ProductInternalAdcConfig.h"
 
 static bool g_last_pwm_inhibited = true;
 static uint16_t g_adc_poll_elapsed_ms;
 static uint16_t g_adc_recovery_elapsed_ms;
+static uint16_t g_cjc_elapsed_ms;
+static uint16_t g_mcu_temperature_elapsed_ms;
 static bool g_adc_poll_due;
 static bool g_adc_recovery_due;
+static bool g_cjc_due;
+static bool g_mcu_temperature_due;
 
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 {
@@ -42,6 +48,10 @@ bool ProductApplication_Init(void)
     FactoryCalibrationService_Initialize();
 
     if (!ProductAdcDriver_Init())
+    {
+        return false;
+    }
+    if (!ProductInternalAdcDriver_Init())
     {
         return false;
     }
@@ -121,8 +131,14 @@ bool ProductApplication_Init(void)
     g_last_pwm_inhibited = true;
     g_adc_poll_elapsed_ms = 0U;
     g_adc_recovery_elapsed_ms = 0U;
+    g_cjc_elapsed_ms = 0U;
+    g_mcu_temperature_elapsed_ms = 0U;
     g_adc_poll_due = false;
     g_adc_recovery_due = false;
+    g_cjc_due = false;
+    g_mcu_temperature_due = false;
+    (void)ProductInternalAdcDriver_RequestCjcSamples();
+    (void)ProductInternalAdcDriver_RequestMcuTemperature();
     return true;
 }
 
@@ -138,11 +154,34 @@ void ProductApplication_Tick1ms(void)
         g_adc_recovery_elapsed_ms = 0U;
         g_adc_recovery_due = true;
     }
+    if (++g_cjc_elapsed_ms >= PRODUCT_CJC_SAMPLE_PERIOD_MS)
+    {
+        g_cjc_elapsed_ms = 0U;
+        g_cjc_due = true;
+    }
+    if (++g_mcu_temperature_elapsed_ms >=
+        PRODUCT_MCU_TEMPERATURE_SAMPLE_PERIOD_MS)
+    {
+        g_mcu_temperature_elapsed_ms = 0U;
+        g_mcu_temperature_due = true;
+    }
 }
 
 void ProductApplication_Process(void)
 {
     uint8_t input;
+
+    ProductInternalAdcDriver_Process();
+    if (g_cjc_due)
+    {
+        g_cjc_due = false;
+        (void)ProductInternalAdcDriver_RequestCjcSamples();
+    }
+    if (g_mcu_temperature_due)
+    {
+        g_mcu_temperature_due = false;
+        (void)ProductInternalAdcDriver_RequestMcuTemperature();
+    }
 
     if (g_adc_poll_due)
     {
