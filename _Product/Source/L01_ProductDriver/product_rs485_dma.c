@@ -53,6 +53,7 @@ typedef struct _product_rs485_dma_context
     product_rs485_dma_rx_state_t rxState;
     product_rs485_dma_rx_gap_state_t rxGapState;
     uint32_t rxTimeoutUs;
+    uint32_t rxTimeoutRemainingUs;
     uint32_t rxT15Us;
     uint32_t rxT35Us;
     uint32_t rxLastCount;
@@ -134,6 +135,43 @@ static status_t ProductRs485Dma_StartMrtTimer(mrt_chnl_t channel, uint32_t timeo
     EnableGlobalIRQ(interruptMask);
 
     return kStatus_Success;
+}
+
+static uint32_t ProductRs485Dma_GetMaxMrtTimeoutUs(void)
+{
+    uint64_t timeoutUs;
+
+    if (s_rs485MrtClockHz == 0U)
+    {
+        return 0U;
+    }
+    timeoutUs = ((uint64_t)MRT_CHANNEL_INTVAL_IVALUE_MASK * 1000000ULL) /
+                (uint64_t)s_rs485MrtClockHz;
+    return (timeoutUs > (uint64_t)UINT32_MAX) ? UINT32_MAX : (uint32_t)timeoutUs;
+}
+
+static status_t ProductRs485Dma_StartReceiveTimeoutChunk(
+    product_rs485_dma_context_t *context)
+{
+    uint32_t maximumTimeoutUs = ProductRs485Dma_GetMaxMrtTimeoutUs();
+    uint32_t chunkTimeoutUs;
+    status_t status;
+
+    if ((maximumTimeoutUs == 0U) || (context->rxTimeoutRemainingUs == 0U))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    chunkTimeoutUs = (context->rxTimeoutRemainingUs > maximumTimeoutUs) ?
+        maximumTimeoutUs : context->rxTimeoutRemainingUs;
+    status = ProductRs485Dma_StartMrtTimer(
+        ProductRs485Dma_GetReceiveTimerChannel(context->channel),
+        chunkTimeoutUs);
+    if (status == kStatus_Success)
+    {
+        context->rxTimeoutRemainingUs -= chunkTimeoutUs;
+    }
+    return status;
 }
 
 static void ProductRs485Dma_StopMrtTimer(mrt_chnl_t channel)
@@ -258,6 +296,7 @@ static status_t ProductRs485Dma_InitChannel(product_rs485_channel_t channel)
     context->rxGapState = kProductRs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
     context->rxTimeoutUs = PRODUCT_RS485_DMA_DEFAULT_FRAME_TIMEOUT_US;
+    context->rxTimeoutRemainingUs = 0U;
     context->rxT15Us = 0U;
     context->rxT35Us = 0U;
     context->rxLastCount = 0U;
@@ -296,6 +335,7 @@ static void ProductRs485Dma_FinalizeReceive(product_rs485_dma_context_t *context
     context->rxGapState = kProductRs485DmaRxGapIdle;
     context->rxDmaFullPending = false;
     context->rxHasData = false;
+    context->rxTimeoutRemainingUs = 0U;
 }
 
 static void ProductRs485Dma_StopReceiveAndFinalize(
@@ -323,7 +363,12 @@ static void ProductRs485Dma_RestartReceiveGapTimer(product_rs485_dma_context_t *
     else
     {
         context->rxGapState = kProductRs485DmaRxGapIdle;
-        timeoutUs = context->rxTimeoutUs;
+        context->rxTimeoutRemainingUs = context->rxTimeoutUs;
+        if (ProductRs485Dma_StartReceiveTimeoutChunk(context) != kStatus_Success)
+        {
+            context->rxTimingError = true;
+        }
+        return;
     }
 
     if (ProductRs485Dma_StartMrtTimer(
@@ -371,6 +416,15 @@ static void ProductRs485Dma_ProcessReceive(product_rs485_dma_context_t *context)
         {
             if (receivedCount == context->rxLastCount)
             {
+                if (context->rxTimeoutRemainingUs != 0U)
+                {
+                    if (ProductRs485Dma_StartReceiveTimeoutChunk(context) !=
+                        kStatus_Success)
+                    {
+                        context->rxTimingError = true;
+                    }
+                    return;
+                }
                 ProductRs485Dma_StopReceiveAndFinalize(context, receivedCount);
                 return;
             }
@@ -599,7 +653,6 @@ status_t ProductRs485Dma_IsTransmitBusy(product_rs485_channel_t channel, bool *i
 status_t ProductRs485Dma_SetReceiveTimeoutUs(product_rs485_channel_t channel, uint32_t timeoutUs)
 {
     product_rs485_dma_context_t *context;
-    uint64_t ticks;
 
     if ((timeoutUs == 0U) || !ProductRs485Dma_IsChannelIndexValid(channel))
     {
@@ -616,10 +669,9 @@ status_t ProductRs485Dma_SetReceiveTimeoutUs(product_rs485_channel_t channel, ui
         return kStatus_Busy;
     }
 
-    ticks = (((uint64_t)timeoutUs * (uint64_t)s_rs485MrtClockHz) + 999999ULL) / 1000000ULL;
-    if ((ticks == 0ULL) || (ticks > (uint64_t)MRT_CHANNEL_INTVAL_IVALUE_MASK))
+    if (ProductRs485Dma_GetMaxMrtTimeoutUs() == 0U)
     {
-        return kStatus_OutOfRange;
+        return kStatus_Fail;
     }
 
     context->rxTimeoutUs = timeoutUs;
@@ -701,6 +753,7 @@ status_t ProductRs485Dma_StartReceive(product_rs485_channel_t channel, uint8_t *
     context->rxHasData = false;
     context->rxTimingError = false;
     context->rxFrameTimingError = false;
+    context->rxTimeoutRemainingUs = 0U;
     g_productRs485RxCurrentBytes[(uint32_t)channel] = 0U;
 
     status = USART_TransferReceiveDMA(hardware->usart, hardware->usartDmaHandle, &transfer);
@@ -871,6 +924,7 @@ status_t ProductRs485Dma_CancelReceive(product_rs485_channel_t channel)
     context->rxHasData = false;
     context->rxTimingError = false;
     context->rxFrameTimingError = false;
+    context->rxTimeoutRemainingUs = 0U;
     return kStatus_Success;
 }
 
