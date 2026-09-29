@@ -28,6 +28,29 @@ extern "C" {
 #define PRODUCT_MODBUS_APPLY_KEY_VALUE                       (0xA5A5U)
 #define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1009U)
 
+/* Four independent PWM outputs. FC06/FC10 writes stage Pending values. */
+#define PRODUCT_MODBUS_PWM_BASE_ADDRESS                       (0x1300U)
+#define PRODUCT_MODBUS_PWM_CHANNEL_COUNT                      (4U)
+#define PRODUCT_MODBUS_PWM_CHANNEL_STRIDE                     (3U)
+#define PRODUCT_MODBUS_PWM_PERIOD_OFFSET                      (0U)
+#define PRODUCT_MODBUS_PWM_DUTY_OFFSET                        (1U)
+#define PRODUCT_MODBUS_PWM_UPDATE_MODE_OFFSET                 (2U)
+#define PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS                  (0x130CU)
+#define PRODUCT_MODBUS_PWM_REVISION_ADDRESS                   (0x130DU)
+#define PRODUCT_MODBUS_PWM_PENDING_MASK_ADDRESS               (0x130EU)
+#define PRODUCT_MODBUS_PWM_LAST_ADDRESS                       (0x130EU)
+#define PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE                    (0xA5A5U)
+
+#define PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE                   (0U)
+#define PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE                  (1U)
+
+typedef struct _product_pwm_output_config
+{
+    uint16_t periodMs;
+    uint16_t dutyPermille;
+    uint16_t updateMode;
+} product_pwm_output_config_t;
+
 /* Reserve 0x2000..0x20FF for product version information. */
 #define PRODUCT_MODBUS_VERSION_BASE_ADDRESS                   (0x2000U)
 #define PRODUCT_MODBUS_FW_VERSION_ADDRESS                     (0x2000U)
@@ -120,6 +143,17 @@ void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
 
 /* Cancel all staged writes and restore Pending from Active. */
 void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void);
+
+/* PWM Active/Pending inspection used by diagnostics and later NVM support. */
+bool ProductModbusRegisterAdapter_GetPwmConfig(
+    uint8_t channel,
+    product_pwm_output_config_t *config);
+bool ProductModbusRegisterAdapter_GetPendingPwmConfig(
+    uint8_t channel,
+    product_pwm_output_config_t *config);
+uint16_t ProductModbusRegisterAdapter_GetPwmConfigurationRevision(void);
+uint16_t ProductModbusRegisterAdapter_GetPwmPendingMask(void);
+void ProductModbusRegisterAdapter_DiscardPendingPwmConfig(void);
 
 #ifdef __cplusplus
 }

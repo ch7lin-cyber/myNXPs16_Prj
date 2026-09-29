@@ -5,7 +5,51 @@
 #include "EventService.h"
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
+#include "HalPwm.h"
+#include "PwmOutputService.h"
 #include "product_modbus_register_adapter.h"
+
+typedef struct
+{
+    uint32_t periodMs;
+    uint16_t dutyPermille;
+    HalPwmPeriodUpdateMode_t updateMode;
+} MockPwmDriver_t;
+
+static MockPwmDriver_t g_pwmDriver[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
+
+static HalPwmStatus_t MockPwmInitialize(void *context)
+{
+    MockPwmDriver_t *driver = (MockPwmDriver_t *)context;
+    driver->periodMs = PWM_OUTPUT_PERIOD_DEFAULT_MS;
+    driver->dutyPermille = 0U;
+    driver->updateMode = HAL_PWM_PERIOD_UPDATE_IMMEDIATE;
+    return HAL_PWM_STATUS_OK;
+}
+
+static HalPwmStatus_t MockPwmSetDuty(void *context, uint16_t dutyPermille)
+{
+    ((MockPwmDriver_t *)context)->dutyPermille = dutyPermille;
+    return HAL_PWM_STATUS_OK;
+}
+
+static HalPwmStatus_t MockPwmSetPeriod(
+    void *context,
+    uint32_t periodMs,
+    HalPwmPeriodUpdateMode_t updateMode)
+{
+    MockPwmDriver_t *driver = (MockPwmDriver_t *)context;
+    driver->periodMs = periodMs;
+    driver->updateMode = updateMode;
+    return HAL_PWM_STATUS_OK;
+}
+
+static bool MockPwmIsInhibited(uint8_t channel, void *context)
+{
+    (void)channel;
+    (void)context;
+    return false;
+}
 
 static void TestDefaultRegisterImage(void)
 {
@@ -358,8 +402,116 @@ static void TestProductVersionRegisters(void)
            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestPwmPendingAndApply(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_pwm_output_config_t config;
+    uint16_t image[15];
+    const uint16_t channelOneToThreeAndApply[10] =
+    {
+        2500U, 750U, PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE,
+        100U, 500U, PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE,
+        10000U, 1000U, PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE,
+        PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE
+    };
+    const uint16_t invalidChannelZero[2] = {750U, 1001U};
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingPwmConfig();
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_PWM_BASE_ADDRESS,
+               15U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == PWM_OUTPUT_PERIOD_DEFAULT_MS);
+    assert(image[1] == 0U);
+    assert(image[2] == PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE);
+    assert(image[12] == 0U);
+    assert(image[13] == 0U);
+    assert(image[14] == 0U);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1300U, 500U) == MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, 0x1301U, 333U) == MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, 0x1302U,
+               PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0x0001U);
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &config));
+    assert(config.periodMs == PWM_OUTPUT_PERIOD_DEFAULT_MS);
+    assert(config.dutyPermille == 0U);
+    assert(ProductModbusRegisterAdapter_GetPendingPwmConfig(0U, &config));
+    assert(config.periodMs == 500U);
+    assert(config.dutyPermille == 333U);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1300U,
+               PWM_OUTPUT_PERIOD_MIN_MS - 1U) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS,
+               0x5A5AU) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0x0001U);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(g_pwmDriver[0].periodMs == 500U);
+    assert(g_pwmDriver[0].dutyPermille == 333U);
+    assert(g_pwmDriver[0].updateMode == HAL_PWM_PERIOD_UPDATE_NEXT_CYCLE);
+    assert(ProductModbusRegisterAdapter_GetPwmConfigurationRevision() == 1U);
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0U);
+
+    assert(interface.write_multiple_registers(
+               interface.context, 0x1303U,
+               channelOneToThreeAndApply, 10U) == MODBUS_EXCEPTION_NONE);
+    assert(g_pwmDriver[1].periodMs == 2500U);
+    assert(g_pwmDriver[1].dutyPermille == 750U);
+    assert(g_pwmDriver[1].updateMode == HAL_PWM_PERIOD_UPDATE_IMMEDIATE);
+    assert(g_pwmDriver[2].periodMs == 100U);
+    assert(g_pwmDriver[2].dutyPermille == 500U);
+    assert(g_pwmDriver[3].periodMs == 10000U);
+    assert(g_pwmDriver[3].dutyPermille == 1000U);
+    assert(ProductModbusRegisterAdapter_GetPwmConfigurationRevision() == 2U);
+
+    assert(interface.write_multiple_registers(
+               interface.context, 0x1300U,
+               invalidChannelZero, 2U) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0U);
+    assert(ProductModbusRegisterAdapter_GetPendingPwmConfig(0U, &config));
+    assert(config.periodMs == 500U);
+    assert(config.dutyPermille == 333U);
+
+    assert(interface.write_single_register(
+               interface.context, 0x1300U, 500U) == MODBUS_EXCEPTION_NONE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetPwmConfigurationRevision() == 2U);
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_PWM_REVISION_ADDRESS,
+               7U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
+    static const HalPwmDriverOps_t pwmOps =
+        {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
+    uint8_t channel;
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT;
+         channel++)
+    {
+        assert(HalPwm_RegisterDriver(
+                   channel, &pwmOps, &g_pwmDriver[channel]) ==
+               HAL_PWM_STATUS_OK);
+    }
+    assert(PwmOutputService_Initialize(
+               PRODUCT_MODBUS_PWM_CHANNEL_COUNT,
+               MockPwmIsInhibited, NULL) == PWM_OUTPUT_STATUS_OK);
     TestDefaultRegisterImage();
     TestMonitorAndReadOnlyRegisters();
     TestSingleWriteIsPending();
@@ -370,5 +522,6 @@ int main(void)
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestProductVersionRegisters();
+    TestPwmPendingAndApply();
     return 0;
 }

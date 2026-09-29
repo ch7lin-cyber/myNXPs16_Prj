@@ -11,6 +11,7 @@
 #include "FactoryCalibrationService.h"
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
+#include "PwmOutputService.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -32,6 +33,12 @@ typedef struct _product_modbus_register_context
     uint16_t configurationRevision;
     uint16_t diagnosticFaultIndex;
     bool pendingDirty;
+    product_pwm_output_config_t
+        activePwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
+    product_pwm_output_config_t
+        pendingPwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
+    uint16_t pwmConfigurationRevision;
+    uint16_t pwmPendingMask;
 } product_modbus_register_context_t;
 
 static product_modbus_register_context_t s_registerContext =
@@ -41,7 +48,29 @@ static product_modbus_register_context_t s_registerContext =
     {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
     0U,
     0U,
-    false
+    false,
+    {
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE}
+    },
+    {
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
+        {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
+         PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE}
+    },
+    0U,
+    0U
 };
 
 static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
@@ -121,6 +150,38 @@ static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
     endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
     return (startingAddress >= PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS) &&
            (endingAddress <= PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS);
+}
+
+static bool IsPwmRangeValid(uint16_t startingAddress, uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_PWM_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_PWM_LAST_ADDRESS);
+}
+
+static bool IsPwmConfigValueValid(uint16_t field, uint16_t value)
+{
+    if (field == PRODUCT_MODBUS_PWM_PERIOD_OFFSET)
+    {
+        return (value >= PWM_OUTPUT_PERIOD_MIN_MS) &&
+               (value <= PWM_OUTPUT_PERIOD_MAX_MS);
+    }
+    if (field == PRODUCT_MODBUS_PWM_DUTY_OFFSET)
+    {
+        return value <= HAL_PWM_DUTY_MAX_PERMILLE;
+    }
+    if (field == PRODUCT_MODBUS_PWM_UPDATE_MODE_OFFSET)
+    {
+        return (value == PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE) ||
+               (value == PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE);
+    }
+    return false;
 }
 
 static bool IsCommonSerialLineField(ModbusSerialRegisterOffset_t field)
@@ -319,6 +380,31 @@ static void BuildRegisterImage(
     registers[9] = 0U;
 }
 
+static void BuildPwmRegisterImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    uint8_t channel;
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t offset =
+            (uint16_t)channel * PRODUCT_MODBUS_PWM_CHANNEL_STRIDE;
+        registers[offset + PRODUCT_MODBUS_PWM_PERIOD_OFFSET] =
+            registerContext->activePwmConfig[channel].periodMs;
+        registers[offset + PRODUCT_MODBUS_PWM_DUTY_OFFSET] =
+            registerContext->activePwmConfig[channel].dutyPermille;
+        registers[offset + PRODUCT_MODBUS_PWM_UPDATE_MODE_OFFSET] =
+            registerContext->activePwmConfig[channel].updateMode;
+    }
+    /* Apply key is write-only. */
+    registers[12] = 0U;
+    registers[13] = registerContext->pwmConfigurationRevision;
+    registers[14] = registerContext->pwmPendingMask;
+}
+
 static ModbusExceptionCode_t ReadRegisters(
     void *context,
     uint16_t starting_address,
@@ -331,6 +417,7 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t versionImage[9];
     uint16_t factoryImage[14];
     uint16_t diagnosticsImage[11];
+    uint16_t pwmImage[15];
     uint16_t sourceOffset;
     ModbusSerialRegisterInfo_t serial_information;
     uint16_t index;
@@ -380,6 +467,15 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS);
         (void)memcpy(values, &diagnosticsImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsPwmRangeValid(starting_address, quantity))
+    {
+        BuildPwmRegisterImage(registerContext, pwmImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_PWM_BASE_ADDRESS);
+        (void)memcpy(values, &pwmImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
@@ -515,6 +611,162 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
     return MODBUS_EXCEPTION_NONE;
 }
 
+static PwmOutputStatus_t ApplyOnePwmConfiguration(
+    uint8_t channel,
+    const product_pwm_output_config_t *config)
+{
+    PwmOutputPeriodUpdateMode_t updateMode =
+        (config->updateMode == PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE) ?
+        PWM_OUTPUT_PERIOD_UPDATE_IMMEDIATE :
+        PWM_OUTPUT_PERIOD_UPDATE_NEXT_CYCLE;
+    PwmOutputStatus_t status;
+
+    if (updateMode == PWM_OUTPUT_PERIOD_UPDATE_IMMEDIATE)
+    {
+        status = PwmOutputService_SetCommand(
+            channel, config->dutyPermille);
+        if (status != PWM_OUTPUT_STATUS_OK)
+        {
+            return status;
+        }
+        return PwmOutputService_SetPeriod(
+            channel, config->periodMs, updateMode);
+    }
+
+    status = PwmOutputService_SetPeriod(
+        channel, config->periodMs, updateMode);
+    if (status != PWM_OUTPUT_STATUS_OK)
+    {
+        return status;
+    }
+    return PwmOutputService_SetCommand(channel, config->dutyPermille);
+}
+
+static ModbusExceptionCode_t ApplyPendingPwmConfiguration(
+    product_modbus_register_context_t *registerContext,
+    uint16_t applyKey)
+{
+    uint8_t channel;
+    uint16_t effectiveMask = 0U;
+
+    if ((applyKey != PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE) ||
+        (registerContext->pwmPendingMask == 0U))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        const product_pwm_output_config_t *active =
+            &registerContext->activePwmConfig[channel];
+        const product_pwm_output_config_t *pending =
+            &registerContext->pendingPwmConfig[channel];
+
+        if (((registerContext->pwmPendingMask & channelMask) != 0U) &&
+            ((active->periodMs != pending->periodMs) ||
+             (active->dutyPermille != pending->dutyPermille) ||
+             (active->updateMode != pending->updateMode)))
+        {
+            effectiveMask |= channelMask;
+        }
+    }
+    if (effectiveMask == 0U)
+    {
+        registerContext->pwmPendingMask = 0U;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if ((effectiveMask & channelMask) == 0U)
+        {
+            continue;
+        }
+        if (ApplyOnePwmConfiguration(
+                channel,
+                &registerContext->pendingPwmConfig[channel]) !=
+            PWM_OUTPUT_STATUS_OK)
+        {
+            uint8_t rollbackChannel;
+            for (rollbackChannel = 0U;
+                 rollbackChannel <= channel;
+                 rollbackChannel++)
+            {
+                uint16_t rollbackMask =
+                    (uint16_t)(1UL << rollbackChannel);
+                if ((effectiveMask & rollbackMask) != 0U)
+                {
+                    product_pwm_output_config_t rollbackConfig =
+                        registerContext->activePwmConfig[rollbackChannel];
+                    rollbackConfig.updateMode =
+                        PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE;
+                    (void)ApplyOnePwmConfiguration(
+                        rollbackChannel, &rollbackConfig);
+                }
+            }
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if ((effectiveMask & channelMask) != 0U)
+        {
+            registerContext->activePwmConfig[channel] =
+                registerContext->pendingPwmConfig[channel];
+        }
+    }
+    registerContext->pwmPendingMask = 0U;
+    registerContext->pwmConfigurationRevision++;
+    if (registerContext->pwmConfigurationRevision == 0U)
+    {
+        registerContext->pwmConfigurationRevision = 1U;
+    }
+    return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t StagePwmRegister(
+    product_modbus_register_context_t *registerContext,
+    uint16_t address,
+    uint16_t value)
+{
+    uint16_t offset = (uint16_t)(address -
+                                 PRODUCT_MODBUS_PWM_BASE_ADDRESS);
+    uint8_t channel =
+        (uint8_t)(offset / PRODUCT_MODBUS_PWM_CHANNEL_STRIDE);
+    uint16_t field = offset % PRODUCT_MODBUS_PWM_CHANNEL_STRIDE;
+
+    if ((channel >= PRODUCT_MODBUS_PWM_CHANNEL_COUNT) ||
+        !IsPwmConfigValueValid(field, value))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    if (field == PRODUCT_MODBUS_PWM_PERIOD_OFFSET)
+    {
+        registerContext->pendingPwmConfig[channel].periodMs = value;
+    }
+    else if (field == PRODUCT_MODBUS_PWM_DUTY_OFFSET)
+    {
+        registerContext->pendingPwmConfig[channel].dutyPermille = value;
+    }
+    else
+    {
+        registerContext->pendingPwmConfig[channel].updateMode = value;
+    }
+    registerContext->pwmPendingMask |= (uint16_t)(1UL << channel);
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t WriteSingleRegister(
     void *context,
     uint16_t address,
@@ -574,6 +826,16 @@ static ModbusExceptionCode_t WriteSingleRegister(
         }
         registerContext->diagnosticFaultIndex = value;
         return MODBUS_EXCEPTION_NONE;
+    }
+
+    if ((address >= PRODUCT_MODBUS_PWM_BASE_ADDRESS) &&
+        (address < PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS))
+    {
+        return StagePwmRegister(registerContext, address, value);
+    }
+    if (address == PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS)
+    {
+        return ApplyPendingPwmConfiguration(registerContext, value);
     }
 
     if (address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS)
@@ -656,6 +918,52 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
             {
                 return result;
             }
+        }
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (IsPwmRangeValid(starting_address, quantity))
+    {
+        product_modbus_register_context_t stagedContext = *registerContext;
+        bool applyRequested = false;
+        uint16_t index;
+
+        for (index = 0U; index < quantity; index++)
+        {
+            uint16_t address = (uint16_t)(starting_address + index);
+            ModbusExceptionCode_t result;
+
+            if (address < PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS)
+            {
+                result = StagePwmRegister(
+                    &stagedContext, address, values[index]);
+                if (result != MODBUS_EXCEPTION_NONE)
+                {
+                    return result;
+                }
+            }
+            else if ((address == PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS) &&
+                     (index == (uint16_t)(quantity - 1U)) &&
+                     (values[index] == PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE))
+            {
+                applyRequested = true;
+            }
+            else
+            {
+                return (address <= PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS) ?
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE :
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+            }
+        }
+
+        (void)memcpy(registerContext->pendingPwmConfig,
+                     stagedContext.pendingPwmConfig,
+                     sizeof(registerContext->pendingPwmConfig));
+        registerContext->pwmPendingMask = stagedContext.pwmPendingMask;
+        if (applyRequested)
+        {
+            return ApplyPendingPwmConfiguration(
+                registerContext, PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE);
         }
         return MODBUS_EXCEPTION_NONE;
     }
@@ -834,4 +1142,46 @@ void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void)
 {
     s_registerContext.pendingConfig = s_registerContext.activeConfig;
     s_registerContext.pendingDirty = false;
+}
+
+bool ProductModbusRegisterAdapter_GetPwmConfig(
+    uint8_t channel,
+    product_pwm_output_config_t *config)
+{
+    if ((channel >= PRODUCT_MODBUS_PWM_CHANNEL_COUNT) || (config == NULL))
+    {
+        return false;
+    }
+    *config = s_registerContext.activePwmConfig[channel];
+    return true;
+}
+
+bool ProductModbusRegisterAdapter_GetPendingPwmConfig(
+    uint8_t channel,
+    product_pwm_output_config_t *config)
+{
+    if ((channel >= PRODUCT_MODBUS_PWM_CHANNEL_COUNT) || (config == NULL))
+    {
+        return false;
+    }
+    *config = s_registerContext.pendingPwmConfig[channel];
+    return true;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetPwmConfigurationRevision(void)
+{
+    return s_registerContext.pwmConfigurationRevision;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetPwmPendingMask(void)
+{
+    return s_registerContext.pwmPendingMask;
+}
+
+void ProductModbusRegisterAdapter_DiscardPendingPwmConfig(void)
+{
+    (void)memcpy(s_registerContext.pendingPwmConfig,
+                 s_registerContext.activePwmConfig,
+                 sizeof(s_registerContext.pendingPwmConfig));
+    s_registerContext.pwmPendingMask = 0U;
 }
