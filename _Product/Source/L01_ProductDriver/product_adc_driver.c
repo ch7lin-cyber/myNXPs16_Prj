@@ -12,69 +12,46 @@
 typedef struct
 {
     uint8_t device_index;
+    bool discard_next_sample;
 } ProductAdcDriverContext_t;
 
 static ProductAdcDriverContext_t g_adc_context[HAL_ADC_DEVICE_COUNT] =
 {
-    {0U}, {1U}, {2U}, {3U}
+    {0U, false}, {1U, false}, {2U, false}, {3U, false}
 };
 
-/*
- * Board-level defaults. Each converter provides four differential inputs.
- * AIN routing must be checked against the production schematic before fitting
- * sensors. Setup 0 is thermocouple/internal reference; setup 1 is
- * RTD/ratiometric external reference 1.
- */
+/* One product input per AD7124-4; all four factory-default to K type. */
 static const HalAdcSetupConfig_t g_setups[] =
 {
     {PRODUCT_ADC_TC_REFERENCE, PRODUCT_ADC_TC_FILTER, PRODUCT_ADC_TC_GAIN,
-     PRODUCT_ADC_TC_FILTER_WORD, true, true, false},
-    {PRODUCT_ADC_RTD_REFERENCE, PRODUCT_ADC_RTD_FILTER, PRODUCT_ADC_RTD_GAIN,
-     PRODUCT_ADC_RTD_FILTER_WORD, true, true, true}
+     PRODUCT_ADC_TC_FILTER_WORD, true, true, false}
 };
 
-#define ADC_CHANNEL_MAP \
-    {0U, 0U, PRODUCT_ADC_CHANNEL0_AIN_POSITIVE, \
-     PRODUCT_ADC_CHANNEL0_AIN_NEGATIVE, true}, \
-    {1U, 0U, PRODUCT_ADC_CHANNEL1_AIN_POSITIVE, \
-     PRODUCT_ADC_CHANNEL1_AIN_NEGATIVE, true}, \
-    {2U, 1U, PRODUCT_ADC_CHANNEL2_AIN_POSITIVE, \
-     PRODUCT_ADC_CHANNEL2_AIN_NEGATIVE, true}, \
-    {3U, 1U, PRODUCT_ADC_CHANNEL3_AIN_POSITIVE, \
-     PRODUCT_ADC_CHANNEL3_AIN_NEGATIVE, true}
+#define ADC_DEFAULT_K_CHANNEL \
+    {PRODUCT_ADC_ACTIVE_CHANNEL, PRODUCT_ADC_DEFAULT_SETUP, \
+     PRODUCT_ADC_TC_AIN_POSITIVE, PRODUCT_ADC_TC_AIN_NEGATIVE, true}
 
-static const HalAdcChannelConfig_t g_channels[HAL_ADC_DEVICE_COUNT][4] =
+static const HalAdcChannelConfig_t
+    g_channels[HAL_ADC_DEVICE_COUNT][PRODUCT_ADC_CHANNELS_PER_DEVICE] =
 {
-    {ADC_CHANNEL_MAP}, {ADC_CHANNEL_MAP},
-    {ADC_CHANNEL_MAP}, {ADC_CHANNEL_MAP}
+    {ADC_DEFAULT_K_CHANNEL}, {ADC_DEFAULT_K_CHANNEL},
+    {ADC_DEFAULT_K_CHANNEL}, {ADC_DEFAULT_K_CHANNEL}
 };
 
 static const HalAdcDeviceConfig_t g_device_config[HAL_ADC_DEVICE_COUNT] =
 {
-    {g_setups, 2U, g_channels[0], 4U},
-    {g_setups, 2U, g_channels[1], 4U},
-    {g_setups, 2U, g_channels[2], 4U},
-    {g_setups, 2U, g_channels[3], 4U}
+    {g_setups, 1U, g_channels[0], PRODUCT_ADC_CHANNELS_PER_DEVICE},
+    {g_setups, 1U, g_channels[1], PRODUCT_ADC_CHANNELS_PER_DEVICE},
+    {g_setups, 1U, g_channels[2], PRODUCT_ADC_CHANNELS_PER_DEVICE},
+    {g_setups, 1U, g_channels[3], PRODUCT_ADC_CHANNELS_PER_DEVICE}
 };
 
-static const AnalogInputRoute_t g_routes[16] =
+static const AnalogInputRoute_t g_routes[PRODUCT_ADC_DEVICE_COUNT] =
 {
     {0U, 0U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {1U, 0U, 1U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {2U, 0U, 2U, ANALOG_INPUT_SENSOR_RTD},
-    {3U, 0U, 3U, ANALOG_INPUT_SENSOR_RTD},
-    {4U, 1U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {5U, 1U, 1U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {6U, 1U, 2U, ANALOG_INPUT_SENSOR_RTD},
-    {7U, 1U, 3U, ANALOG_INPUT_SENSOR_RTD},
-    {8U, 2U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {9U, 2U, 1U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {10U, 2U, 2U, ANALOG_INPUT_SENSOR_RTD},
-    {11U, 2U, 3U, ANALOG_INPUT_SENSOR_RTD},
-    {12U, 3U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {13U, 3U, 1U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
-    {14U, 3U, 2U, ANALOG_INPUT_SENSOR_RTD},
-    {15U, 3U, 3U, ANALOG_INPUT_SENSOR_RTD}
+    {1U, 1U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
+    {2U, 2U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE},
+    {3U, 3U, 0U, ANALOG_INPUT_SENSOR_THERMOCOUPLE}
 };
 
 static HalAdcStatus_t MapDriverStatus(adi_ad7124_status_t status)
@@ -152,6 +129,7 @@ static HalAdcStatus_t ProductAdcConfigure(
             config->setups[index].input_buffer_enabled;
         setups[index].referenceBufferEnabled =
             config->setups[index].reference_buffer_enabled;
+        setups[index].reject60Hz = (PRODUCT_ADC_REJECT_60_HZ != 0U);
     }
     for (index = 0U; index < config->channel_count; index++)
     {
@@ -161,9 +139,16 @@ static HalAdcStatus_t ProductAdcConfigure(
         channels[index].negativeInput = config->channels[index].negative_input;
         channels[index].enabled = config->channels[index].enabled;
     }
-    return MapDriverStatus(ADI_AD7124_Configure(
-        ProductAd7124_GetDevice(context->device_index), setups,
-        config->setup_count, channels, config->channel_count));
+    {
+        HalAdcStatus_t status = MapDriverStatus(ADI_AD7124_Configure(
+            ProductAd7124_GetDevice(context->device_index), setups,
+            config->setup_count, channels, config->channel_count));
+        if (status == HAL_ADC_STATUS_OK)
+        {
+            context->discard_next_sample = true;
+        }
+        return status;
+    }
 }
 
 static HalAdcStatus_t ProductAdcTryRead(
@@ -195,6 +180,11 @@ static HalAdcStatus_t ProductAdcTryRead(
     if (status != kAdiAd7124_Ok)
     {
         return MapDriverStatus(status);
+    }
+    if (context->discard_next_sample)
+    {
+        context->discard_next_sample = false;
+        return HAL_ADC_STATUS_NOT_READY;
     }
     for (index = 0U;
          index < g_device_config[context->device_index].channel_count;

@@ -10,6 +10,7 @@
 #include "fsl_common.h"
 #include "fsl_spi.h"
 #include "peripherals.h"
+#include "ProductAdcConfig.h"
 
 #define PRODUCT_AD7124_MAX_TRANSFER_SIZE (8U)
 #define PRODUCT_AD7124_INIT_POLL_LIMIT   (256UL)
@@ -20,12 +21,12 @@ typedef struct _product_ad7124_transport
     spi_ssel_t slaveSelect;
 } product_ad7124_transport_t;
 
-/* Board routing: ADC0/1/2/3 use FC3 SSEL2/1/0/3 respectively. */
+/* Board routing: ADC0/1/2/3 use FC3 SSEL0/1/2/3 respectively. */
 static product_ad7124_transport_t s_transport[PRODUCT_AD7124_DEVICE_COUNT] =
 {
-    {0U, kSPI_Ssel2},
+    {0U, kSPI_Ssel0},
     {1U, kSPI_Ssel1},
-    {2U, kSPI_Ssel0},
+    {2U, kSPI_Ssel2},
     {3U, kSPI_Ssel3}
 };
 
@@ -117,8 +118,19 @@ adi_ad7124_status_t ProductAd7124_InitDevice(uint8_t deviceIndex)
     device->transportContext = &s_transport[deviceIndex];
     /* Bound startup time when a module is absent from the shared SPI bus. */
     device->pollLimit = PRODUCT_AD7124_INIT_POLL_LIMIT;
-    device->expectedVariant = kAdiAd7124_AnyVariant;
-    return ADI_AD7124_Init(device);
+    device->expectedVariant = kAdiAd7124_Variant4;
+    {
+        adi_ad7124_status_t status = ADI_AD7124_Init(device);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+#if PRODUCT_ADC_SPI_CRC_ENABLED
+        return ADI_AD7124_EnableCrc(device);
+#else
+        return kAdiAd7124_Ok;
+#endif
+    }
 }
 
 adi_ad7124_status_t ProductAd7124_InitAll(void)

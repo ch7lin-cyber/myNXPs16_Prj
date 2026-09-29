@@ -84,6 +84,7 @@ typedef struct _adi_ad7124_setup_config
     bool bipolar;
     bool inputBufferEnabled;
     bool referenceBufferEnabled;
+    bool reject60Hz;
 } adi_ad7124_setup_config_t;
 
 typedef struct _adi_ad7124_channel_config
@@ -116,6 +117,7 @@ typedef struct _adi_ad7124_device
 } adi_ad7124_device_t;
 
 adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device);
+adi_ad7124_status_t ADI_AD7124_EnableCrc(adi_ad7124_device_t *device);
 adi_ad7124_status_t ADI_AD7124_Reset(adi_ad7124_device_t *device);
 adi_ad7124_status_t ADI_AD7124_WaitReady(adi_ad7124_device_t *device);
 adi_ad7124_status_t ADI_AD7124_ReadRegister(

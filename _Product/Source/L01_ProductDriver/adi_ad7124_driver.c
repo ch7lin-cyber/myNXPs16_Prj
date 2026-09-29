@@ -17,12 +17,15 @@
 #define ADI_AD7124_POST_RESET_DELAY_MS    (4U)
 #define ADI_AD7124_MAX_TRANSACTION_SIZE   (8U)
 #define ADI_AD7124_ADC_CONTROL_REF_EN      (1UL << 8U)
+#define ADI_AD7124_ADC_CONTROL_MODE_MASK   (0xFFUL)
+#define ADI_AD7124_ADC_CONTROL_FULL_POWER  (0x80UL)
 #define ADI_AD7124_CHANNEL_ENABLE          (1UL << 15U)
 #define ADI_AD7124_CONFIG_BIPOLAR          (1UL << 11U)
 #define ADI_AD7124_CONFIG_REF_BUFP         (1UL << 8U)
 #define ADI_AD7124_CONFIG_REF_BUFM         (1UL << 7U)
 #define ADI_AD7124_CONFIG_AIN_BUFP         (1UL << 6U)
 #define ADI_AD7124_CONFIG_AIN_BUFM         (1UL << 5U)
+#define ADI_AD7124_FILTER_REJECT_60_HZ      (1UL << 20U)
 
 static adi_ad7124_status_t Transfer(
     adi_ad7124_device_t *device,
@@ -47,6 +50,7 @@ static adi_ad7124_status_t ReadRegisterUnchecked(
 {
     uint8_t buffer[ADI_AD7124_MAX_TRANSACTION_SIZE] = {0U};
     uint8_t registerSize = ADI_AD7124_GetRegisterSize(address);
+    uint8_t command;
     size_t transferSize;
     uint8_t index;
     adi_ad7124_status_t status;
@@ -60,7 +64,8 @@ static adi_ad7124_status_t ReadRegisterUnchecked(
         return kAdiAd7124_InvalidRegister;
     }
 
-    buffer[0] = ADI_AD7124_COMM_READ | ADI_AD7124_COMM_ADDRESS(address);
+    command = ADI_AD7124_COMM_READ | ADI_AD7124_COMM_ADDRESS(address);
+    buffer[0] = command;
     transferSize = 1U + (size_t)registerSize +
                    (device->crcEnabled ? 1U : 0U);
     status = Transfer(device, buffer, transferSize);
@@ -69,6 +74,8 @@ static adi_ad7124_status_t ReadRegisterUnchecked(
         return status;
     }
 
+    /* SPI is full duplex; restore the transmitted command for CRC checking. */
+    buffer[0] = command;
     if (device->crcEnabled &&
         (ADI_AD7124_ComputeCrc8(buffer, transferSize) != 0U))
     {
@@ -394,6 +401,41 @@ adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device)
     return kAdiAd7124_Ok;
 }
 
+adi_ad7124_status_t ADI_AD7124_EnableCrc(adi_ad7124_device_t *device)
+{
+    uint32_t errorEnable;
+    uint32_t verify;
+    adi_ad7124_status_t status;
+
+    if ((device == NULL) || !device->initialized)
+    {
+        return kAdiAd7124_InvalidArgument;
+    }
+
+    status = ADI_AD7124_ReadRegister(device, ADI_AD7124_ERROR_ENABLE_REG,
+                                     &errorEnable);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+    errorEnable |= ADI_AD7124_ERROR_ENABLE_CRC_MASK;
+    status = ADI_AD7124_WriteRegister(device, ADI_AD7124_ERROR_ENABLE_REG,
+                                      errorEnable);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+
+    status = ADI_AD7124_ReadRegister(device, ADI_AD7124_ERROR_ENABLE_REG,
+                                     &verify);
+    if ((status != kAdiAd7124_Ok) ||
+        ((verify & ADI_AD7124_ERROR_ENABLE_CRC_MASK) == 0U))
+    {
+        return (status == kAdiAd7124_Ok) ? kAdiAd7124_CrcError : status;
+    }
+    return kAdiAd7124_Ok;
+}
+
 adi_ad7124_status_t ADI_AD7124_Configure(
     adi_ad7124_device_t *device,
     const adi_ad7124_setup_config_t *setups,
@@ -413,6 +455,18 @@ adi_ad7124_status_t ADI_AD7124_Configure(
         (channelCount > ADI_AD7124_MAX_CHANNEL_COUNT))
     {
         return kAdiAd7124_InvalidArgument;
+    }
+
+    /* Burnout currents, excitation currents and voltage bias default off. */
+    status = ADI_AD7124_WriteRegister(device, ADI_AD7124_IO_CONTROL1_REG, 0U);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+    status = ADI_AD7124_WriteRegister(device, ADI_AD7124_IO_CONTROL2_REG, 0U);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
     }
 
     for (index = 0U; index < setupCount; index++)
@@ -445,6 +499,10 @@ adi_ad7124_status_t ADI_AD7124_Configure(
         }
         value = ((uint32_t)setup->filter << 21U) |
                 (uint32_t)setup->filterWord;
+        if (setup->reject60Hz)
+        {
+            value |= ADI_AD7124_FILTER_REJECT_60_HZ;
+        }
         status = ADI_AD7124_WriteRegister(
             device, (uint8_t)(ADI_AD7124_FILTER0_REG + setup->setup), value);
         if (status != kAdiAd7124_Ok)
@@ -500,6 +558,9 @@ adi_ad7124_status_t ADI_AD7124_Configure(
     {
         control &= ~ADI_AD7124_ADC_CONTROL_REF_EN;
     }
+    /* Continuous conversion, internal 614.4 kHz clock, full-power mode. */
+    control &= ~ADI_AD7124_ADC_CONTROL_MODE_MASK;
+    control |= ADI_AD7124_ADC_CONTROL_FULL_POWER;
     return ADI_AD7124_WriteRegister(device, ADI_AD7124_ADC_CONTROL_REG,
                                     control);
 }

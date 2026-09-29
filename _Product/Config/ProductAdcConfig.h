@@ -3,35 +3,81 @@
 
 #include "HalAdc.h"
 
-/*
- * Board-level analog input defaults.
- *
- * Verify these AIN pairs and the RTD reference/excitation network against the
- * production schematic. Logical inputs are numbered device * 4 + channel.
- */
-#define PRODUCT_ADC_CHANNELS_PER_DEVICE       (4U)
+/* Four AD7124-4 devices provide one independently configurable product input. */
+#define PRODUCT_ADC_DEVICE_COUNT              (4U)
+#define PRODUCT_ADC_CHANNELS_PER_DEVICE       (1U)
+#define PRODUCT_ADC_ACTIVE_CHANNEL            (0U)
+#define PRODUCT_ADC_DEFAULT_SETUP             (0U)
+
 #define PRODUCT_ADC_INTERNAL_REFERENCE_UV     (2500000UL)
 #define PRODUCT_ADC_EXTERNAL_REFERENCE1_UV    (2500000UL)
 #define PRODUCT_ADC_EXTERNAL_REFERENCE2_UV    (2500000UL)
 #define PRODUCT_ADC_SUPPLY_REFERENCE_UV       (3300000UL)
 
-#define PRODUCT_ADC_CHANNEL0_AIN_POSITIVE     (0U)
-#define PRODUCT_ADC_CHANNEL0_AIN_NEGATIVE     (1U)
-#define PRODUCT_ADC_CHANNEL1_AIN_POSITIVE     (2U)
-#define PRODUCT_ADC_CHANNEL1_AIN_NEGATIVE     (3U)
-#define PRODUCT_ADC_CHANNEL2_AIN_POSITIVE     (4U)
-#define PRODUCT_ADC_CHANNEL2_AIN_NEGATIVE     (5U)
-#define PRODUCT_ADC_CHANNEL3_AIN_POSITIVE     (6U)
-#define PRODUCT_ADC_CHANNEL3_AIN_NEGATIVE     (7U)
+/* Production schematic AIN routing, identical on ADC0 through ADC3. */
+#define PRODUCT_ADC_TC_AIN_POSITIVE           (5U)
+#define PRODUCT_ADC_TC_AIN_NEGATIVE           (4U)
+#define PRODUCT_ADC_RTD_AIN_POSITIVE          (6U)
+#define PRODUCT_ADC_RTD_AIN_NEGATIVE          (5U)
+#define PRODUCT_ADC_VOLTAGE_AIN_POSITIVE      (3U)
+#define PRODUCT_ADC_VOLTAGE_AIN_NEGATIVE      (1U)
+#define PRODUCT_ADC_CURRENT_AIN_POSITIVE      (2U)
+#define PRODUCT_ADC_CURRENT_AIN_NEGATIVE      (1U)
+#define PRODUCT_ADC_IEX1_AIN                  (0U)
+#define PRODUCT_ADC_IEX2_AIN                  (7U)
 
+/* CV_SEL0..3 are initialized low: voltage/TC/RTD mode; high selects current. */
+#define PRODUCT_ADC_CV_SELECT_VOLTAGE         (0U)
+#define PRODUCT_ADC_CV_SELECT_CURRENT         (1U)
+
+/* Factory default: K type, bipolar, internal 2.5 V reference, PGA gain 32. */
+#define PRODUCT_ADC_DEFAULT_SENSOR_IS_K       (1U)
 #define PRODUCT_ADC_TC_GAIN                   HAL_ADC_GAIN_32
 #define PRODUCT_ADC_TC_FILTER                 HAL_ADC_FILTER_SINC4
 #define PRODUCT_ADC_TC_FILTER_WORD            (384U)
 #define PRODUCT_ADC_TC_REFERENCE              HAL_ADC_REFERENCE_INTERNAL
+#define PRODUCT_ADC_REJECT_60_HZ              (1U)
+#define PRODUCT_ADC_SPI_CRC_ENABLED           (1U)
 
-#define PRODUCT_ADC_RTD_GAIN                  HAL_ADC_GAIN_16
+/* Full-power 614.4 kHz modulator: FS=384 gives 50 SPS with the Sinc4 filter. */
+#define PRODUCT_ADC_OUTPUT_DATA_RATE_HZ       (50U)
+#define PRODUCT_ADC_POLL_PERIOD_MS            (10U)
+#define PRODUCT_ADC_INTERNAL_CLOCK_HZ          (614400UL)
+#define PRODUCT_ADC_SPI_BAUD_RATE_HZ           (200000UL)
+#define PRODUCT_ADC_SPI_MODE                   (3U)
+
+/* Analog front-end component values read from the production schematic. */
+#define PRODUCT_ADC_RTD_REFERENCE_OHM          (6490UL)
+#define PRODUCT_ADC_CURRENT_SHUNT_OHM          (100UL)
+#define PRODUCT_ADC_INPUT_SERIES_OHM           (510000UL)
+#define PRODUCT_ADC_VOLTAGE_DIVIDER_OHM        (6200UL)
+#define PRODUCT_ADC_CURRENT_DIVIDER_OHM        (36800UL)
+
+/* RTD excitation-current defaults for the later sensor Apply implementation. */
+#define PRODUCT_ADC_IEX_UA_JPT100              (500U)
+#define PRODUCT_ADC_IEX_UA_PT100               (500U)
+#define PRODUCT_ADC_IEX_UA_NI120               (500U)
+#define PRODUCT_ADC_IEX_UA_CU50                (500U)
+#define PRODUCT_ADC_IEX_UA_PT1000              (250U)
+#define PRODUCT_ADC_IEX_UA_DEFAULT             (0U)
+
+/* Values retained for the later run-time sensor-type reconfiguration phase. */
+#define PRODUCT_ADC_GAIN_SB                   HAL_ADC_GAIN_128
+#define PRODUCT_ADC_GAIN_TRC                  HAL_ADC_GAIN_64
+#define PRODUCT_ADC_GAIN_J_JPT100             HAL_ADC_GAIN_16
+#define PRODUCT_ADC_GAIN_PT100_NI120          HAL_ADC_GAIN_8
+#define PRODUCT_ADC_GAIN_PT1000               HAL_ADC_GAIN_1
+#define PRODUCT_ADC_GAIN_GENERAL              HAL_ADC_GAIN_32
 #define PRODUCT_ADC_RTD_FILTER                HAL_ADC_FILTER_SINC4
 #define PRODUCT_ADC_RTD_FILTER_WORD           (384U)
 #define PRODUCT_ADC_RTD_REFERENCE             HAL_ADC_REFERENCE_EXTERNAL_1
+
+#if defined(__cplusplus)
+static_assert(PRODUCT_ADC_DEVICE_COUNT == HAL_ADC_DEVICE_COUNT,
+              "Product and platform ADC device counts must match");
+#else
+_Static_assert(PRODUCT_ADC_DEVICE_COUNT == HAL_ADC_DEVICE_COUNT,
+               "Product and platform ADC device counts must match");
+#endif
 
 #endif /* PRODUCT_ADC_CONFIG_H */
