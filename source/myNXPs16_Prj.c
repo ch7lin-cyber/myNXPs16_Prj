@@ -46,10 +46,13 @@
 #include "product_application.h"
 #include "product_pwm_driver.h"
 #include "product_nvm_driver.h"
+#include "product_rs485_direction.h"
 #include "product_rs485_driver.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
+
+#define PRODUCT_BOOT_DEBUG_TX_TIMEOUT_US (10000U)
 
 void ctimer0_match0_callback(uint32_t flags);
 void ctimer1_match0_callback(uint32_t flags);
@@ -121,9 +124,20 @@ int main(void) {
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
 #if (PRODUCT_FC0_BOOT_DEBUG_ENABLE != 0U)
-    /* FC0 debug ownership ends when ProductRs485Driver_Initialize runs. */
+    /*
+     * FC0 is connected through RS-485. Complete the boot message while
+     * Debug Console still owns the USART, then release it to the DMA driver.
+     */
     BOARD_InitDebugConsole();
-    PRINTF("\r\nLPC55S16 boot: FC0 switching to Modbus Slave\r\n");
+    if (ProductRs485Direction_BeginTransmit(kProductRs485Channel0) == kStatus_Success)
+    {
+        (void)DbgConsole_BlockingPrintf(
+            "\r\nLPC55S16 boot: FC0 switching to Modbus Slave\r\n");
+        (void)ProductRs485Direction_EndTransmitBlocking(
+            kProductRs485Channel0,
+            PRODUCT_BOOT_DEBUG_TX_TIMEOUT_US);
+    }
+    (void)DbgConsole_Deinit();
 #endif
 
     if (!ProductRs485Driver_Initialize())
