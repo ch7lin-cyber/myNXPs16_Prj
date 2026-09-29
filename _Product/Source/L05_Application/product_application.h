@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 bool ProductApplication_Init(void);
+void ProductApplication_Tick1ms(void);
 void ProductApplication_Process(void);
 
 #endif

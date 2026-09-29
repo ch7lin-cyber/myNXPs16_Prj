@@ -14,8 +14,13 @@
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
+#include "ProductAdcConfig.h"
 
 static bool g_last_pwm_inhibited = true;
+static uint16_t g_adc_poll_elapsed_ms;
+static uint16_t g_adc_recovery_elapsed_ms;
+static bool g_adc_poll_due;
+static bool g_adc_recovery_due;
 
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 {
@@ -114,13 +119,55 @@ bool ProductApplication_Init(void)
         return false;
     }
     g_last_pwm_inhibited = true;
+    g_adc_poll_elapsed_ms = 0U;
+    g_adc_recovery_elapsed_ms = 0U;
+    g_adc_poll_due = false;
+    g_adc_recovery_due = false;
     return true;
+}
+
+void ProductApplication_Tick1ms(void)
+{
+    if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
+    {
+        g_adc_poll_elapsed_ms = 0U;
+        g_adc_poll_due = true;
+    }
+    if (++g_adc_recovery_elapsed_ms >= PRODUCT_ADC_RECOVERY_PERIOD_MS)
+    {
+        g_adc_recovery_elapsed_ms = 0U;
+        g_adc_recovery_due = true;
+    }
 }
 
 void ProductApplication_Process(void)
 {
     uint8_t input;
-    (void)AnalogInputService_Process();
+
+    if (g_adc_poll_due)
+    {
+        uint8_t device;
+        g_adc_poll_due = false;
+        /* g_next_device starts at zero; four calls produce ADC0,1,2,3. */
+        for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+        {
+            (void)AnalogInputService_Process();
+        }
+    }
+    if (g_adc_recovery_due)
+    {
+        uint8_t device;
+        g_adc_recovery_due = false;
+        for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+        {
+            AnalogInputDiagnostics_t diagnostics;
+            if (AnalogInputService_GetDiagnostics(device, &diagnostics) &&
+                !diagnostics.online)
+            {
+                (void)AnalogInputService_RetryDevice(device);
+            }
+        }
+    }
     for (input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
     {
         AnalogInputSample_t sample;

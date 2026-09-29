@@ -13,11 +13,13 @@ typedef struct
 {
     uint8_t device_index;
     bool discard_next_sample;
+    ProductAdcDriverDiagnostics_t diagnostics;
 } ProductAdcDriverContext_t;
 
 static ProductAdcDriverContext_t g_adc_context[HAL_ADC_DEVICE_COUNT] =
 {
-    {0U, false}, {1U, false}, {2U, false}, {3U, false}
+    {0U, false, {0U}}, {1U, false, {0U}},
+    {2U, false, {0U}}, {3U, false, {0U}}
 };
 
 /* One product input per AD7124-4; all four factory-default to K type. */
@@ -76,17 +78,48 @@ static HalAdcStatus_t MapDriverStatus(adi_ad7124_status_t status)
     return HAL_ADC_STATUS_DEVICE_ERROR;
 }
 
+static void RecordDriverStatus(
+    ProductAdcDriverContext_t *context, adi_ad7124_status_t status)
+{
+    context->diagnostics.last_driver_status = (int32_t)status;
+    if (status == kAdiAd7124_NotReady)
+    {
+        context->diagnostics.not_ready_polls++;
+    }
+    else if (status == kAdiAd7124_CrcError)
+    {
+        context->diagnostics.crc_errors++;
+    }
+    else if ((status == kAdiAd7124_TransportError) ||
+             (status == kAdiAd7124_Timeout))
+    {
+        context->diagnostics.transport_errors++;
+    }
+    else if (status != kAdiAd7124_Ok)
+    {
+        context->diagnostics.device_errors++;
+    }
+}
+
 static HalAdcStatus_t ProductAdcInitialize(void *driver_context)
 {
     ProductAdcDriverContext_t *context =
         (ProductAdcDriverContext_t *)driver_context;
+    adi_ad7124_status_t status;
+    adi_ad7124_device_t *device;
 
     if (context == NULL)
     {
         return HAL_ADC_STATUS_INVALID_ARGUMENT;
     }
-    return MapDriverStatus(
-        ProductAd7124_InitDevice(context->device_index));
+    context->diagnostics.initialization_attempts++;
+    status = ProductAd7124_InitDevice(context->device_index);
+    RecordDriverStatus(context, status);
+    device = ProductAd7124_GetDevice(context->device_index);
+    context->diagnostics.initialized = (status == kAdiAd7124_Ok);
+    context->diagnostics.device_id =
+        (device != NULL) ? device->deviceId : 0U;
+    return MapDriverStatus(status);
 }
 
 static uint8_t MapGain(HalAdcGain_t gain)
@@ -140,9 +173,11 @@ static HalAdcStatus_t ProductAdcConfigure(
         channels[index].enabled = config->channels[index].enabled;
     }
     {
-        HalAdcStatus_t status = MapDriverStatus(ADI_AD7124_Configure(
+        adi_ad7124_status_t driverStatus = ADI_AD7124_Configure(
             ProductAd7124_GetDevice(context->device_index), setups,
-            config->setup_count, channels, config->channel_count));
+            config->setup_count, channels, config->channel_count);
+        HalAdcStatus_t status = MapDriverStatus(driverStatus);
+        RecordDriverStatus(context, driverStatus);
         if (status == HAL_ADC_STATUS_OK)
         {
             context->discard_next_sample = true;
@@ -177,6 +212,7 @@ static HalAdcStatus_t ProductAdcTryRead(
 
     status = ADI_AD7124_TryReadData(
         device, &sample->raw_code, &sample->channel);
+    RecordDriverStatus(context, status);
     if (status != kAdiAd7124_Ok)
     {
         return MapDriverStatus(status);
@@ -184,6 +220,7 @@ static HalAdcStatus_t ProductAdcTryRead(
     if (context->discard_next_sample)
     {
         context->discard_next_sample = false;
+        context->diagnostics.discarded_samples++;
         return HAL_ADC_STATUS_NOT_READY;
     }
     for (index = 0U;
@@ -217,6 +254,7 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         return HAL_ADC_STATUS_DEVICE_ERROR;
     }
+    context->diagnostics.successful_samples++;
     return HAL_ADC_STATUS_OK;
 }
 
@@ -254,4 +292,15 @@ const AnalogInputRoute_t *ProductAdcDriver_GetRoutes(uint8_t *route_count)
         *route_count = (uint8_t)(sizeof(g_routes) / sizeof(g_routes[0]));
     }
     return g_routes;
+}
+
+bool ProductAdcDriver_GetDiagnostics(
+    uint8_t device, ProductAdcDriverDiagnostics_t *diagnostics)
+{
+    if ((device >= HAL_ADC_DEVICE_COUNT) || (diagnostics == NULL))
+    {
+        return false;
+    }
+    *diagnostics = g_adc_context[device].diagnostics;
+    return true;
 }

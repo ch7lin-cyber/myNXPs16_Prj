@@ -42,6 +42,7 @@
 /* Full-power 614.4 kHz modulator: FS=384 gives 50 SPS with the Sinc4 filter. */
 #define PRODUCT_ADC_OUTPUT_DATA_RATE_HZ       (50U)
 #define PRODUCT_ADC_POLL_PERIOD_MS            (10U)
+#define PRODUCT_ADC_RECOVERY_PERIOD_MS        (1000U)
 #define PRODUCT_ADC_INTERNAL_CLOCK_HZ          (614400UL)
 #define PRODUCT_ADC_SPI_BAUD_RATE_HZ           (200000UL)
 #define PRODUCT_ADC_SPI_MODE                   (3U)

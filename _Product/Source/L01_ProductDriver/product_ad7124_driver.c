@@ -8,6 +8,8 @@
 #include <string.h>
 
 #include "fsl_common.h"
+#include "fsl_gpio.h"
+#include "fsl_iocon.h"
 #include "fsl_spi.h"
 #include "peripherals.h"
 #include "ProductAdcConfig.h"
@@ -17,22 +19,68 @@
 
 typedef struct _product_ad7124_transport
 {
-    uint8_t deviceIndex;
-    spi_ssel_t slaveSelect;
+    uint8_t chipSelectPort;
+    uint8_t chipSelectPin;
 } product_ad7124_transport_t;
 
-/* Board routing: ADC0/1/2/3 use FC3 SSEL0/1/2/3 respectively. */
+/* Physical FC3 SSEL0/1/2/3 pins are controlled as active-low GPIO CS. */
 static product_ad7124_transport_t s_transport[PRODUCT_AD7124_DEVICE_COUNT] =
 {
-    {0U, kSPI_Ssel0},
-    {1U, kSPI_Ssel1},
-    {2U, kSPI_Ssel2},
-    {3U, kSPI_Ssel3}
+    {0U, 20U}, /* Pin 74: FC3 SSEL0, ADC0. */
+    {0U, 21U}, /* Pin 76: FC3 SSEL1, ADC1. */
+    {0U, 9U},  /* Pin 55: FC3 SSEL2, ADC2. */
+    {1U, 24U}  /* Pin 3:  FC3 SSEL3, ADC3. */
 };
 
 static adi_ad7124_device_t s_devices[PRODUCT_AD7124_DEVICE_COUNT];
-static uint8_t s_selectedDevice;
-static bool s_busConfigured;
+static bool s_chipSelectsConfigured;
+
+static void ProductAd7124_DeassertAll(void)
+{
+    uint8_t deviceIndex;
+
+    for (deviceIndex = 0U;
+         deviceIndex < PRODUCT_AD7124_DEVICE_COUNT;
+         deviceIndex++)
+    {
+        GPIO_PinWrite(GPIO,
+                      s_transport[deviceIndex].chipSelectPort,
+                      s_transport[deviceIndex].chipSelectPin,
+                      1U);
+    }
+}
+
+static void ProductAd7124_ConfigureChipSelects(void)
+{
+    uint8_t deviceIndex;
+    const gpio_pin_config_t outputHigh =
+    {
+        kGPIO_DigitalOutput,
+        1U
+    };
+
+    if (s_chipSelectsConfigured)
+    {
+        return;
+    }
+
+    /* Load the inactive GPIO value before disconnecting hardware SSEL. */
+    for (deviceIndex = 0U;
+         deviceIndex < PRODUCT_AD7124_DEVICE_COUNT;
+         deviceIndex++)
+    {
+        GPIO_PinInit(GPIO,
+                     s_transport[deviceIndex].chipSelectPort,
+                     s_transport[deviceIndex].chipSelectPin,
+                     &outputHigh);
+        IOCON_PinMuxSet(IOCON,
+                        s_transport[deviceIndex].chipSelectPort,
+                        s_transport[deviceIndex].chipSelectPin,
+                        IOCON_DIGITAL_EN);
+    }
+    ProductAd7124_DeassertAll();
+    s_chipSelectsConfigured = true;
+}
 
 static bool ProductAd7124_Transfer(
     void *context,
@@ -41,7 +89,6 @@ static bool ProductAd7124_Transfer(
 {
     product_ad7124_transport_t *transport =
         (product_ad7124_transport_t *)context;
-    spi_master_config_t config;
     spi_transfer_t transfer;
     uint8_t txBuffer[PRODUCT_AD7124_MAX_TRANSFER_SIZE];
     uint8_t rxBuffer[PRODUCT_AD7124_MAX_TRANSFER_SIZE];
@@ -53,26 +100,7 @@ static bool ProductAd7124_Transfer(
         return false;
     }
 
-    /*
-     * The SDK stores SSEL in a private per-instance configuration. Re-init is
-     * required to select among the four hardware SSEL outputs without changing
-     * generated pin mux files.
-     */
-    if (!s_busConfigured || (s_selectedDevice != transport->deviceIndex))
-    {
-        config = ADC_FC3_config;
-        config.sselNum = transport->slaveSelect;
-        SPI_Deinit(ADC_FC3_PERIPHERAL);
-        status = SPI_MasterInit(ADC_FC3_PERIPHERAL, &config,
-                                ADC_FC3_CLOCK_SOURCE);
-        if (status != kStatus_Success)
-        {
-            s_busConfigured = false;
-            return false;
-        }
-        s_selectedDevice = transport->deviceIndex;
-        s_busConfigured = true;
-    }
+    ProductAd7124_ConfigureChipSelects();
 
     (void)memcpy(txBuffer, data, length);
     (void)memset(rxBuffer, 0, length);
@@ -81,7 +109,12 @@ static bool ProductAd7124_Transfer(
     transfer.dataSize = length;
     transfer.configFlags = (uint32_t)kSPI_FrameAssert;
 
+    ProductAd7124_DeassertAll();
+    GPIO_PinWrite(GPIO, transport->chipSelectPort,
+                  transport->chipSelectPin, 0U);
     status = SPI_MasterTransferBlocking(ADC_FC3_PERIPHERAL, &transfer);
+    GPIO_PinWrite(GPIO, transport->chipSelectPort,
+                  transport->chipSelectPin, 1U);
     if (status != kStatus_Success)
     {
         return false;

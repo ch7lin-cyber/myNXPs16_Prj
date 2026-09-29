@@ -233,6 +233,7 @@ int main(void) {
             processedTick100us += 10U;
             L03_ProductModbus_Tick1ms();
             L03_ProductModbusMaster_Tick1ms();
+            ProductApplication_Tick1ms();
         }
         L03_ProductModbus_Process();
         L03_ProductModbusMaster_Process();
