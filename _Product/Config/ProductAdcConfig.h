@@ -65,6 +65,8 @@
 /* Values retained for the later run-time sensor-type reconfiguration phase. */
 #define PRODUCT_ADC_GAIN_SB                   HAL_ADC_GAIN_128
 #define PRODUCT_ADC_GAIN_TRC                  HAL_ADC_GAIN_64
+#define PRODUCT_ADC_GAIN_CURRENT_0_20MA       HAL_ADC_GAIN_64
+#define PRODUCT_ADC_GAIN_CURRENT_4_20MA       HAL_ADC_GAIN_64
 #define PRODUCT_ADC_GAIN_J_JPT100             HAL_ADC_GAIN_16
 #define PRODUCT_ADC_GAIN_PT100_NI120          HAL_ADC_GAIN_8
 #define PRODUCT_ADC_GAIN_PT1000               HAL_ADC_GAIN_1
@@ -76,9 +78,17 @@
 #if defined(__cplusplus)
 static_assert(PRODUCT_ADC_DEVICE_COUNT == HAL_ADC_DEVICE_COUNT,
               "Product and platform ADC device counts must match");
+static_assert(PRODUCT_ADC_GAIN_CURRENT_0_20MA == HAL_ADC_GAIN_64,
+              "I_0_20 must use PGA gain 64");
+static_assert(PRODUCT_ADC_GAIN_CURRENT_4_20MA == HAL_ADC_GAIN_64,
+              "I_4_20 must use PGA gain 64");
 #else
 _Static_assert(PRODUCT_ADC_DEVICE_COUNT == HAL_ADC_DEVICE_COUNT,
                "Product and platform ADC device counts must match");
+_Static_assert(PRODUCT_ADC_GAIN_CURRENT_0_20MA == HAL_ADC_GAIN_64,
+               "I_0_20 must use PGA gain 64");
+_Static_assert(PRODUCT_ADC_GAIN_CURRENT_4_20MA == HAL_ADC_GAIN_64,
+               "I_4_20 must use PGA gain 64");
 #endif
 
 #endif /* PRODUCT_ADC_CONFIG_H */
