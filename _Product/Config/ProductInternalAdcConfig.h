@@ -1,8 +1,11 @@
 #ifndef PRODUCT_INTERNAL_ADC_CONFIG_H
 #define PRODUCT_INTERNAL_ADC_CONFIG_H
 
-/* LPC55S16 VREF is connected to the board 3.3 V analog supply. */
-#define PRODUCT_INTERNAL_ADC_REFERENCE_UV            (3300000UL)
+/*
+ * LPC55S16 LPADC uses kLPADC_ReferenceVoltageAlt3, which selects the
+ * board's external 2.5 V VREFP source.
+ */
+#define PRODUCT_INTERNAL_ADC_REFERENCE_UV            (2500000UL)
 #define PRODUCT_INTERNAL_ADC_FULL_SCALE_CODE         (65535UL)
 
 /* TMP20: VOUT = -11.77 mV/degree C * T + 1.8605 V. */
