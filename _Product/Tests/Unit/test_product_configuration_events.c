@@ -90,8 +90,6 @@ int main(void)
     ModbusSlaveRegisterInterface_t interface;
     AlarmConfigurationRange_t range;
     SafetyConfigurationRange_t safety_range;
-    const uint16_t thermocouple_k[2] =
-        {PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K};
     static const HalPwmDriverOps_t pwm_ops =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
     static const HalNvmDriverOps_t nvm_ops =
@@ -113,9 +111,9 @@ int main(void)
     assert(g_hardware_duty_permille == 0U);
     ProductModbusRegisterAdapter_GetInterface(&interface);
 
-    assert(interface.write_multiple_registers(
+    assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS,
-               thermocouple_k, 2U) == MODBUS_EXCEPTION_NONE);
+               PRODUCT_SENSOR_TYPE_TC_J) == MODBUS_EXCEPTION_NONE);
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_APPLY_KEY_ADDRESS,
                PRODUCT_MODBUS_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
@@ -124,14 +122,14 @@ int main(void)
     ProcessConfigurationEvent();
     assert(AlarmConfigurationEventConsumer_GetRange(0U, &range));
     assert(range.input_enabled);
-    assert(range.setpoint_minimum == -270.0F);
-    assert(range.setpoint_maximum == 1372.0F);
+    assert(range.setpoint_minimum == -200.0F);
+    assert(range.setpoint_maximum == 1200.0F);
     assert(range.configuration_revision == 1U);
     assert(SafetyConfigurationEventConsumer_GetRange(0U, &safety_range));
     assert(safety_range.input_enabled);
     assert(!safety_range.output_inhibit);
-    assert(safety_range.measurement_minimum == -270.0F);
-    assert(safety_range.measurement_maximum == 1372.0F);
+    assert(safety_range.measurement_minimum == -200.0F);
+    assert(safety_range.measurement_maximum == 1200.0F);
     assert(safety_range.configuration_revision == 1U);
     assert(PwmOutputService_SetCommand(0U, 700U) == PWM_OUTPUT_STATUS_OK);
     assert(g_hardware_duty_permille == 700U);

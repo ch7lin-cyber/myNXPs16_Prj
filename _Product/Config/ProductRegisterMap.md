@@ -9,19 +9,23 @@ is accepted.
 
 Each AD7124 has an independent 10-register block. The offsets are identical:
 
-| Input | Register block | Sensor Type | TC type | Apply Key |
+| Input | Register block | Sensor Type | Reserved | Apply Key |
 |---|---|---|---|---|
 | CH0 / AD7124 #0 | `0x1000..0x1009` | `0x1007` | `0x1008` | `0x1009` |
 | CH1 / AD7124 #1 | `0x1010..0x1019` | `0x1017` | `0x1018` | `0x1019` |
 | CH2 / AD7124 #2 | `0x1020..0x1029` | `0x1027` | `0x1028` | `0x1029` |
 | CH3 / AD7124 #3 | `0x1030..0x1039` | `0x1037` | `0x1038` | `0x1039` |
 
-The factory default is Thermocouple K (`Sensor Type=95`, `TC type=48`). Writing
-Sensor Type, TC type, or filter time with FC06/FC10 only changes that channel's
-RAM Pending copy. Write `0xA5A5` to the same channel's Apply Key to request an
-atomic change. Apply revalidates linked fields before changing Active state.
-FC10 may write Sensor Type, TC type, and `0xA5A5` together as three consecutive
-registers beginning at offset `+7`.
+Thermocouple types are part of the single Sensor Type enumeration; for example,
+K=`48`, J=`46`, and B=`11`. The factory default is K (`Sensor Type=48`). The
+former TC Type register at offset `+8` is read-only Reserved and reads zero.
+Writing Sensor Type or filter time with FC06/FC10 changes only that channel's
+RAM Pending copy. Reading the normal configuration registers continues to show
+Active values; there is no Modbus Pending readback block. Write `0xA5A5` to the
+same channel's Apply Key to request an atomic change.
+
+FC10 may combine Sensor Type and Apply as three registers beginning at offset
+`+7`: `[Sensor Type, 0x0000 Reserved, 0xA5A5]`.
 
 Pending has no time-based expiry. A later write replaces the corresponding
 Pending field; an explicit discard restores Pending from Active. If Apply fails

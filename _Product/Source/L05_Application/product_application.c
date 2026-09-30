@@ -134,14 +134,12 @@ bool ProductApplication_Init(void)
                     channel, &stored_revision, &stored))
             {
                 stored.filter_time_constant_seconds = 0.5F;
-                stored.sensor_type = PRODUCT_SENSOR_TYPE_THERMOCOUPLE;
-                stored.tc_linearization = PRODUCT_TC_LINEARIZATION_K;
+                stored.sensor_type = PRODUCT_SENSOR_TYPE_TC_K;
                 stored_revision = 1U;
             }
             product_config.filterTimeConstantSeconds =
                 stored.filter_time_constant_seconds;
             product_config.sensorType = stored.sensor_type;
-            product_config.tcLinearization = stored.tc_linearization;
             if (!ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
                         channel, &product_config, stored_revision) ||
                 !EventService_RaiseTemperatureInputConfigurationChanged(

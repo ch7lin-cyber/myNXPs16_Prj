@@ -54,18 +54,17 @@ static HalAdcStatus_t MockTryRead(void *context, HalAdcSample_t *sample)
     return HAL_ADC_STATUS_NOT_READY;
 }
 
-static void RaiseAndProcess(uint8_t input, uint16_t sensor_type,
-                            uint16_t linearization)
+static void RaiseAndProcess(uint8_t input, uint16_t sensor_type)
 {
-    EventTemperatureInputConfiguration_t old_config = {0.5F, 95U, 48U};
+    EventTemperatureInputConfiguration_t old_config =
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
     EventTemperatureInputConfiguration_t new_config =
-        {0.5F, sensor_type, linearization};
+        {0.5F, sensor_type};
     uint32_t event_id;
 
     assert(EventService_RaiseTemperatureInputConfigurationChanged(
         input, 1U,
-        EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE |
-            EVENT_TEMPERATURE_INPUT_CHANGE_TC_LINEARIZATION,
+        EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE,
         &old_config, &new_config, &event_id));
     assert(ProductSensorConfigurationConsumer_Process(input));
     assert(!EventService_IsTemperatureInputConfigurationChangedPending(input));
@@ -108,8 +107,7 @@ int main(void)
     FaultService_Initialize();
     ProductSensorConfigurationConsumer_Initialize();
 
-    RaiseAndProcess(0U, PRODUCT_SENSOR_TYPE_RTD_100_OHM,
-                    PRODUCT_TC_LINEARIZATION_K);
+    RaiseAndProcess(0U, PRODUCT_SENSOR_TYPE_RTD_100_OHM);
     assert(g_adc[0].setup.gain == HAL_ADC_GAIN_8);
     assert(g_adc[0].setup.reference == HAL_ADC_REFERENCE_EXTERNAL_1);
     assert(g_adc[0].channel.positive_input == PRODUCT_ADC_RTD_AIN_POSITIVE);
@@ -120,21 +118,18 @@ int main(void)
     assert(AnalogInputService_GetRoute(0U, &route));
     assert(route.sensor_class == ANALOG_INPUT_SENSOR_RTD);
 
-    RaiseAndProcess(1U, PRODUCT_SENSOR_TYPE_RTD_1000_OHM,
-                    PRODUCT_TC_LINEARIZATION_K);
+    RaiseAndProcess(1U, PRODUCT_SENSOR_TYPE_RTD_1000_OHM);
     assert(g_adc[1].setup.gain == HAL_ADC_GAIN_1);
     assert(g_adc[1].excitation_current_ua == 250U);
 
-    RaiseAndProcess(2U, PRODUCT_SENSOR_TYPE_CURRENT_4_20MA,
-                    PRODUCT_TC_LINEARIZATION_K);
+    RaiseAndProcess(2U, PRODUCT_SENSOR_TYPE_CURRENT_4_20MA);
     assert(g_adc[2].setup.gain == HAL_ADC_GAIN_64);
     assert(g_adc[2].channel.positive_input == PRODUCT_ADC_CURRENT_AIN_POSITIVE);
     assert(g_adc[2].channel.negative_input == PRODUCT_ADC_CURRENT_AIN_NEGATIVE);
     assert(g_adc[2].input_mode == HAL_ADC_INPUT_MODE_CURRENT);
     assert(g_adc[2].excitation_current_ua == 0U);
 
-    RaiseAndProcess(3U, PRODUCT_SENSOR_TYPE_THERMOCOUPLE,
-                    PRODUCT_TC_LINEARIZATION_B);
+    RaiseAndProcess(3U, PRODUCT_SENSOR_TYPE_TC_B);
     assert(g_adc[3].setup.gain == HAL_ADC_GAIN_128);
     assert(g_adc[3].channel.positive_input == PRODUCT_ADC_TC_AIN_POSITIVE);
     assert(g_adc[3].channel.negative_input == PRODUCT_ADC_TC_AIN_NEGATIVE);

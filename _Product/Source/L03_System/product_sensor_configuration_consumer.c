@@ -27,31 +27,42 @@ static bool IsRtd(uint16_t sensor_type)
            (sensor_type <= PRODUCT_SENSOR_TYPE_RTD_CU50);
 }
 
-static HalAdcGain_t ThermocoupleGain(uint16_t linearization)
-{
-    switch (linearization)
-    {
-        case PRODUCT_TC_LINEARIZATION_B:
-        case PRODUCT_TC_LINEARIZATION_S:
-            return PRODUCT_ADC_GAIN_SB;
-        case PRODUCT_TC_LINEARIZATION_T:
-        case PRODUCT_TC_LINEARIZATION_R:
-        case PRODUCT_TC_LINEARIZATION_C:
-            return PRODUCT_ADC_GAIN_TRC;
-        case PRODUCT_TC_LINEARIZATION_J:
-            return PRODUCT_ADC_GAIN_J_JPT100;
-        default:
-            return PRODUCT_ADC_GAIN_GENERAL;
-    }
-}
-
-static HalAdcGain_t SensorGain(uint16_t sensor_type,
-                               uint16_t linearization)
+static bool IsThermocouple(uint16_t sensor_type)
 {
     switch (sensor_type)
     {
-        case PRODUCT_SENSOR_TYPE_THERMOCOUPLE:
-            return ThermocoupleGain(linearization);
+        case PRODUCT_SENSOR_TYPE_TC_B:
+        case PRODUCT_SENSOR_TYPE_TC_C:
+        case PRODUCT_SENSOR_TYPE_TC_D:
+        case PRODUCT_SENSOR_TYPE_TC_E:
+        case PRODUCT_SENSOR_TYPE_TC_J:
+        case PRODUCT_SENSOR_TYPE_TC_K:
+        case PRODUCT_SENSOR_TYPE_TC_N:
+        case PRODUCT_SENSOR_TYPE_TC_R:
+        case PRODUCT_SENSOR_TYPE_TC_S:
+        case PRODUCT_SENSOR_TYPE_TC_T:
+        case PRODUCT_SENSOR_TYPE_TC_L:
+        case PRODUCT_SENSOR_TYPE_TC_U:
+        case PRODUCT_SENSOR_TYPE_TC_TXK:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static HalAdcGain_t SensorGain(uint16_t sensor_type)
+{
+    switch (sensor_type)
+    {
+        case PRODUCT_SENSOR_TYPE_TC_B:
+        case PRODUCT_SENSOR_TYPE_TC_S:
+            return PRODUCT_ADC_GAIN_SB;
+        case PRODUCT_SENSOR_TYPE_TC_T:
+        case PRODUCT_SENSOR_TYPE_TC_R:
+        case PRODUCT_SENSOR_TYPE_TC_C:
+            return PRODUCT_ADC_GAIN_TRC;
+        case PRODUCT_SENSOR_TYPE_TC_J:
+            return PRODUCT_ADC_GAIN_J_JPT100;
         case PRODUCT_SENSOR_TYPE_RTD_JPT100:
             return PRODUCT_ADC_GAIN_J_JPT100;
         case PRODUCT_SENSOR_TYPE_RTD_100_OHM:
@@ -93,7 +104,7 @@ static AnalogInputSensorClass_t SensorClass(uint16_t sensor_type)
     {
         return ANALOG_INPUT_SENSOR_DISABLED;
     }
-    if (sensor_type == PRODUCT_SENSOR_TYPE_THERMOCOUPLE)
+    if (IsThermocouple(sensor_type))
     {
         return ANALOG_INPUT_SENSOR_THERMOCOUPLE;
     }
@@ -124,8 +135,7 @@ static void BuildConfiguration(
                                       PRODUCT_ADC_TC_REFERENCE;
     runtime->setup.filter = is_rtd ? PRODUCT_ADC_RTD_FILTER :
                                     PRODUCT_ADC_TC_FILTER;
-    runtime->setup.gain = SensorGain(configuration->sensor_type,
-                                     configuration->tc_linearization);
+    runtime->setup.gain = SensorGain(configuration->sensor_type);
     runtime->setup.filter_word = is_rtd ? PRODUCT_ADC_RTD_FILTER_WORD :
                                          PRODUCT_ADC_TC_FILTER_WORD;
     runtime->setup.bipolar = true;
@@ -136,7 +146,7 @@ static void BuildConfiguration(
     runtime->adc_channel.setup = PRODUCT_ADC_DEFAULT_SETUP;
     runtime->adc_channel.enabled =
         configuration->sensor_type != PRODUCT_SENSOR_TYPE_OFF;
-    if (configuration->sensor_type == PRODUCT_SENSOR_TYPE_THERMOCOUPLE)
+    if (IsThermocouple(configuration->sensor_type))
     {
         runtime->adc_channel.positive_input = PRODUCT_ADC_TC_AIN_POSITIVE;
         runtime->adc_channel.negative_input = PRODUCT_ADC_TC_AIN_NEGATIVE;
@@ -194,8 +204,7 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel)
         return true;
     }
     if ((event.changed_mask &
-         (EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE |
-          EVENT_TEMPERATURE_INPUT_CHANGE_TC_LINEARIZATION)) == 0U)
+         EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE) == 0U)
     {
         return EventService_Acknowledge(event.event_id,
                                         EVENT_ACK_ANALOG_INPUT);

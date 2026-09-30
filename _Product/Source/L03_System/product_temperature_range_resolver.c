@@ -61,59 +61,54 @@ bool ProductTemperatureRangeResolver_Resolve(
         return true;
     }
 
-    if (configuration->sensor_type != PRODUCT_SENSOR_TYPE_THERMOCOUPLE)
+    switch (configuration->sensor_type)
     {
-        return false;
-    }
-
-    switch (configuration->tc_linearization)
-    {
-        case PRODUCT_TC_LINEARIZATION_B:
+        case PRODUCT_SENSOR_TYPE_TC_B:
             *minimum = 100.0F;
             *maximum = 1800.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_C:
+        case PRODUCT_SENSOR_TYPE_TC_C:
             *minimum = 0.0F;
             *maximum = 2300.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_D:
+        case PRODUCT_SENSOR_TYPE_TC_D:
             *minimum = 0.0F;
             *maximum = 2300.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_E:
+        case PRODUCT_SENSOR_TYPE_TC_E:
             *minimum = 0.0F;
             *maximum = 600.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_J:
+        case PRODUCT_SENSOR_TYPE_TC_J:
             *minimum = -200.0F;
             *maximum = 1200.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_K:
+        case PRODUCT_SENSOR_TYPE_TC_K:
             *minimum = -200.0F;
             *maximum = 1300.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_N:
+        case PRODUCT_SENSOR_TYPE_TC_N:
             *minimum = -200.0F;
             *maximum = 1300.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_R:
-        case PRODUCT_TC_LINEARIZATION_S:
+        case PRODUCT_SENSOR_TYPE_TC_R:
+        case PRODUCT_SENSOR_TYPE_TC_S:
             *minimum = 0.0F;
             *maximum = 1700.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_T:
+        case PRODUCT_SENSOR_TYPE_TC_T:
             *minimum = -200.0F;
             *maximum = 400.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_L:
+        case PRODUCT_SENSOR_TYPE_TC_L:
             *minimum = -200.0F;
             *maximum = 850.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_U:
+        case PRODUCT_SENSOR_TYPE_TC_U:
             *minimum = -200.0F;
             *maximum = 500.0F;
             return true;
-        case PRODUCT_TC_LINEARIZATION_TXK:
+        case PRODUCT_SENSOR_TYPE_TC_TXK:
             *minimum = -150.0F;
             *maximum = 800.0F;
             return true;
