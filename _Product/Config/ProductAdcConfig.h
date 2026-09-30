@@ -49,10 +49,13 @@
 
 /* Analog front-end component values read from the production schematic. */
 #define PRODUCT_ADC_RTD_REFERENCE_OHM          (6490UL)
-#define PRODUCT_ADC_CURRENT_SHUNT_OHM          (100UL)
+#define PRODUCT_ADC_CURRENT_SHUNT_MILLIOHM     (49900UL)
 #define PRODUCT_ADC_INPUT_SERIES_OHM           (510000UL)
 #define PRODUCT_ADC_VOLTAGE_DIVIDER_OHM        (6200UL)
 #define PRODUCT_ADC_CURRENT_DIVIDER_OHM        (36800UL)
+/* R92 + R94 + R95 divider: ADC differential = shunt voltage * 36.8/1056.8. */
+#define PRODUCT_ADC_CURRENT_RATIO_NUMERATOR    (36800UL)
+#define PRODUCT_ADC_CURRENT_RATIO_DENOMINATOR  (1056800UL)
 
 /* RTD excitation-current defaults for the later sensor Apply implementation. */
 #define PRODUCT_ADC_IEX_UA_JPT100              (500U)
@@ -82,6 +85,8 @@ static_assert(PRODUCT_ADC_GAIN_CURRENT_0_20MA == HAL_ADC_GAIN_64,
               "I_0_20 must use PGA gain 64");
 static_assert(PRODUCT_ADC_GAIN_CURRENT_4_20MA == HAL_ADC_GAIN_64,
               "I_4_20 must use PGA gain 64");
+static_assert(PRODUCT_ADC_CURRENT_SHUNT_MILLIOHM == 49900UL,
+              "Production current shunt must be 49.9 ohm");
 #else
 _Static_assert(PRODUCT_ADC_DEVICE_COUNT == HAL_ADC_DEVICE_COUNT,
                "Product and platform ADC device counts must match");
@@ -89,6 +94,8 @@ _Static_assert(PRODUCT_ADC_GAIN_CURRENT_0_20MA == HAL_ADC_GAIN_64,
                "I_0_20 must use PGA gain 64");
 _Static_assert(PRODUCT_ADC_GAIN_CURRENT_4_20MA == HAL_ADC_GAIN_64,
                "I_4_20 must use PGA gain 64");
+_Static_assert(PRODUCT_ADC_CURRENT_SHUNT_MILLIOHM == 49900UL,
+               "Production current shunt must be 49.9 ohm");
 #endif
 
 #endif /* PRODUCT_ADC_CONFIG_H */
