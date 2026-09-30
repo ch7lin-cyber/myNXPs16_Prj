@@ -23,6 +23,7 @@
 #include "product_fram_bank_test.h"
 #include "product_sensor_configuration_consumer.h"
 #include "product_sensor_measurement_service.h"
+#include "product_status_led.h"
 #include "product_temperature_input_types.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
@@ -64,6 +65,11 @@ bool ProductApplication_Init(void)
     FaultService_Initialize();
     FactoryModeService_Initialize();
     FactoryCalibrationService_Initialize();
+
+    if (!ProductStatusLed_Initialize())
+    {
+        return false;
+    }
 
     if (!ProductAdcDriver_Init())
     {
@@ -175,6 +181,8 @@ bool ProductApplication_Init(void)
 
 void ProductApplication_Tick1ms(void)
 {
+    ProductStatusLed_Tick1ms();
+
     if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
     {
         g_adc_poll_elapsed_ms = 0U;
@@ -202,6 +210,7 @@ void ProductApplication_Process(void)
 {
     uint8_t input;
 
+    ProductStatusLed_Process();
     BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();
     if (g_cjc_due)
