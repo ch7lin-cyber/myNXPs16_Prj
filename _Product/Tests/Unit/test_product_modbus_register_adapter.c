@@ -8,6 +8,7 @@
 #include "HalPwm.h"
 #include "PwmOutputService.h"
 #include "product_modbus_register_adapter.h"
+#include "product_fram_bank_test.h"
 
 typedef struct
 {
@@ -70,6 +71,33 @@ static void TestDefaultRegisterImage(void)
     assert(values[7] == 62U);
     assert(values[8] == 46U);
     assert(values[9] == 0U);
+}
+
+static void TestFactoryFramRegistersRequireFactoryMode(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[13];
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_FACTORY_FRAM_BASE_ADDRESS,
+               13U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == 0U);
+    assert(values[1] == PRODUCT_FRAM_TEST_STATE_IDLE);
+    assert(values[2] == PRODUCT_FRAM_TEST_ERROR_NONE);
+
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_FACTORY_FRAM_COMMAND_ADDRESS,
+               PRODUCT_FACTORY_FRAM_COMMAND_START) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_FACTORY_FRAM_STATE_ADDRESS,
+               2U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == PRODUCT_FRAM_TEST_STATE_FAILED);
+    assert(values[1] == PRODUCT_FRAM_TEST_ERROR_FACTORY_MODE_LOCKED);
 }
 
 static void TestMonitorAndReadOnlyRegisters(void)
@@ -513,6 +541,7 @@ int main(void)
                PRODUCT_MODBUS_PWM_CHANNEL_COUNT,
                MockPwmIsInhibited, NULL) == PWM_OUTPUT_STATUS_OK);
     TestDefaultRegisterImage();
+    TestFactoryFramRegistersRequireFactoryMode();
     TestMonitorAndReadOnlyRegisters();
     TestSingleWriteIsPending();
     TestWritableConfiguration();

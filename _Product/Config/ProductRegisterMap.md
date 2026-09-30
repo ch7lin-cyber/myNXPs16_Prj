@@ -34,6 +34,32 @@ FC10 may stage several channels and include `0x130C = 0xA5A5` as the final
 register to apply them atomically. Invalid period, duty, update mode, Apply Key,
 or an Apply with no Pending channel returns Modbus exception 03.
 
+## Factory FRAM bank test
+
+This is a destructive factory-only checkerboard test for the complete 256 KiB
+external FRAM. Enter Factory Mode first by writing `0x1234` to both `0x4700`
+and `0x4701`, then write command `1` to `0x4710`. Command `2` aborts a running
+test.
+
+Each of the four 64 KiB banks is processed in four phases: write alternating
+`0xA5A5/0x5A5A`, verify, write the swapped `0x5A5A/0xA5A5` pattern, and verify
+again. One 512-byte chunk is handled per application cycle. Existing FRAM
+parameter data is destroyed.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x4710` | W | Command: 1 start, 2 abort |
+| `0x4711` | R | State: 0 idle, 1..4 test phases, 5 pass, 6 fail, 7 aborted |
+| `0x4712` | R | Error: 0 none, 1 locked, 2 NVM busy, 3 geometry, 4 write, 5 read, 6 verify |
+| `0x4713` | R | Current bank, 0..3 |
+| `0x4714` | R | Completed bank mask, bits 0..3 |
+| `0x4715` | R | Failed bank mask, bits 0..3 |
+| `0x4716` | R | Progress, 0..1000 = 0.0..100.0% |
+| `0x4717..0x4718` | R | Current byte address, unsigned 32-bit |
+| `0x4719..0x471A` | R | First failure byte address, unsigned 32-bit |
+| `0x471B` | R | Expected 16-bit pattern |
+| `0x471C` | R | Actual 16-bit value |
+
 ## MCU overtemperature diagnostic
 
 The MCU temperature is sampled once per second. Three consecutive samples at

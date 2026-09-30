@@ -282,6 +282,40 @@ static HalNvmStatus_t ProductNvmProgramPage(void *context, uint8_t slot,
                HAL_NVM_STATUS_OK : HAL_NVM_STATUS_IO_ERROR;
 }
 
+static HalNvmStatus_t ProductNvmGetCapacity(void *context,
+                                            uint32_t *capacity_bytes)
+{
+    if ((context == NULL) || (capacity_bytes == NULL))
+    {
+        return HAL_NVM_STATUS_INVALID_ARGUMENT;
+    }
+    *capacity_bytes = PRODUCT_NVM_FRAM_CAPACITY_BYTES;
+    return HAL_NVM_STATUS_OK;
+}
+
+static HalNvmStatus_t ProductNvmReadRaw(void *context, uint32_t address,
+                                        uint8_t *data, uint32_t length)
+{
+    if (context == NULL)
+    {
+        return HAL_NVM_STATUS_INVALID_ARGUMENT;
+    }
+    return ProductNvmReadBytes(address, data, length) ?
+               HAL_NVM_STATUS_OK : HAL_NVM_STATUS_IO_ERROR;
+}
+
+static HalNvmStatus_t ProductNvmWriteRaw(void *context, uint32_t address,
+                                         const uint8_t *data,
+                                         uint32_t length)
+{
+    if (context == NULL)
+    {
+        return HAL_NVM_STATUS_INVALID_ARGUMENT;
+    }
+    return ProductNvmWriteBytes(address, data, length) ?
+               HAL_NVM_STATUS_OK : HAL_NVM_STATUS_IO_ERROR;
+}
+
 bool ProductNvmDriver_Init(void)
 {
     static const HalNvmDriverOps_t ops =
@@ -289,7 +323,10 @@ bool ProductNvmDriver_Init(void)
         ProductNvmInitialize,
         ProductNvmRead,
         ProductNvmErase,
-        ProductNvmProgramPage
+        ProductNvmProgramPage,
+        ProductNvmGetCapacity,
+        ProductNvmReadRaw,
+        ProductNvmWriteRaw
     };
     return HalNvm_RegisterDriver(&ops, &g_nvm_context) == HAL_NVM_STATUS_OK;
 }

@@ -92,6 +92,11 @@ int main(void)
     ResetMock();
     assert(ProductNvmDriver_Init());
     assert(HalNvm_Initialize() == HAL_NVM_STATUS_OK);
+    {
+        uint32_t capacity = 0U;
+        assert(HalNvm_GetCapacity(&capacity) == HAL_NVM_STATUS_OK);
+        assert(capacity == MOCK_FRAM_SIZE);
+    }
 
     for (index = 0U; index < sizeof(page); index++)
     {
@@ -100,6 +105,11 @@ int main(void)
     assert(HalNvm_ProgramPage(1U, 1U, page) == HAL_NVM_STATUS_OK);
     assert(HalNvm_Read(1U, HAL_NVM_PAGE_SIZE, readback,
                       sizeof(readback)) == HAL_NVM_STATUS_OK);
+    assert(memcmp(page, readback, sizeof(page)) == 0);
+    assert(HalNvm_WriteRaw(0x20000U, page, sizeof(page)) ==
+           HAL_NVM_STATUS_OK);
+    assert(HalNvm_ReadRaw(0x20000U, readback, sizeof(readback)) ==
+           HAL_NVM_STATUS_OK);
     assert(memcmp(page, readback, sizeof(page)) == 0);
 
     assert(HalNvm_EraseSlot(1U) == HAL_NVM_STATUS_OK);

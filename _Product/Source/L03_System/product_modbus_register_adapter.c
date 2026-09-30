@@ -12,6 +12,7 @@
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 #include "PwmOutputService.h"
+#include "product_fram_bank_test.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -276,6 +277,19 @@ static bool IsVersionRangeValid(uint16_t startingAddress, uint16_t quantity)
            (endingAddress <= PRODUCT_MODBUS_VERSION_LAST_USED_ADDRESS);
 }
 
+static bool IsFactoryFramRangeValid(uint16_t startingAddress,
+                                    uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_FACTORY_FRAM_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_FACTORY_FRAM_LAST_ADDRESS);
+}
+
 static bool IsDiagnosticsRangeValid(uint16_t startingAddress,
                                     uint16_t quantity)
 {
@@ -342,6 +356,26 @@ static void BuildDiagnosticsImage(
                           &registers[7], &registers[8]);
     }
     /* Clear Code and Clear Key are write-only and always read as zero. */
+}
+
+static void BuildFactoryFramImage(uint16_t *registers)
+{
+    ProductFramBankTestSnapshot_t snapshot;
+
+    (void)memset(registers, 0, 13U * sizeof(registers[0]));
+    ProductFramBankTest_GetSnapshot(&snapshot);
+    registers[1] = (uint16_t)snapshot.state;
+    registers[2] = (uint16_t)snapshot.error;
+    registers[3] = snapshot.current_bank;
+    registers[4] = snapshot.completed_bank_mask;
+    registers[5] = snapshot.failed_bank_mask;
+    registers[6] = snapshot.progress_permille;
+    Uint32ToRegisters(snapshot.current_address,
+                      &registers[7], &registers[8]);
+    Uint32ToRegisters(snapshot.failure_address,
+                      &registers[9], &registers[10]);
+    registers[11] = snapshot.expected_value;
+    registers[12] = snapshot.actual_value;
 }
 
 static void BuildVersionImage(uint16_t *registers)
@@ -417,6 +451,7 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t versionImage[9];
     uint16_t factoryImage[14];
     uint16_t diagnosticsImage[11];
+    uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
     uint16_t sourceOffset;
     ModbusSerialRegisterInfo_t serial_information;
@@ -458,6 +493,15 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_FACTORY_CAL_BASE_ADDRESS);
         (void)memcpy(values, &factoryImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsFactoryFramRangeValid(starting_address, quantity))
+    {
+        BuildFactoryFramImage(factoryFramImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_FACTORY_FRAM_BASE_ADDRESS);
+        (void)memcpy(values, &factoryFramImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
@@ -522,6 +566,33 @@ static ModbusExceptionCode_t ExecuteFactoryCalibrationCommand(uint16_t command)
     }
     return success ? MODBUS_EXCEPTION_NONE :
                      MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+}
+
+static ModbusExceptionCode_t ExecuteFactoryFramCommand(uint16_t command)
+{
+    ProductFramBankTestSnapshot_t snapshot;
+
+    if (command == PRODUCT_FACTORY_FRAM_COMMAND_ABORT)
+    {
+        ProductFramBankTest_Abort();
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (command != PRODUCT_FACTORY_FRAM_COMMAND_START)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    if (ProductFramBankTest_IsBusy())
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
+    }
+    if (ProductFramBankTest_Start())
+    {
+        return MODBUS_EXCEPTION_NONE;
+    }
+    ProductFramBankTest_GetSnapshot(&snapshot);
+    return (snapshot.error == PRODUCT_FRAM_TEST_ERROR_NVM_BUSY) ?
+               MODBUS_EXCEPTION_SERVER_DEVICE_BUSY :
+               MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
 }
 
 static ModbusExceptionCode_t ApplyPendingConfiguration(
@@ -817,6 +888,10 @@ static ModbusExceptionCode_t WriteSingleRegister(
     {
         return ExecuteFactoryCalibrationCommand(value);
     }
+    if (address == PRODUCT_MODBUS_FACTORY_FRAM_COMMAND_ADDRESS)
+    {
+        return ExecuteFactoryFramCommand(value);
+    }
 
     if (address == PRODUCT_MODBUS_DIAGNOSTICS_FAULT_INDEX_ADDRESS)
     {
@@ -976,6 +1051,12 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         FactoryCalibrationService_SetUnlockKey1(values[0]);
         FactoryCalibrationService_SetUnlockKey2(values[1]);
         return MODBUS_EXCEPTION_NONE;
+    }
+
+    if ((starting_address == PRODUCT_MODBUS_FACTORY_FRAM_COMMAND_ADDRESS) &&
+        (quantity == 1U))
+    {
+        return ExecuteFactoryFramCommand(values[0]);
     }
 
     if ((starting_address == PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS) &&

@@ -8,6 +8,7 @@
 #include "EventService.h"
 #include "FaultService.h"
 #include "FactoryCalibrationService.h"
+#include "FactoryModeService.h"
 #include "NvmConfigurationEventConsumer.h"
 #include "NvmService.h"
 #include "PwmOutputService.h"
@@ -19,6 +20,7 @@
 #include "ProductAdcConfig.h"
 #include "ProductInternalAdcConfig.h"
 #include "product_mcu_temperature_safety.h"
+#include "product_fram_bank_test.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
 static uint16_t g_adc_poll_elapsed_ms;
@@ -57,6 +59,7 @@ bool ProductApplication_Init(void)
     uint8_t adc_route_count;
 
     FaultService_Initialize();
+    FactoryModeService_Initialize();
     FactoryCalibrationService_Initialize();
 
     if (!ProductAdcDriver_Init())
@@ -112,6 +115,7 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
+    ProductFramBankTest_Initialize();
 
     {
         EventTemperatureInputConfiguration_t stored;
@@ -232,7 +236,11 @@ void ProductApplication_Process(void)
     }
     (void)AlarmConfigurationEventConsumer_Process(0U);
     (void)SafetyConfigurationEventConsumer_Process(0U);
-    (void)NvmConfigurationEventConsumer_Process(0U);
+    ProductFramBankTest_Process();
+    if (!ProductFramBankTest_IsBusy())
+    {
+        (void)NvmConfigurationEventConsumer_Process(0U);
+    }
 
     for (input = 0U; input < 4U; input++)
     {

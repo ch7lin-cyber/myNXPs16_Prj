@@ -95,7 +95,8 @@ int main(void)
     static const HalPwmDriverOps_t pwm_ops =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
     static const HalNvmDriverOps_t nvm_ops =
-        {MockNvmInitialize, MockNvmRead, MockNvmErase, MockNvmProgram};
+        {MockNvmInitialize, MockNvmRead, MockNvmErase, MockNvmProgram,
+         NULL, NULL, NULL};
 
     assert(EventService_Initialize(EVENT_ACK_SERIAL_REQUIRED_DEFAULT));
     (void)memset(g_nvm_storage, 0xFF, sizeof(g_nvm_storage));
