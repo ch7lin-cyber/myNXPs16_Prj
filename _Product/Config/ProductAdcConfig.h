@@ -56,6 +56,12 @@
 /* R92 + R94 + R95 divider: ADC differential = shunt voltage * 36.8/1056.8. */
 #define PRODUCT_ADC_CURRENT_RATIO_NUMERATOR    (36800UL)
 #define PRODUCT_ADC_CURRENT_RATIO_DENOMINATOR  (1056800UL)
+/* V+/VS network: two 510 kOhm legs and the 6.2 kOhm sense resistor. */
+#define PRODUCT_ADC_VOLTAGE_RATIO_NUMERATOR    \
+    ((2UL * PRODUCT_ADC_INPUT_SERIES_OHM) +    \
+     PRODUCT_ADC_VOLTAGE_DIVIDER_OHM)
+#define PRODUCT_ADC_VOLTAGE_RATIO_DENOMINATOR  \
+    (PRODUCT_ADC_VOLTAGE_DIVIDER_OHM)
 
 /* RTD excitation-current defaults for the later sensor Apply implementation. */
 #define PRODUCT_ADC_IEX_UA_JPT100              (500U)

@@ -130,6 +130,8 @@ static void BuildConfiguration(
     bool is_current =
         (configuration->sensor_type == PRODUCT_SENSOR_TYPE_CURRENT_0_20MA) ||
         (configuration->sensor_type == PRODUCT_SENSOR_TYPE_CURRENT_4_20MA);
+    bool is_millivolt =
+        configuration->sensor_type == PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
 
     runtime->setup.reference = is_rtd ? PRODUCT_ADC_RTD_REFERENCE :
                                       PRODUCT_ADC_TC_REFERENCE;
@@ -146,7 +148,7 @@ static void BuildConfiguration(
     runtime->adc_channel.setup = PRODUCT_ADC_DEFAULT_SETUP;
     runtime->adc_channel.enabled =
         configuration->sensor_type != PRODUCT_SENSOR_TYPE_OFF;
-    if (IsThermocouple(configuration->sensor_type))
+    if (IsThermocouple(configuration->sensor_type) || is_millivolt)
     {
         runtime->adc_channel.positive_input = PRODUCT_ADC_TC_AIN_POSITIVE;
         runtime->adc_channel.negative_input = PRODUCT_ADC_TC_AIN_NEGATIVE;

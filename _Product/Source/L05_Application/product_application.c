@@ -16,12 +16,13 @@
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
-#include "product_internal_adc_driver.h"
+#include "bsp_internal_adc.h"
 #include "ProductAdcConfig.h"
 #include "ProductInternalAdcConfig.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
 #include "product_sensor_configuration_consumer.h"
+#include "product_sensor_measurement_service.h"
 #include "product_temperature_input_types.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
@@ -36,16 +37,16 @@ static bool g_mcu_temperature_due;
 
 static void ProcessMcuTemperatureSafety(void)
 {
-    ProductInternalAdcSnapshot_t snapshot;
+    BspInternalAdcMcuTemperature_t temperature;
 
-    if (!ProductInternalAdcDriver_GetSnapshot(&snapshot))
+    if (!BspInternalAdc_GetMcuTemperature(&temperature))
     {
         return;
     }
     ProductMcuTemperatureSafety_Process(
-        snapshot.mcu_temperature.valid,
-        snapshot.mcu_temperature.overtemperature,
-        snapshot.mcu_temperature.temperature_centi_c);
+        temperature.valid,
+        temperature.overtemperature,
+        temperature.temperature_centi_c);
 }
 
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
@@ -68,7 +69,7 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
-    if (!ProductInternalAdcDriver_Init())
+    if (!BspInternalAdc_Initialize())
     {
         return false;
     }
@@ -114,6 +115,7 @@ bool ProductApplication_Init(void)
     }
     ProductMcuTemperatureSafety_Initialize();
     ProductSensorConfigurationConsumer_Initialize();
+    ProductSensorMeasurementService_Initialize();
 
     if (!NvmConfigurationEventConsumer_Initialize())
     {
@@ -166,8 +168,8 @@ bool ProductApplication_Init(void)
     g_adc_recovery_due = false;
     g_cjc_due = false;
     g_mcu_temperature_due = false;
-    (void)ProductInternalAdcDriver_RequestCjcSamples();
-    (void)ProductInternalAdcDriver_RequestMcuTemperature();
+    (void)BspInternalAdc_RequestCjcSamples();
+    (void)BspInternalAdc_RequestMcuTemperature();
     return true;
 }
 
@@ -200,17 +202,17 @@ void ProductApplication_Process(void)
 {
     uint8_t input;
 
-    ProductInternalAdcDriver_Process();
+    BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();
     if (g_cjc_due)
     {
         g_cjc_due = false;
-        (void)ProductInternalAdcDriver_RequestCjcSamples();
+        (void)BspInternalAdc_RequestCjcSamples();
     }
     if (g_mcu_temperature_due)
     {
         g_mcu_temperature_due = false;
-        (void)ProductInternalAdcDriver_RequestMcuTemperature();
+        (void)BspInternalAdc_RequestMcuTemperature();
     }
 
     if (g_adc_poll_due)
@@ -251,6 +253,7 @@ void ProductApplication_Process(void)
          input++)
     {
         (void)ProductSensorConfigurationConsumer_Process(input);
+        (void)ProductSensorMeasurementService_Process(input);
         (void)AlarmConfigurationEventConsumer_Process(input);
         (void)SafetyConfigurationEventConsumer_Process(input);
     }

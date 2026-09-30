@@ -129,6 +129,11 @@ int main(void)
     assert(g_adc[2].input_mode == HAL_ADC_INPUT_MODE_CURRENT);
     assert(g_adc[2].excitation_current_ua == 0U);
 
+    RaiseAndProcess(2U, PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV);
+    assert(g_adc[2].channel.positive_input == PRODUCT_ADC_TC_AIN_POSITIVE);
+    assert(g_adc[2].channel.negative_input == PRODUCT_ADC_TC_AIN_NEGATIVE);
+    assert(g_adc[2].input_mode == HAL_ADC_INPUT_MODE_VOLTAGE);
+
     RaiseAndProcess(3U, PRODUCT_SENSOR_TYPE_TC_B);
     assert(g_adc[3].setup.gain == HAL_ADC_GAIN_128);
     assert(g_adc[3].channel.positive_input == PRODUCT_ADC_TC_AIN_POSITIVE);
