@@ -45,7 +45,9 @@
 #include "l03_product_modbus_master.h"
 #include "product_application.h"
 #include "product_pwm_driver.h"
+#include "product_dac8562_driver.h"
 #include "product_nvm_driver.h"
+#include "bsp_analog_output.h"
 #include "product_rs485_direction.h"
 #include "product_rs485_driver.h"
 /* TODO: insert other include files here. */
@@ -59,22 +61,24 @@ typedef enum
     kProductBootStageReset = 0U,
     kProductBootStageBoardInitialized = 1U,
     kProductBootStagePwmInitialized = 2U,
-    kProductBootStageNvmInitialized = 3U,
-    kProductBootStageApplicationInitialized = 4U,
-    kProductBootStageRs485Initialized = 5U,
-    kProductBootStageModbusInitialized = 6U,
-    kProductBootStageRunning = 7U
+    kProductBootStageDacInitialized = 3U,
+    kProductBootStageNvmInitialized = 4U,
+    kProductBootStageApplicationInitialized = 5U,
+    kProductBootStageRs485Initialized = 6U,
+    kProductBootStageModbusInitialized = 7U,
+    kProductBootStageRunning = 8U
 } ProductBootStage_t;
 
 typedef enum
 {
     kProductBootErrorNone = 0U,
     kProductBootErrorPwm = 1U,
-    kProductBootErrorNvm = 2U,
-    kProductBootErrorApplication = 3U,
-    kProductBootErrorRs485 = 4U,
-    kProductBootErrorModbus = 5U,
-    kProductBootErrorSysTick = 6U
+    kProductBootErrorDac = 2U,
+    kProductBootErrorNvm = 3U,
+    kProductBootErrorApplication = 4U,
+    kProductBootErrorRs485 = 5U,
+    kProductBootErrorModbus = 6U,
+    kProductBootErrorSysTick = 7U
 } ProductBootError_t;
 
 /* Keep these visible in the debugger even when boot cannot print a message. */
@@ -183,6 +187,11 @@ int main(void) {
         ProductBootHalt(kProductBootErrorPwm);
     }
     g_productBootStage = (uint32_t)kProductBootStagePwmInitialized;
+    if (!ProductDac8562Driver_Init() || !BspAnalogOutput_Initialize())
+    {
+        ProductBootHalt(kProductBootErrorDac);
+    }
+    g_productBootStage = (uint32_t)kProductBootStageDacInitialized;
     if (!ProductNvmDriver_Init())
     {
         ProductBootHalt(kProductBootErrorNvm);
