@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 #define PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS        (0x1000U)
+#define PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT                (4U)
 #define PRODUCT_MODBUS_TEMPERATURE_INPUT_INSTANCE_STRIDE     (0x0010U)
 
 #define PRODUCT_MODBUS_UNFILTERED_PV_ADDRESS                 (0x1000U)
@@ -26,7 +27,7 @@ extern "C" {
 #define PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS              (0x1008U)
 #define PRODUCT_MODBUS_APPLY_KEY_ADDRESS                     (0x1009U)
 #define PRODUCT_MODBUS_APPLY_KEY_VALUE                       (0xA5A5U)
-#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1009U)
+#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1039U)
 
 /* Four independent PWM outputs. FC06/FC10 writes stage Pending values. */
 #define PRODUCT_MODBUS_PWM_BASE_ADDRESS                       (0x1300U)
@@ -140,27 +141,47 @@ void ProductModbusRegisterAdapter_GetInterface(
 /* Update read-only monitor registers from the L3 sensor service. */
 bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(
     const product_temperature_input_monitor_t *monitor);
+bool ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
+    uint8_t channel,
+    const product_temperature_input_monitor_t *monitor);
 
 /* Read the Active configuration currently used by the product. */
 void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
+    product_temperature_input_config_t *config);
+bool ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
+    uint8_t channel,
     product_temperature_input_config_t *config);
 
 /* Revision increases after each effective Apply that publishes an event. */
 uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
     void);
+uint16_t
+ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(
+    uint8_t channel);
 
 /* Restore a CRC-verified configuration during startup before Modbus runs. */
 bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfig(
     const product_temperature_input_config_t *config,
     uint16_t configuration_revision);
+bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
+    uint8_t channel,
+    const product_temperature_input_config_t *config,
+    uint16_t configuration_revision);
 
 /* Query and read values staged by FC06/FC10 but not applied yet. */
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void);
+bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(
+    uint8_t channel);
 void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
+    product_temperature_input_config_t *config);
+bool ProductModbusRegisterAdapter_GetPendingTemperatureInputConfigForChannel(
+    uint8_t channel,
     product_temperature_input_config_t *config);
 
 /* Cancel all staged writes and restore Pending from Active. */
 void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void);
+void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfigForChannel(
+    uint8_t channel);
 
 /* PWM Active/Pending inspection used by diagnostics and later NVM support. */
 bool ProductModbusRegisterAdapter_GetPwmConfig(

@@ -27,6 +27,39 @@
 #define ADI_AD7124_CONFIG_AIN_BUFM         (1UL << 5U)
 #define ADI_AD7124_FILTER_REJECT_60_HZ      (1UL << 20U)
 
+static bool MapExcitationCurrent(uint16_t currentUa, uint8_t *code)
+{
+    if (code == NULL)
+    {
+        return false;
+    }
+    switch (currentUa)
+    {
+        case 0U:    *code = 0U; return true;
+        case 50U:   *code = 1U; return true;
+        case 100U:  *code = 2U; return true;
+        case 250U:  *code = 3U; return true;
+        case 500U:  *code = 4U; return true;
+        case 750U:  *code = 5U; return true;
+        case 1000U: *code = 6U; return true;
+        default: return false;
+    }
+}
+
+static bool IsExcitationOutputValid(uint8_t input)
+{
+    return (input == 0U) || (input == 1U) || (input == 2U) ||
+           (input == 3U) || (input == 4U) || (input == 5U) ||
+           (input == 6U) || (input == 7U);
+}
+
+static uint8_t MapExcitationOutput(uint8_t input)
+{
+    static const uint8_t outputCode[8] =
+        {0U, 1U, 4U, 5U, 10U, 11U, 14U, 15U};
+    return outputCode[input];
+}
+
 static adi_ad7124_status_t Transfer(
     adi_ad7124_device_t *device,
     uint8_t *buffer,
@@ -368,6 +401,7 @@ adi_ad7124_status_t ADI_AD7124_TryReadData(
 adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device)
 {
     uint32_t idValue;
+    uint32_t errorValue;
     adi_ad7124_status_t status;
 
     if ((device == NULL) || (device->transfer == NULL))
@@ -397,6 +431,14 @@ adi_ad7124_status_t ADI_AD7124_Init(adi_ad7124_device_t *device)
     {
         return kAdiAd7124_UnexpectedDevice;
     }
+    /* Per product policy, ERROR is sampled once at initialization only. */
+    status = ReadRegisterUnchecked(device, ADI_AD7124_ERROR_REG,
+                                   &errorValue);
+    if (status != kAdiAd7124_Ok)
+    {
+        return status;
+    }
+    device->initialError = errorValue;
     device->initialized = true;
     return kAdiAd7124_Ok;
 }
@@ -441,13 +483,15 @@ adi_ad7124_status_t ADI_AD7124_Configure(
     const adi_ad7124_setup_config_t *setups,
     uint8_t setupCount,
     const adi_ad7124_channel_config_t *channels,
-    uint8_t channelCount)
+    uint8_t channelCount,
+    const adi_ad7124_io_config_t *ioConfig)
 {
     uint32_t control;
     uint32_t value;
     uint8_t index;
     adi_ad7124_status_t status;
     bool internalReferenceRequired = false;
+    uint8_t excitationCode;
 
     if ((device == NULL) || !device->initialized || (setups == NULL) ||
         (setupCount == 0U) || (setupCount > ADI_AD7124_MAX_SETUP_COUNT) ||
@@ -457,8 +501,23 @@ adi_ad7124_status_t ADI_AD7124_Configure(
         return kAdiAd7124_InvalidArgument;
     }
 
-    /* Burnout currents, excitation currents and voltage bias default off. */
-    status = ADI_AD7124_WriteRegister(device, ADI_AD7124_IO_CONTROL1_REG, 0U);
+    if ((ioConfig == NULL) ||
+        !MapExcitationCurrent(ioConfig->excitationCurrentUa,
+                              &excitationCode) ||
+        !IsExcitationOutputValid(ioConfig->excitationOutput0) ||
+        !IsExcitationOutputValid(ioConfig->excitationOutput1))
+    {
+        return kAdiAd7124_InvalidArgument;
+    }
+
+    /* Burnout currents and voltage bias remain disabled. */
+    value = ((uint32_t)excitationCode << 11U) |
+            ((uint32_t)excitationCode << 8U) |
+            ((uint32_t)MapExcitationOutput(ioConfig->excitationOutput1)
+             << 4U) |
+            (uint32_t)MapExcitationOutput(ioConfig->excitationOutput0);
+    status = ADI_AD7124_WriteRegister(device, ADI_AD7124_IO_CONTROL1_REG,
+                                      value);
     if (status != kAdiAd7124_Ok)
     {
         return status;

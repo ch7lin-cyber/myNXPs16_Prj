@@ -21,6 +21,8 @@
 #include "ProductInternalAdcConfig.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
+#include "product_sensor_configuration_consumer.h"
+#include "product_temperature_input_types.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
 static uint16_t g_adc_poll_elapsed_ms;
@@ -93,7 +95,8 @@ bool ProductApplication_Init(void)
     }
 
     if (!EventService_ConfigureTemperatureInputRequiredAckMask(
-            EVENT_ACK_ALARM | EVENT_ACK_SAFETY | EVENT_ACK_NVM))
+            EVENT_ACK_ANALOG_INPUT | EVENT_ACK_ALARM |
+            EVENT_ACK_SAFETY | EVENT_ACK_NVM))
     {
         return false;
     }
@@ -110,6 +113,7 @@ bool ProductApplication_Init(void)
         return false;
     }
     ProductMcuTemperatureSafety_Initialize();
+    ProductSensorConfigurationConsumer_Initialize();
 
     if (!NvmConfigurationEventConsumer_Initialize())
     {
@@ -118,20 +122,30 @@ bool ProductApplication_Init(void)
     ProductFramBankTest_Initialize();
 
     {
-        EventTemperatureInputConfiguration_t stored;
-        product_temperature_input_config_t product_config;
-        uint16_t stored_revision;
-        if (NvmService_GetLoadedTemperatureInputConfiguration(
-                &stored_revision, &stored))
+        uint8_t channel;
+        for (channel = 0U;
+             channel < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
+             channel++)
         {
+            EventTemperatureInputConfiguration_t stored;
+            product_temperature_input_config_t product_config;
+            uint16_t stored_revision;
+            if (!NvmService_GetLoadedTemperatureInputConfigurationForChannel(
+                    channel, &stored_revision, &stored))
+            {
+                stored.filter_time_constant_seconds = 0.5F;
+                stored.sensor_type = PRODUCT_SENSOR_TYPE_THERMOCOUPLE;
+                stored.tc_linearization = PRODUCT_TC_LINEARIZATION_K;
+                stored_revision = 1U;
+            }
             product_config.filterTimeConstantSeconds =
                 stored.filter_time_constant_seconds;
             product_config.sensorType = stored.sensor_type;
             product_config.tcLinearization = stored.tc_linearization;
-            if (!ProductModbusRegisterAdapter_RestoreTemperatureInputConfig(
-                    &product_config, stored_revision) ||
+            if (!ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
+                        channel, &product_config, stored_revision) ||
                 !EventService_RaiseTemperatureInputConfigurationChanged(
-                    0U, stored_revision,
+                    channel, stored_revision,
                     EVENT_TEMPERATURE_INPUT_CHANGE_ALL,
                     &stored, &stored, NULL))
             {
@@ -234,12 +248,23 @@ void ProductApplication_Process(void)
                 input, sample.microvolts);
         }
     }
-    (void)AlarmConfigurationEventConsumer_Process(0U);
-    (void)SafetyConfigurationEventConsumer_Process(0U);
+    for (input = 0U;
+         input < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
+         input++)
+    {
+        (void)ProductSensorConfigurationConsumer_Process(input);
+        (void)AlarmConfigurationEventConsumer_Process(input);
+        (void)SafetyConfigurationEventConsumer_Process(input);
+    }
     ProductFramBankTest_Process();
     if (!ProductFramBankTest_IsBusy())
     {
-        (void)NvmConfigurationEventConsumer_Process(0U);
+        for (input = 0U;
+             input < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
+             input++)
+        {
+            (void)NvmConfigurationEventConsumer_Process(input);
+        }
     }
 
     for (input = 0U; input < 4U; input++)

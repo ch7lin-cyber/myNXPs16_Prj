@@ -13,6 +13,7 @@
 #include "ModbusRegisterAdapter.h"
 #include "PwmOutputService.h"
 #include "product_fram_bank_test.h"
+#include "product_temperature_range_resolver.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -24,16 +25,18 @@
 
 #define PRODUCT_INPUT_ERROR_NONE                   (61U)
 
-#define PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL    (0U)
-
 typedef struct _product_modbus_register_context
 {
-    product_temperature_input_monitor_t monitor;
-    product_temperature_input_config_t activeConfig;
-    product_temperature_input_config_t pendingConfig;
-    uint16_t configurationRevision;
+    product_temperature_input_monitor_t
+        monitor[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
+    product_temperature_input_config_t
+        activeConfig[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
+    product_temperature_input_config_t
+        pendingConfig[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
+    uint16_t
+        configurationRevision[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     uint16_t diagnosticFaultIndex;
-    bool pendingDirty;
+    bool pendingDirty[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     product_pwm_output_config_t
         activePwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
     product_pwm_output_config_t
@@ -44,12 +47,28 @@ typedef struct _product_modbus_register_context
 
 static product_modbus_register_context_t s_registerContext =
 {
-    {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
-    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
-    {0.5F, PRODUCT_SENSOR_TYPE_OFF, PRODUCT_TC_LINEARIZATION_J},
-    0U,
-    0U,
-    false,
+    .monitor =
+    {
+        {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
+        {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
+        {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F},
+        {0.0F, PRODUCT_INPUT_ERROR_NONE, 0.0F}
+    },
+    .activeConfig =
+    {
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K}
+    },
+    .pendingConfig =
+    {
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K},
+        {0.5F, PRODUCT_SENSOR_TYPE_THERMOCOUPLE, PRODUCT_TC_LINEARIZATION_K}
+    },
+    .activePwmConfig =
     {
         {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
          PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
@@ -60,6 +79,7 @@ static product_modbus_register_context_t s_registerContext =
         {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
          PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE}
     },
+    .pendingPwmConfig =
     {
         {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
          PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE},
@@ -70,8 +90,8 @@ static product_modbus_register_context_t s_registerContext =
         {PWM_OUTPUT_PERIOD_DEFAULT_MS, 0U,
          PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE}
     },
-    0U,
-    0U
+    .pwmConfigurationRevision = 0U,
+    .pwmPendingMask = 0U
 };
 
 static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
@@ -139,18 +159,43 @@ static bool IsTcLinearizationValid(uint16_t value)
            (value == PRODUCT_TC_LINEARIZATION_TXK);
 }
 
-static bool IsRegisterRangeValid(uint16_t startingAddress, uint16_t quantity)
+static bool ResolveTemperatureRegisterRange(
+    uint16_t startingAddress,
+    uint16_t quantity,
+    uint8_t *channel,
+    uint16_t *offset)
 {
-    uint32_t endingAddress;
+    uint16_t relative;
+    uint16_t localOffset;
+    uint8_t input;
 
-    if (quantity == 0U)
+    if ((quantity == 0U) ||
+        (startingAddress < PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS) ||
+        (startingAddress > PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS))
     {
         return false;
     }
-
-    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
-    return (startingAddress >= PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS) &&
-           (endingAddress <= PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS);
+    relative = (uint16_t)(startingAddress -
+                          PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS);
+    input = (uint8_t)(relative /
+                      PRODUCT_MODBUS_TEMPERATURE_INPUT_INSTANCE_STRIDE);
+    localOffset = (uint16_t)(relative %
+                             PRODUCT_MODBUS_TEMPERATURE_INPUT_INSTANCE_STRIDE);
+    if ((input >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        (localOffset > 9U) ||
+        (((uint32_t)localOffset + quantity) > 10UL))
+    {
+        return false;
+    }
+    if (channel != NULL)
+    {
+        *channel = input;
+    }
+    if (offset != NULL)
+    {
+        *offset = localOffset;
+    }
+    return true;
 }
 
 static bool IsPwmRangeValid(uint16_t startingAddress, uint16_t quantity)
@@ -399,17 +444,19 @@ static void BuildVersionImage(uint16_t *registers)
 
 static void BuildRegisterImage(
     const product_modbus_register_context_t *registerContext,
+    uint8_t channel,
     uint16_t *registers)
 {
-    FloatToRegisters(registerContext->monitor.unfilteredProcessValue,
+    FloatToRegisters(registerContext->monitor[channel].unfilteredProcessValue,
                      &registers[0], &registers[1]);
-    registers[2] = registerContext->monitor.inputError;
-    FloatToRegisters(registerContext->activeConfig.filterTimeConstantSeconds,
+    registers[2] = registerContext->monitor[channel].inputError;
+    FloatToRegisters(
+        registerContext->activeConfig[channel].filterTimeConstantSeconds,
                      &registers[3], &registers[4]);
-    FloatToRegisters(registerContext->monitor.filteredProcessValue,
+    FloatToRegisters(registerContext->monitor[channel].filteredProcessValue,
                      &registers[5], &registers[6]);
-    registers[7] = registerContext->activeConfig.sensorType;
-    registers[8] = registerContext->activeConfig.tcLinearization;
+    registers[7] = registerContext->activeConfig[channel].sensorType;
+    registers[8] = registerContext->activeConfig[channel].tcLinearization;
     /* The command key is never echoed back through the register image. */
     registers[9] = 0U;
 }
@@ -454,6 +501,7 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
     uint16_t sourceOffset;
+    uint8_t temperatureChannel;
     ModbusSerialRegisterInfo_t serial_information;
     uint16_t index;
 
@@ -523,14 +571,14 @@ static ModbusExceptionCode_t ReadRegisters(
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
-    if (!IsRegisterRangeValid(starting_address, quantity))
+    if (!ResolveTemperatureRegisterRange(starting_address, quantity,
+                                         &temperatureChannel,
+                                         &sourceOffset))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
 
-    BuildRegisterImage(registerContext, registerImage);
-    sourceOffset = (uint16_t)(starting_address -
-                             PRODUCT_MODBUS_TEMPERATURE_INPUT_BASE_ADDRESS);
+    BuildRegisterImage(registerContext, temperatureChannel, registerImage);
     (void)memcpy(values, &registerImage[sourceOffset],
                  (size_t)quantity * sizeof(values[0]));
     return MODBUS_EXCEPTION_NONE;
@@ -597,6 +645,7 @@ static ModbusExceptionCode_t ExecuteFactoryFramCommand(uint16_t command)
 
 static ModbusExceptionCode_t ApplyPendingConfiguration(
     product_modbus_register_context_t *registerContext,
+    uint8_t channel,
     uint16_t applyKey)
 {
     product_temperature_input_config_t oldConfig;
@@ -611,51 +660,66 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
         return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
     }
 
-    if (!registerContext->pendingDirty)
+    if ((channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        !registerContext->pendingDirty[channel])
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
     }
 
-    if (registerContext->activeConfig.filterTimeConstantSeconds !=
-        registerContext->pendingConfig.filterTimeConstantSeconds)
+    if (registerContext->activeConfig[channel].filterTimeConstantSeconds !=
+        registerContext->pendingConfig[channel].filterTimeConstantSeconds)
     {
         changedMask |=
             EVENT_TEMPERATURE_INPUT_CHANGE_FILTER_TIME_CONSTANT;
     }
-    if (registerContext->activeConfig.sensorType !=
-        registerContext->pendingConfig.sensorType)
+    if (registerContext->activeConfig[channel].sensorType !=
+        registerContext->pendingConfig[channel].sensorType)
     {
         changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE;
     }
-    if (registerContext->activeConfig.tcLinearization !=
-        registerContext->pendingConfig.tcLinearization)
+    if (registerContext->activeConfig[channel].tcLinearization !=
+        registerContext->pendingConfig[channel].tcLinearization)
     {
         changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_TC_LINEARIZATION;
     }
 
     if (changedMask == 0U)
     {
-        registerContext->pendingDirty = false;
+        registerContext->pendingDirty[channel] = false;
         return MODBUS_EXCEPTION_NONE;
     }
 
     if (EventService_IsTemperatureInputConfigurationChangedPending(
-            PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL))
+            channel))
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
-    oldConfig = registerContext->activeConfig;
-    oldRevision = registerContext->configurationRevision;
+    oldConfig = registerContext->activeConfig[channel];
+    oldRevision = registerContext->configurationRevision[channel];
     oldEventConfig.filter_time_constant_seconds =
         oldConfig.filterTimeConstantSeconds;
     oldEventConfig.sensor_type = oldConfig.sensorType;
     oldEventConfig.tc_linearization = oldConfig.tcLinearization;
     newEventConfig.filter_time_constant_seconds =
-        registerContext->pendingConfig.filterTimeConstantSeconds;
-    newEventConfig.sensor_type = registerContext->pendingConfig.sensorType;
+        registerContext->pendingConfig[channel].filterTimeConstantSeconds;
+    newEventConfig.sensor_type =
+        registerContext->pendingConfig[channel].sensorType;
     newEventConfig.tc_linearization =
-        registerContext->pendingConfig.tcLinearization;
+        registerContext->pendingConfig[channel].tcLinearization;
+
+    {
+        float minimum;
+        float maximum;
+        bool inputEnabled;
+        if (!ProductTemperatureRangeResolver_Resolve(
+                &newEventConfig, &minimum, &maximum, &inputEnabled, NULL) ||
+            (inputEnabled && !(minimum <= maximum)))
+        {
+            /* Linked-field validation failed: retain Pending for correction. */
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+    }
 
     newRevision = (uint16_t)(oldRevision + 1U);
     if (newRevision == 0U)
@@ -663,22 +727,23 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
         newRevision = 1U;
     }
 
-    registerContext->activeConfig = registerContext->pendingConfig;
-    registerContext->configurationRevision = newRevision;
+    registerContext->activeConfig[channel] =
+        registerContext->pendingConfig[channel];
+    registerContext->configurationRevision[channel] = newRevision;
     if (!EventService_RaiseTemperatureInputConfigurationChanged(
-            PRODUCT_TEMPERATURE_INPUT_EVENT_CHANNEL,
+            channel,
             newRevision,
             changedMask,
             &oldEventConfig,
             &newEventConfig,
             NULL))
     {
-        registerContext->activeConfig = oldConfig;
-        registerContext->configurationRevision = oldRevision;
+        registerContext->activeConfig[channel] = oldConfig;
+        registerContext->configurationRevision[channel] = oldRevision;
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
-    registerContext->pendingDirty = false;
+    registerContext->pendingDirty[channel] = false;
     return MODBUS_EXCEPTION_NONE;
 }
 
@@ -846,6 +911,8 @@ static ModbusExceptionCode_t WriteSingleRegister(
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
     ModbusSerialRegisterInfo_t serial_information;
+    uint8_t temperatureChannel;
+    uint16_t temperatureOffset;
 
     if (registerContext == NULL)
     {
@@ -913,31 +980,39 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return ApplyPendingPwmConfiguration(registerContext, value);
     }
 
-    if (address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS)
+    if (!ResolveTemperatureRegisterRange(address, 1U, &temperatureChannel,
+                                         &temperatureOffset))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    if (temperatureOffset == 7U)
     {
         if (!IsSensorTypeValid(value))
         {
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
-        registerContext->pendingConfig.sensorType = value;
-        registerContext->pendingDirty = true;
+        registerContext->pendingConfig[temperatureChannel].sensorType = value;
+        registerContext->pendingDirty[temperatureChannel] = true;
         return MODBUS_EXCEPTION_NONE;
     }
 
-    if (address == PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS)
+    if (temperatureOffset == 8U)
     {
         if (!IsTcLinearizationValid(value))
         {
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
-        registerContext->pendingConfig.tcLinearization = value;
-        registerContext->pendingDirty = true;
+        registerContext->pendingConfig[temperatureChannel].tcLinearization =
+            value;
+        registerContext->pendingDirty[temperatureChannel] = true;
         return MODBUS_EXCEPTION_NONE;
     }
 
-    if (address == PRODUCT_MODBUS_APPLY_KEY_ADDRESS)
+    if (temperatureOffset == 9U)
     {
-        return ApplyPendingConfiguration(registerContext, value);
+        return ApplyPendingConfiguration(registerContext, temperatureChannel,
+                                         value);
     }
 
     return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
@@ -954,6 +1029,8 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     product_temperature_input_config_t pendingConfig;
     float filterTimeConstant;
     ModbusSerialRegisterInfo_t serial_information;
+    uint8_t temperatureChannel;
+    uint16_t temperatureOffset;
 
     if ((registerContext == NULL) || (values == NULL))
     {
@@ -1043,8 +1120,6 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return MODBUS_EXCEPTION_NONE;
     }
 
-    pendingConfig = registerContext->pendingConfig;
-
     if ((starting_address == PRODUCT_MODBUS_FACTORY_CAL_UNLOCK1_ADDRESS) &&
         (quantity == 2U))
     {
@@ -1091,8 +1166,15 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return MODBUS_EXCEPTION_NONE;
     }
 
-    if ((starting_address == PRODUCT_MODBUS_FILTER_TIME_CONSTANT_ADDRESS) &&
-        (quantity == 2U))
+    if (!ResolveTemperatureRegisterRange(starting_address, quantity,
+                                         &temperatureChannel,
+                                         &temperatureOffset))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+    pendingConfig = registerContext->pendingConfig[temperatureChannel];
+
+    if ((temperatureOffset == 3U) && (quantity == 2U))
     {
         filterTimeConstant = RegistersToFloat(values[0], values[1]);
         if (!IsFilterTimeConstantValid(filterTimeConstant))
@@ -1101,8 +1183,7 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         }
         pendingConfig.filterTimeConstantSeconds = filterTimeConstant;
     }
-    else if ((starting_address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS) &&
-             (quantity == 1U))
+    else if ((temperatureOffset == 7U) && (quantity == 1U))
     {
         if (!IsSensorTypeValid(values[0]))
         {
@@ -1110,8 +1191,7 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         }
         pendingConfig.sensorType = values[0];
     }
-    else if ((starting_address == PRODUCT_MODBUS_TC_LINEARIZATION_ADDRESS) &&
-             (quantity == 1U))
+    else if ((temperatureOffset == 8U) && (quantity == 1U))
     {
         if (!IsTcLinearizationValid(values[0]))
         {
@@ -1119,8 +1199,7 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         }
         pendingConfig.tcLinearization = values[0];
     }
-    else if ((starting_address == PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS) &&
-             (quantity == 2U))
+    else if ((temperatureOffset == 7U) && (quantity == 2U))
     {
         if (!IsSensorTypeValid(values[0]) ||
             !IsTcLinearizationValid(values[1]))
@@ -1130,18 +1209,34 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         pendingConfig.sensorType = values[0];
         pendingConfig.tcLinearization = values[1];
     }
-    else if ((starting_address == PRODUCT_MODBUS_APPLY_KEY_ADDRESS) &&
-             (quantity == 1U))
+    else if ((temperatureOffset == 7U) && (quantity == 3U))
     {
-        return ApplyPendingConfiguration(registerContext, values[0]);
+        ModbusExceptionCode_t applyResult;
+        if (!IsSensorTypeValid(values[0]) ||
+            !IsTcLinearizationValid(values[1]))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.sensorType = values[0];
+        pendingConfig.tcLinearization = values[1];
+        registerContext->pendingConfig[temperatureChannel] = pendingConfig;
+        registerContext->pendingDirty[temperatureChannel] = true;
+        applyResult = ApplyPendingConfiguration(
+            registerContext, temperatureChannel, values[2]);
+        return applyResult;
+    }
+    else if ((temperatureOffset == 9U) && (quantity == 1U))
+    {
+        return ApplyPendingConfiguration(registerContext, temperatureChannel,
+                                         values[0]);
     }
     else
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
 
-    registerContext->pendingConfig = pendingConfig;
-    registerContext->pendingDirty = true;
+    registerContext->pendingConfig[temperatureChannel] = pendingConfig;
+    registerContext->pendingDirty[temperatureChannel] = true;
     return MODBUS_EXCEPTION_NONE;
 }
 
@@ -1161,68 +1256,140 @@ void ProductModbusRegisterAdapter_GetInterface(
 bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(
     const product_temperature_input_monitor_t *monitor)
 {
-    if ((monitor == NULL) ||
+    return ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
+        0U, monitor);
+}
+
+bool ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
+    uint8_t channel,
+    const product_temperature_input_monitor_t *monitor)
+{
+    if ((channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        (monitor == NULL) ||
         !IsTemperatureValueValid(monitor->unfilteredProcessValue) ||
         !IsTemperatureValueValid(monitor->filteredProcessValue))
     {
         return false;
     }
 
-    s_registerContext.monitor = *monitor;
+    s_registerContext.monitor[channel] = *monitor;
     return true;
 }
 
 void ProductModbusRegisterAdapter_GetTemperatureInputConfig(
     product_temperature_input_config_t *config)
 {
-    if (config != NULL)
+    (void)ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
+        0U, config);
+}
+
+bool ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
+    uint8_t channel,
+    product_temperature_input_config_t *config)
+{
+    if ((channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        (config == NULL))
     {
-        *config = s_registerContext.activeConfig;
+        return false;
     }
+    *config = s_registerContext.activeConfig[channel];
+    return true;
 }
 
 uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevision(
     void)
 {
-    return s_registerContext.configurationRevision;
+    return
+        ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(
+            0U);
+}
+
+uint16_t
+ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(
+    uint8_t channel)
+{
+    return (channel < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ?
+        s_registerContext.configurationRevision[channel] : 0U;
 }
 
 bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfig(
     const product_temperature_input_config_t *config,
     uint16_t configuration_revision)
 {
-    if ((config == NULL) || (configuration_revision == 0U) ||
+    return ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
+            0U, config, configuration_revision);
+}
+
+bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
+    uint8_t channel,
+    const product_temperature_input_config_t *config,
+    uint16_t configuration_revision)
+{
+    if ((channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        (config == NULL) || (configuration_revision == 0U) ||
         !IsFilterTimeConstantValid(config->filterTimeConstantSeconds) ||
         !IsSensorTypeValid(config->sensorType) ||
         !IsTcLinearizationValid(config->tcLinearization))
     {
         return false;
     }
-    s_registerContext.activeConfig = *config;
-    s_registerContext.pendingConfig = *config;
-    s_registerContext.configurationRevision = configuration_revision;
-    s_registerContext.pendingDirty = false;
+    s_registerContext.activeConfig[channel] = *config;
+    s_registerContext.pendingConfig[channel] = *config;
+    s_registerContext.configurationRevision[channel] =
+        configuration_revision;
+    s_registerContext.pendingDirty[channel] = false;
     return true;
 }
 
 bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfig(void)
 {
-    return s_registerContext.pendingDirty;
+    return
+        ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(
+            0U);
+}
+
+bool ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(
+    uint8_t channel)
+{
+    return (channel < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) &&
+           s_registerContext.pendingDirty[channel];
 }
 
 void ProductModbusRegisterAdapter_GetPendingTemperatureInputConfig(
     product_temperature_input_config_t *config)
 {
-    if (config != NULL)
+    (void)ProductModbusRegisterAdapter_GetPendingTemperatureInputConfigForChannel(
+        0U, config);
+}
+
+bool ProductModbusRegisterAdapter_GetPendingTemperatureInputConfigForChannel(
+    uint8_t channel,
+    product_temperature_input_config_t *config)
+{
+    if ((channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
+        (config == NULL))
     {
-        *config = s_registerContext.pendingConfig;
+        return false;
     }
+    *config = s_registerContext.pendingConfig[channel];
+    return true;
 }
 
 void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfig(void)
 {
-    s_registerContext.pendingConfig = s_registerContext.activeConfig;
-    s_registerContext.pendingDirty = false;
+    ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfigForChannel(
+        0U);
+}
+
+void ProductModbusRegisterAdapter_DiscardPendingTemperatureInputConfigForChannel(
+    uint8_t channel)
+{
+    if (channel < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT)
+    {
+        s_registerContext.pendingConfig[channel] =
+            s_registerContext.activeConfig[channel];
+        s_registerContext.pendingDirty[channel] = false;
+    }
 }
 
 bool ProductModbusRegisterAdapter_GetPwmConfig(

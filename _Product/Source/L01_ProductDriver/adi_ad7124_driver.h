@@ -96,6 +96,13 @@ typedef struct _adi_ad7124_channel_config
     bool enabled;
 } adi_ad7124_channel_config_t;
 
+typedef struct _adi_ad7124_io_config
+{
+    uint16_t excitationCurrentUa;
+    uint8_t excitationOutput0;
+    uint8_t excitationOutput1;
+} adi_ad7124_io_config_t;
+
 /* Full-duplex, in-place SPI transfer. Return true on success. */
 typedef bool (*adi_ad7124_transfer_fn_t)(
     void *context,
@@ -111,6 +118,7 @@ typedef struct _adi_ad7124_device
     void *transportContext;
     uint32_t pollLimit;
     adi_ad7124_variant_t expectedVariant;
+    uint32_t initialError;
     uint8_t deviceId;
     bool crcEnabled;
     bool initialized;
@@ -141,7 +149,8 @@ adi_ad7124_status_t ADI_AD7124_Configure(
     const adi_ad7124_setup_config_t *setups,
     uint8_t setupCount,
     const adi_ad7124_channel_config_t *channels,
-    uint8_t channelCount);
+    uint8_t channelCount,
+    const adi_ad7124_io_config_t *ioConfig);
 uint8_t ADI_AD7124_ComputeCrc8(const uint8_t *data, size_t length);
 uint8_t ADI_AD7124_GetRegisterSize(uint8_t address);
 bool ADI_AD7124_IsKnownDeviceId(uint8_t id, adi_ad7124_variant_t variant);

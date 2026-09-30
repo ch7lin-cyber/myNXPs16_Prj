@@ -5,6 +5,39 @@ FC10; individual values and Apply Keys may use FC06. PWM period and duty writes
 are staged as Pending values and do not affect hardware until the PWM Apply Key
 is accepted.
 
+## Four-channel temperature input configuration
+
+Each AD7124 has an independent 10-register block. The offsets are identical:
+
+| Input | Register block | Sensor Type | TC type | Apply Key |
+|---|---|---|---|---|
+| CH0 / AD7124 #0 | `0x1000..0x1009` | `0x1007` | `0x1008` | `0x1009` |
+| CH1 / AD7124 #1 | `0x1010..0x1019` | `0x1017` | `0x1018` | `0x1019` |
+| CH2 / AD7124 #2 | `0x1020..0x1029` | `0x1027` | `0x1028` | `0x1029` |
+| CH3 / AD7124 #3 | `0x1030..0x1039` | `0x1037` | `0x1038` | `0x1039` |
+
+The factory default is Thermocouple K (`Sensor Type=95`, `TC type=48`). Writing
+Sensor Type, TC type, or filter time with FC06/FC10 only changes that channel's
+RAM Pending copy. Write `0xA5A5` to the same channel's Apply Key to request an
+atomic change. Apply revalidates linked fields before changing Active state.
+FC10 may write Sensor Type, TC type, and `0xA5A5` together as three consecutive
+registers beginning at offset `+7`.
+
+Pending has no time-based expiry. A later write replaces the corresponding
+Pending field; an explicit discard restores Pending from Active. If Apply fails
+linked validation, Pending is retained so the controller/HMI can correct it,
+while Active, ADC hardware, and NVM remain unchanged. Power loss or reset before
+a successful Apply discards RAM Pending and restores the last CRC-valid Active
+configuration from FRAM. After a successful Apply, Event consumers reconfigure
+the AD7124 and dependent Alarm/Safety state; NVM is written only after the
+required consumers acknowledge the event.
+
+Sensor switching updates the AD7124 input pair, PGA gain, reference, excitation
+current, and CV_SEL mode. The first conversion after reconfiguration is ignored
+to allow the digital filter to settle. The AD7124 ERROR register is captured
+once during device initialization/reinitialization and is not read by the
+normal 100 Hz polling path.
+
 ## Four-channel PWM configuration
 
 | Address | Access | Meaning | Range / unit |

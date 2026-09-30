@@ -17,6 +17,7 @@ typedef struct
     uint32_t crc_errors;
     uint32_t transport_errors;
     uint32_t device_errors;
+    uint32_t initial_error_register;
     int32_t last_driver_status;
     uint8_t device_id;
     bool initialized;

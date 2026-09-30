@@ -8,18 +8,21 @@
 #include "ProductAdcConfig.h"
 #include "adi_ad7124_driver.h"
 #include "product_ad7124_driver.h"
+#include "fsl_gpio.h"
+#include "pin_mux.h"
 
 typedef struct
 {
     uint8_t device_index;
     bool discard_next_sample;
+    const HalAdcDeviceConfig_t *active_config;
     ProductAdcDriverDiagnostics_t diagnostics;
 } ProductAdcDriverContext_t;
 
 static ProductAdcDriverContext_t g_adc_context[HAL_ADC_DEVICE_COUNT] =
 {
-    {0U, false, {0U}}, {1U, false, {0U}},
-    {2U, false, {0U}}, {3U, false, {0U}}
+    {0U, false, NULL, {0U}}, {1U, false, NULL, {0U}},
+    {2U, false, NULL, {0U}}, {3U, false, NULL, {0U}}
 };
 
 /* One product input per AD7124-4; all four factory-default to K type. */
@@ -42,10 +45,36 @@ static const HalAdcChannelConfig_t
 
 static const HalAdcDeviceConfig_t g_device_config[HAL_ADC_DEVICE_COUNT] =
 {
-    {g_setups, 1U, g_channels[0], PRODUCT_ADC_CHANNELS_PER_DEVICE},
-    {g_setups, 1U, g_channels[1], PRODUCT_ADC_CHANNELS_PER_DEVICE},
-    {g_setups, 1U, g_channels[2], PRODUCT_ADC_CHANNELS_PER_DEVICE},
-    {g_setups, 1U, g_channels[3], PRODUCT_ADC_CHANNELS_PER_DEVICE}
+    {g_setups, 1U, g_channels[0], PRODUCT_ADC_CHANNELS_PER_DEVICE,
+     HAL_ADC_INPUT_MODE_VOLTAGE, 0U, PRODUCT_ADC_IEX1_AIN,
+     PRODUCT_ADC_IEX2_AIN},
+    {g_setups, 1U, g_channels[1], PRODUCT_ADC_CHANNELS_PER_DEVICE,
+     HAL_ADC_INPUT_MODE_VOLTAGE, 0U, PRODUCT_ADC_IEX1_AIN,
+     PRODUCT_ADC_IEX2_AIN},
+    {g_setups, 1U, g_channels[2], PRODUCT_ADC_CHANNELS_PER_DEVICE,
+     HAL_ADC_INPUT_MODE_VOLTAGE, 0U, PRODUCT_ADC_IEX1_AIN,
+     PRODUCT_ADC_IEX2_AIN},
+    {g_setups, 1U, g_channels[3], PRODUCT_ADC_CHANNELS_PER_DEVICE,
+     HAL_ADC_INPUT_MODE_VOLTAGE, 0U, PRODUCT_ADC_IEX1_AIN,
+     PRODUCT_ADC_IEX2_AIN}
+};
+
+typedef struct
+{
+    uint8_t port;
+    uint8_t pin;
+} ProductAdcCvSelect_t;
+
+static const ProductAdcCvSelect_t g_cv_select[HAL_ADC_DEVICE_COUNT] =
+{
+    {BOARD_INITEXTADCPINS_CV_SEL_0_PORT,
+     BOARD_INITEXTADCPINS_CV_SEL_0_PIN},
+    {BOARD_INITEXTADCPINS_CV_SEL_1_PORT,
+     BOARD_INITEXTADCPINS_CV_SEL_1_PIN},
+    {BOARD_INITEXTADCPINS_CV_SEL_2_PORT,
+     BOARD_INITEXTADCPINS_CV_SEL_2_PIN},
+    {BOARD_INITEXTADCPINS_CV_SEL_3_PORT,
+     BOARD_INITEXTADCPINS_CV_SEL_3_PIN}
 };
 
 static const AnalogInputRoute_t g_routes[PRODUCT_ADC_DEVICE_COUNT] =
@@ -119,6 +148,8 @@ static HalAdcStatus_t ProductAdcInitialize(void *driver_context)
     context->diagnostics.initialized = (status == kAdiAd7124_Ok);
     context->diagnostics.device_id =
         (device != NULL) ? device->deviceId : 0U;
+    context->diagnostics.initial_error_register =
+        (device != NULL) ? device->initialError : 0U;
     return MapDriverStatus(status);
 }
 
@@ -141,6 +172,7 @@ static HalAdcStatus_t ProductAdcConfigure(
         (ProductAdcDriverContext_t *)driver_context;
     adi_ad7124_setup_config_t setups[HAL_ADC_SETUP_COUNT];
     adi_ad7124_channel_config_t channels[HAL_ADC_CHANNELS_PER_DEVICE];
+    adi_ad7124_io_config_t ioConfig;
     uint8_t index;
 
     if ((context == NULL) || (config == NULL))
@@ -172,15 +204,25 @@ static HalAdcStatus_t ProductAdcConfigure(
         channels[index].negativeInput = config->channels[index].negative_input;
         channels[index].enabled = config->channels[index].enabled;
     }
+    ioConfig.excitationCurrentUa = config->excitation_current_ua;
+    ioConfig.excitationOutput0 = config->excitation_output0;
+    ioConfig.excitationOutput1 = config->excitation_output1;
     {
         adi_ad7124_status_t driverStatus = ADI_AD7124_Configure(
             ProductAd7124_GetDevice(context->device_index), setups,
-            config->setup_count, channels, config->channel_count);
+            config->setup_count, channels, config->channel_count, &ioConfig);
         HalAdcStatus_t status = MapDriverStatus(driverStatus);
         RecordDriverStatus(context, driverStatus);
         if (status == HAL_ADC_STATUS_OK)
         {
+            GPIO_PinWrite(GPIO,
+                          g_cv_select[context->device_index].port,
+                          g_cv_select[context->device_index].pin,
+                          (config->input_mode == HAL_ADC_INPUT_MODE_CURRENT) ?
+                              PRODUCT_ADC_CV_SELECT_CURRENT :
+                              PRODUCT_ADC_CV_SELECT_VOLTAGE);
             context->discard_next_sample = true;
+            context->active_config = config;
         }
         return status;
     }
@@ -223,15 +265,19 @@ static HalAdcStatus_t ProductAdcTryRead(
         context->diagnostics.discarded_samples++;
         return HAL_ADC_STATUS_NOT_READY;
     }
+    if (context->active_config == NULL)
+    {
+        return HAL_ADC_STATUS_NOT_INITIALIZED;
+    }
     for (index = 0U;
-         index < g_device_config[context->device_index].channel_count;
+         index < context->active_config->channel_count;
          index++)
     {
-        if (g_device_config[context->device_index].channels[index].channel ==
+        if (context->active_config->channels[index].channel ==
             sample->channel)
         {
             channel_config =
-                &g_device_config[context->device_index].channels[index];
+                &context->active_config->channels[index];
             break;
         }
     }
@@ -239,7 +285,7 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         return HAL_ADC_STATUS_DEVICE_ERROR;
     }
-    setup = &g_setups[channel_config->setup];
+    setup = &context->active_config->setups[channel_config->setup];
     reference_uv =
         (setup->reference == HAL_ADC_REFERENCE_INTERNAL) ?
             PRODUCT_ADC_INTERNAL_REFERENCE_UV :
