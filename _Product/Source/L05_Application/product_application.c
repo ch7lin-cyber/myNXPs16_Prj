@@ -18,6 +18,7 @@
 #include "product_internal_adc_driver.h"
 #include "ProductAdcConfig.h"
 #include "ProductInternalAdcConfig.h"
+#include "product_mcu_temperature_safety.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
 static uint16_t g_adc_poll_elapsed_ms;
@@ -28,6 +29,20 @@ static bool g_adc_poll_due;
 static bool g_adc_recovery_due;
 static bool g_cjc_due;
 static bool g_mcu_temperature_due;
+
+static void ProcessMcuTemperatureSafety(void)
+{
+    ProductInternalAdcSnapshot_t snapshot;
+
+    if (!ProductInternalAdcDriver_GetSnapshot(&snapshot))
+    {
+        return;
+    }
+    ProductMcuTemperatureSafety_Process(
+        snapshot.mcu_temperature.valid,
+        snapshot.mcu_temperature.overtemperature,
+        snapshot.mcu_temperature.temperature_centi_c);
+}
 
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 {
@@ -91,6 +106,7 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
+    ProductMcuTemperatureSafety_Initialize();
 
     if (!NvmConfigurationEventConsumer_Initialize())
     {
@@ -169,6 +185,7 @@ void ProductApplication_Process(void)
     uint8_t input;
 
     ProductInternalAdcDriver_Process();
+    ProcessMcuTemperatureSafety();
     if (g_cjc_due)
     {
         g_cjc_due = false;
