@@ -71,6 +71,35 @@ FC10 may stage several channels and include `0x130C = 0xA5A5` as the final
 register to apply them atomically. Invalid period, duty, update mode, Apply Key,
 or an Apply with no Pending channel returns Modbus exception 03.
 
+## Four-channel DAC8562 output
+
+DAC output commands are runtime values and are not saved to FRAM. All four
+outputs initialize to code zero after reset. FC06/FC10 writes stage Pending
+codes; hardware changes only after a valid Apply Key is accepted.
+
+| Address | Access | Meaning | Range / unit |
+|---|---|---|---|
+| `0x1400` | R/W | DAC output CH0 Active/Pending code | `0x0000..0xFFFF` |
+| `0x1401` | R/W | DAC output CH1 Active/Pending code | `0x0000..0xFFFF` |
+| `0x1402` | R/W | DAC output CH2 Active/Pending code | `0x0000..0xFFFF` |
+| `0x1403` | R/W | DAC output CH3 Active/Pending code | `0x0000..0xFFFF` |
+| `0x1404` | W | DAC Apply Key | write `0xA5A5` |
+| `0x1405` | R | Successful Apply revision | `0..65535` |
+| `0x1406` | R | Pending channel mask | bits 0..3 = CH0..CH3 |
+| `0x1407` | R | DAC status | 0 Ready, 1 Apply failed, 2 Rollback failed |
+| `0x1408` | R | Last failed channel | 0..3, `0xFFFF` = none |
+
+FC03 reads Active codes; Pending values are available only through the internal
+adapter API. An FC10 request may stage multiple consecutive channel codes and
+include `0xA5A5` at `0x1404` as its final register. If a hardware write fails,
+the request returns Server Device Failure, Active codes and revision remain
+unchanged, Pending is retained for retry, and channels already written are
+restored to their previous Active codes when possible.
+
+With the current DAC8562 configuration (internal 2.5 V reference, gain 1), the
+nominal DAC-pin voltage is `code / 65536 * 2.5 V`. External analog-output
+conditioning, if fitted, must be handled by a later engineering-unit layer.
+
 ## Factory FRAM bank test
 
 This is a destructive factory-only checkerboard test for the complete 256 KiB

@@ -6,7 +6,9 @@
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 #include "HalPwm.h"
+#include "HalDac.h"
 #include "PwmOutputService.h"
+#include "bsp_analog_output.h"
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
 #include "product_temperature_input_types.h"
@@ -19,6 +21,35 @@ typedef struct
 } MockPwmDriver_t;
 
 static MockPwmDriver_t g_pwmDriver[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
+
+typedef struct
+{
+    uint16_t code;
+    bool failNextWrite;
+} MockDacDriver_t;
+
+static MockDacDriver_t g_dacDriver[PRODUCT_MODBUS_DAC_CHANNEL_COUNT];
+
+static HalDacStatus_t MockDacInitialize(void *context)
+{
+    MockDacDriver_t *driver = (MockDacDriver_t *)context;
+    driver->code = 0U;
+    driver->failNextWrite = false;
+    return HAL_DAC_STATUS_OK;
+}
+
+static HalDacStatus_t MockDacWriteCode(void *context, uint16_t code)
+{
+    MockDacDriver_t *driver = (MockDacDriver_t *)context;
+
+    if (driver->failNextWrite)
+    {
+        driver->failNextWrite = false;
+        return HAL_DAC_STATUS_IO_ERROR;
+    }
+    driver->code = code;
+    return HAL_DAC_STATUS_OK;
+}
 
 static HalPwmStatus_t MockPwmInitialize(void *context)
 {
@@ -559,10 +590,119 @@ static void TestPwmPendingAndApply(void)
                7U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestDacPendingApplyAndRollback(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t image[9];
+    uint16_t code;
+    const uint16_t channelOneToThreeAndApply[4] =
+    {
+        0x4000U, 0x8000U, 0xFFFFU,
+        PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE
+    };
+    const uint16_t channelZeroAndOne[2] = {0x1111U, 0x2222U};
+    const uint16_t invalidRange[3] =
+    {
+        0x3333U, PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE, 0U
+    };
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_DiscardPendingDacCodes();
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS,
+               9U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 0U);
+    assert(image[1] == 0U);
+    assert(image[2] == 0U);
+    assert(image[3] == 0U);
+    assert(image[4] == 0U);
+    assert(image[5] == 0U);
+    assert(image[6] == 0U);
+    assert(image[7] == PRODUCT_MODBUS_DAC_STATUS_READY);
+    assert(image[8] == PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS,
+               0x8000U) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 0x0001U);
+    assert(ProductModbusRegisterAdapter_GetDacCode(0U, &code));
+    assert(code == 0U);
+    assert(ProductModbusRegisterAdapter_GetPendingDacCode(0U, &code));
+    assert(code == 0x8000U);
+    assert(g_dacDriver[0].code == 0U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS,
+               0x5A5AU) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(g_dacDriver[0].code == 0x8000U);
+    assert(ProductModbusRegisterAdapter_GetDacConfigurationRevision() == 1U);
+    assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 0U);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS,
+               9U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 0x8000U);
+    assert(image[4] == 0U);
+    assert(image[5] == 1U);
+    assert(image[6] == 0U);
+
+    assert(interface.write_multiple_registers(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS + 1U,
+               channelOneToThreeAndApply, 4U) == MODBUS_EXCEPTION_NONE);
+    assert(g_dacDriver[1].code == 0x4000U);
+    assert(g_dacDriver[2].code == 0x8000U);
+    assert(g_dacDriver[3].code == 0xFFFFU);
+    assert(ProductModbusRegisterAdapter_GetDacConfigurationRevision() == 2U);
+
+    assert(interface.write_multiple_registers(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS,
+               channelZeroAndOne, 2U) == MODBUS_EXCEPTION_NONE);
+    g_dacDriver[1].failNextWrite = true;
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE) ==
+           MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(g_dacDriver[0].code == 0x8000U);
+    assert(g_dacDriver[1].code == 0x4000U);
+    assert(ProductModbusRegisterAdapter_GetDacConfigurationRevision() == 2U);
+    assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 0x0003U);
+    assert(ProductModbusRegisterAdapter_GetDacStatus() ==
+           PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED);
+    assert(ProductModbusRegisterAdapter_GetDacFailedChannel() == 1U);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DAC_STATUS_ADDRESS,
+               2U, &image[7]) == MODBUS_EXCEPTION_NONE);
+    assert(image[7] == PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED);
+    assert(image[8] == 1U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(g_dacDriver[0].code == 0x1111U);
+    assert(g_dacDriver[1].code == 0x2222U);
+    assert(ProductModbusRegisterAdapter_GetDacConfigurationRevision() == 3U);
+    assert(ProductModbusRegisterAdapter_GetDacStatus() ==
+           PRODUCT_MODBUS_DAC_STATUS_READY);
+    assert(ProductModbusRegisterAdapter_GetDacFailedChannel() ==
+           PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE);
+
+    assert(interface.write_multiple_registers(
+               interface.context, PRODUCT_MODBUS_DAC_BASE_ADDRESS + 3U,
+               invalidRange, 3U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 0U);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DAC_STATUS_ADDRESS,
+               0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
+    static const HalDacDriverOps_t dacOps =
+        {MockDacInitialize, MockDacWriteCode};
     uint8_t channel;
 
     for (channel = 0U;
@@ -576,6 +716,15 @@ int main(void)
     assert(PwmOutputService_Initialize(
                PRODUCT_MODBUS_PWM_CHANNEL_COUNT,
                MockPwmIsInhibited, NULL) == PWM_OUTPUT_STATUS_OK);
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT;
+         channel++)
+    {
+        assert(HalDac_RegisterDriver(
+                   channel, &dacOps, &g_dacDriver[channel]) ==
+               HAL_DAC_STATUS_OK);
+    }
+    assert(BspAnalogOutput_Initialize());
     TestDefaultRegisterImage();
     TestFactoryFramRegistersRequireFactoryMode();
     TestMonitorAndReadOnlyRegisters();
@@ -589,5 +738,6 @@ int main(void)
     TestProductDiagnosticsFaultRegisters();
     TestProductVersionRegisters();
     TestPwmPendingAndApply();
+    TestDacPendingApplyAndRollback();
     return 0;
 }

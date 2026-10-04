@@ -45,6 +45,22 @@ extern "C" {
 #define PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE                   (0U)
 #define PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE                  (1U)
 
+/* Four independent DAC8562 outputs. FC06/FC10 writes stage Pending codes. */
+#define PRODUCT_MODBUS_DAC_BASE_ADDRESS                       (0x1400U)
+#define PRODUCT_MODBUS_DAC_CHANNEL_COUNT                      (4U)
+#define PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS                  (0x1404U)
+#define PRODUCT_MODBUS_DAC_REVISION_ADDRESS                   (0x1405U)
+#define PRODUCT_MODBUS_DAC_PENDING_MASK_ADDRESS               (0x1406U)
+#define PRODUCT_MODBUS_DAC_STATUS_ADDRESS                     (0x1407U)
+#define PRODUCT_MODBUS_DAC_FAILED_CHANNEL_ADDRESS             (0x1408U)
+#define PRODUCT_MODBUS_DAC_LAST_ADDRESS                       (0x1408U)
+#define PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE                    (0xA5A5U)
+
+#define PRODUCT_MODBUS_DAC_STATUS_READY                       (0U)
+#define PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED                (1U)
+#define PRODUCT_MODBUS_DAC_STATUS_ROLLBACK_FAILED             (2U)
+#define PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE                (0xFFFFU)
+
 typedef struct _product_pwm_output_config
 {
     uint16_t periodMs;
@@ -192,6 +208,19 @@ bool ProductModbusRegisterAdapter_GetPendingPwmConfig(
 uint16_t ProductModbusRegisterAdapter_GetPwmConfigurationRevision(void);
 uint16_t ProductModbusRegisterAdapter_GetPwmPendingMask(void);
 void ProductModbusRegisterAdapter_DiscardPendingPwmConfig(void);
+
+/* DAC Active/Pending inspection. Output commands are intentionally not NVM. */
+bool ProductModbusRegisterAdapter_GetDacCode(
+    uint8_t channel,
+    uint16_t *code);
+bool ProductModbusRegisterAdapter_GetPendingDacCode(
+    uint8_t channel,
+    uint16_t *code);
+uint16_t ProductModbusRegisterAdapter_GetDacConfigurationRevision(void);
+uint16_t ProductModbusRegisterAdapter_GetDacPendingMask(void);
+uint16_t ProductModbusRegisterAdapter_GetDacStatus(void);
+uint16_t ProductModbusRegisterAdapter_GetDacFailedChannel(void);
+void ProductModbusRegisterAdapter_DiscardPendingDacCodes(void);
 
 #ifdef __cplusplus
 }

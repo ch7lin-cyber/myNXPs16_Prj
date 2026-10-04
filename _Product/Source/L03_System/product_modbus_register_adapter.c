@@ -12,6 +12,7 @@
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 #include "PwmOutputService.h"
+#include "bsp_analog_output.h"
 #include "product_fram_bank_test.h"
 #include "product_temperature_range_resolver.h"
 
@@ -43,6 +44,12 @@ typedef struct _product_modbus_register_context
         pendingPwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
     uint16_t pwmConfigurationRevision;
     uint16_t pwmPendingMask;
+    uint16_t activeDacCode[PRODUCT_MODBUS_DAC_CHANNEL_COUNT];
+    uint16_t pendingDacCode[PRODUCT_MODBUS_DAC_CHANNEL_COUNT];
+    uint16_t dacConfigurationRevision;
+    uint16_t dacPendingMask;
+    uint16_t dacStatus;
+    uint16_t dacFailedChannel;
 } product_modbus_register_context_t;
 
 static product_modbus_register_context_t s_registerContext =
@@ -91,7 +98,13 @@ static product_modbus_register_context_t s_registerContext =
          PRODUCT_MODBUS_PWM_UPDATE_NEXT_CYCLE}
     },
     .pwmConfigurationRevision = 0U,
-    .pwmPendingMask = 0U
+    .pwmPendingMask = 0U,
+    .activeDacCode = {0U, 0U, 0U, 0U},
+    .pendingDacCode = {0U, 0U, 0U, 0U},
+    .dacConfigurationRevision = 0U,
+    .dacPendingMask = 0U,
+    .dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY,
+    .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE
 };
 
 static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
@@ -204,6 +217,19 @@ static bool IsPwmRangeValid(uint16_t startingAddress, uint16_t quantity)
     endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
     return (startingAddress >= PRODUCT_MODBUS_PWM_BASE_ADDRESS) &&
            (endingAddress <= PRODUCT_MODBUS_PWM_LAST_ADDRESS);
+}
+
+static bool IsDacRangeValid(uint16_t startingAddress, uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_DAC_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_DAC_LAST_ADDRESS);
 }
 
 static bool IsPwmConfigValueValid(uint16_t field, uint16_t value)
@@ -482,6 +508,25 @@ static void BuildPwmRegisterImage(
     registers[14] = registerContext->pwmPendingMask;
 }
 
+static void BuildDacRegisterImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    uint8_t channel;
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT;
+         channel++)
+    {
+        registers[channel] = registerContext->activeDacCode[channel];
+    }
+    registers[4] = 0U; /* Apply key is write-only. */
+    registers[5] = registerContext->dacConfigurationRevision;
+    registers[6] = registerContext->dacPendingMask;
+    registers[7] = registerContext->dacStatus;
+    registers[8] = registerContext->dacFailedChannel;
+}
+
 static ModbusExceptionCode_t ReadRegisters(
     void *context,
     uint16_t starting_address,
@@ -496,6 +541,7 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t diagnosticsImage[11];
     uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
+    uint16_t dacImage[9];
     uint16_t sourceOffset;
     uint8_t temperatureChannel;
     ModbusSerialRegisterInfo_t serial_information;
@@ -564,6 +610,15 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_PWM_BASE_ADDRESS);
         (void)memcpy(values, &pwmImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsDacRangeValid(starting_address, quantity))
+    {
+        BuildDacRegisterImage(registerContext, dacImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_DAC_BASE_ADDRESS);
+        (void)memcpy(values, &dacImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
@@ -890,6 +945,122 @@ static ModbusExceptionCode_t StagePwmRegister(
     return MODBUS_EXCEPTION_NONE;
 }
 
+static ModbusExceptionCode_t StageDacRegister(
+    product_modbus_register_context_t *registerContext,
+    uint16_t address,
+    uint16_t value)
+{
+    uint16_t offset = (uint16_t)(address -
+                                 PRODUCT_MODBUS_DAC_BASE_ADDRESS);
+
+    if (offset >= PRODUCT_MODBUS_DAC_CHANNEL_COUNT)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+    registerContext->pendingDacCode[offset] = value;
+    registerContext->dacPendingMask |= (uint16_t)(1UL << offset);
+    return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t ApplyPendingDacCodes(
+    product_modbus_register_context_t *registerContext,
+    uint16_t applyKey)
+{
+    uint8_t channel;
+    uint16_t effectiveMask = 0U;
+
+    if ((applyKey != PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE) ||
+        (registerContext->dacPendingMask == 0U))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if (((registerContext->dacPendingMask & channelMask) != 0U) &&
+            (registerContext->activeDacCode[channel] !=
+             registerContext->pendingDacCode[channel]))
+        {
+            effectiveMask |= channelMask;
+        }
+    }
+    if (effectiveMask == 0U)
+    {
+        registerContext->dacPendingMask = 0U;
+        registerContext->dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY;
+        registerContext->dacFailedChannel =
+            PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if ((effectiveMask & channelMask) == 0U)
+        {
+            continue;
+        }
+        if (!BspAnalogOutput_WriteCode(
+                (BspAnalogOutput_t)channel,
+                registerContext->pendingDacCode[channel]))
+        {
+            uint8_t rollbackChannel;
+            bool rollbackFailed = false;
+
+            registerContext->dacStatus =
+                PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED;
+            registerContext->dacFailedChannel = channel;
+            for (rollbackChannel = 0U;
+                 rollbackChannel <= channel;
+                 rollbackChannel++)
+            {
+                uint16_t rollbackMask =
+                    (uint16_t)(1UL << rollbackChannel);
+                if (((effectiveMask & rollbackMask) != 0U) &&
+                    !BspAnalogOutput_WriteCode(
+                        (BspAnalogOutput_t)rollbackChannel,
+                        registerContext->activeDacCode[rollbackChannel]))
+                {
+                    rollbackFailed = true;
+                }
+            }
+            if (rollbackFailed)
+            {
+                registerContext->dacStatus =
+                    PRODUCT_MODBUS_DAC_STATUS_ROLLBACK_FAILED;
+            }
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+    }
+
+    for (channel = 0U;
+         channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT;
+         channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if ((effectiveMask & channelMask) != 0U)
+        {
+            registerContext->activeDacCode[channel] =
+                registerContext->pendingDacCode[channel];
+        }
+    }
+    registerContext->dacPendingMask = 0U;
+    registerContext->dacConfigurationRevision++;
+    if (registerContext->dacConfigurationRevision == 0U)
+    {
+        registerContext->dacConfigurationRevision = 1U;
+    }
+    registerContext->dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY;
+    registerContext->dacFailedChannel =
+        PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE;
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t WriteSingleRegister(
     void *context,
     uint16_t address,
@@ -965,6 +1136,15 @@ static ModbusExceptionCode_t WriteSingleRegister(
     if (address == PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS)
     {
         return ApplyPendingPwmConfiguration(registerContext, value);
+    }
+    if ((address >= PRODUCT_MODBUS_DAC_BASE_ADDRESS) &&
+        (address < PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS))
+    {
+        return StageDacRegister(registerContext, address, value);
+    }
+    if (address == PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS)
+    {
+        return ApplyPendingDacCodes(registerContext, value);
     }
 
     if (!ResolveTemperatureRegisterRange(address, 1U, &temperatureChannel,
@@ -1096,6 +1276,52 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         {
             return ApplyPendingPwmConfiguration(
                 registerContext, PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE);
+        }
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (IsDacRangeValid(starting_address, quantity))
+    {
+        product_modbus_register_context_t stagedContext = *registerContext;
+        bool applyRequested = false;
+        uint16_t index;
+
+        for (index = 0U; index < quantity; index++)
+        {
+            uint16_t address = (uint16_t)(starting_address + index);
+            ModbusExceptionCode_t result;
+
+            if (address < PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS)
+            {
+                result = StageDacRegister(
+                    &stagedContext, address, values[index]);
+                if (result != MODBUS_EXCEPTION_NONE)
+                {
+                    return result;
+                }
+            }
+            else if ((address == PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS) &&
+                     (index == (uint16_t)(quantity - 1U)) &&
+                     (values[index] == PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE))
+            {
+                applyRequested = true;
+            }
+            else
+            {
+                return (address <= PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS) ?
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE :
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+            }
+        }
+
+        (void)memcpy(registerContext->pendingDacCode,
+                     stagedContext.pendingDacCode,
+                     sizeof(registerContext->pendingDacCode));
+        registerContext->dacPendingMask = stagedContext.dacPendingMask;
+        if (applyRequested)
+        {
+            return ApplyPendingDacCodes(
+                registerContext, PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE);
         }
         return MODBUS_EXCEPTION_NONE;
     }
@@ -1391,4 +1617,56 @@ void ProductModbusRegisterAdapter_DiscardPendingPwmConfig(void)
                  s_registerContext.activePwmConfig,
                  sizeof(s_registerContext.pendingPwmConfig));
     s_registerContext.pwmPendingMask = 0U;
+}
+
+bool ProductModbusRegisterAdapter_GetDacCode(
+    uint8_t channel,
+    uint16_t *code)
+{
+    if ((channel >= PRODUCT_MODBUS_DAC_CHANNEL_COUNT) || (code == NULL))
+    {
+        return false;
+    }
+    *code = s_registerContext.activeDacCode[channel];
+    return true;
+}
+
+bool ProductModbusRegisterAdapter_GetPendingDacCode(
+    uint8_t channel,
+    uint16_t *code)
+{
+    if ((channel >= PRODUCT_MODBUS_DAC_CHANNEL_COUNT) || (code == NULL))
+    {
+        return false;
+    }
+    *code = s_registerContext.pendingDacCode[channel];
+    return true;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetDacConfigurationRevision(void)
+{
+    return s_registerContext.dacConfigurationRevision;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetDacPendingMask(void)
+{
+    return s_registerContext.dacPendingMask;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetDacStatus(void)
+{
+    return s_registerContext.dacStatus;
+}
+
+uint16_t ProductModbusRegisterAdapter_GetDacFailedChannel(void)
+{
+    return s_registerContext.dacFailedChannel;
+}
+
+void ProductModbusRegisterAdapter_DiscardPendingDacCodes(void)
+{
+    (void)memcpy(s_registerContext.pendingDacCode,
+                 s_registerContext.activeDacCode,
+                 sizeof(s_registerContext.pendingDacCode));
+    s_registerContext.dacPendingMask = 0U;
 }
