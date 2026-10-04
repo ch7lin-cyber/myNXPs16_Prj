@@ -12,6 +12,8 @@
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
 #include "PwmOutputService.h"
+#include "DigitalInputService.h"
+#include "DigitalOutputService.h"
 #include "bsp_analog_output.h"
 #include "product_fram_bank_test.h"
 #include "product_temperature_range_resolver.h"
@@ -50,6 +52,8 @@ typedef struct _product_modbus_register_context
     uint16_t dacPendingMask;
     uint16_t dacStatus;
     uint16_t dacFailedChannel;
+    uint16_t pendingDigitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
+    uint16_t digitalOutputPendingMask;
 } product_modbus_register_context_t;
 
 static product_modbus_register_context_t s_registerContext =
@@ -104,7 +108,9 @@ static product_modbus_register_context_t s_registerContext =
     .dacConfigurationRevision = 0U,
     .dacPendingMask = 0U,
     .dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY,
-    .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE
+    .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE,
+    .pendingDigitalOutput = {0U, 0U, 0U, 0U},
+    .digitalOutputPendingMask = 0U
 };
 
 static void FloatToRegisters(float value, uint16_t *highWord, uint16_t *lowWord)
@@ -230,6 +236,34 @@ static bool IsDacRangeValid(uint16_t startingAddress, uint16_t quantity)
     endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
     return (startingAddress >= PRODUCT_MODBUS_DAC_BASE_ADDRESS) &&
            (endingAddress <= PRODUCT_MODBUS_DAC_LAST_ADDRESS);
+}
+
+static bool IsDigitalInputRangeValid(uint16_t startingAddress,
+                                     uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_DI_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_DI_LAST_ADDRESS);
+}
+
+static bool IsDigitalOutputRangeValid(uint16_t startingAddress,
+                                      uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_DO_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_DO_LAST_ADDRESS);
 }
 
 static bool IsPwmConfigValueValid(uint16_t field, uint16_t value)
@@ -527,6 +561,63 @@ static void BuildDacRegisterImage(
     registers[8] = registerContext->dacFailedChannel;
 }
 
+static bool BuildDigitalInputImage(uint16_t *registers)
+{
+    DigitalInputSnapshot_t snapshot;
+    uint8_t channel;
+
+    if (!DigitalInputService_GetSnapshot(&snapshot))
+    {
+        return false;
+    }
+    for (channel = 0U; channel < PRODUCT_MODBUS_DI_CHANNEL_COUNT; channel++)
+    {
+        registers[channel] =
+            ((snapshot.state_mask & (uint16_t)(1UL << channel)) != 0U) ?
+                1U : 0U;
+    }
+    registers[4] = snapshot.state_mask;
+    registers[5] = snapshot.revision;
+    return true;
+}
+
+static bool BuildDigitalOutputImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    DigitalOutputState_t state;
+    uint8_t channel;
+
+    if (!DigitalOutputService_GetState(&state))
+    {
+        return false;
+    }
+    for (channel = 0U; channel < PRODUCT_MODBUS_DO_CHANNEL_COUNT; channel++)
+    {
+        registers[channel] =
+            ((state.active_mask & (uint16_t)(1UL << channel)) != 0U) ?
+                1U : 0U;
+    }
+    registers[4] = 0U;
+    registers[5] = state.revision;
+    registers[6] = registerContext->digitalOutputPendingMask;
+    registers[7] = state.active_mask;
+    if (state.last_status == DIGITAL_OUTPUT_STATUS_OK)
+    {
+        registers[8] = PRODUCT_MODBUS_DO_STATUS_READY;
+    }
+    else if (state.last_status == DIGITAL_OUTPUT_STATUS_ROLLBACK_ERROR)
+    {
+        registers[8] = PRODUCT_MODBUS_DO_STATUS_ROLLBACK_FAILED;
+    }
+    else
+    {
+        registers[8] = PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED;
+    }
+    registers[9] = state.failed_channel;
+    return true;
+}
+
 static ModbusExceptionCode_t ReadRegisters(
     void *context,
     uint16_t starting_address,
@@ -542,6 +633,8 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
     uint16_t dacImage[9];
+    uint16_t digitalInputImage[6];
+    uint16_t digitalOutputImage[10];
     uint16_t sourceOffset;
     uint8_t temperatureChannel;
     ModbusSerialRegisterInfo_t serial_information;
@@ -619,6 +712,30 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_DAC_BASE_ADDRESS);
         (void)memcpy(values, &dacImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsDigitalInputRangeValid(starting_address, quantity))
+    {
+        if (!BuildDigitalInputImage(digitalInputImage))
+        {
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_DI_BASE_ADDRESS);
+        (void)memcpy(values, &digitalInputImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsDigitalOutputRangeValid(starting_address, quantity))
+    {
+        if (!BuildDigitalOutputImage(registerContext, digitalOutputImage))
+        {
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_DO_BASE_ADDRESS);
+        (void)memcpy(values, &digitalOutputImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
@@ -1061,6 +1178,68 @@ static ModbusExceptionCode_t ApplyPendingDacCodes(
     return MODBUS_EXCEPTION_NONE;
 }
 
+static ModbusExceptionCode_t StageDigitalOutput(
+    product_modbus_register_context_t *registerContext,
+    uint16_t address,
+    uint16_t value)
+{
+    uint16_t channel = (uint16_t)(address - PRODUCT_MODBUS_DO_BASE_ADDRESS);
+
+    if (channel >= PRODUCT_MODBUS_DO_CHANNEL_COUNT)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+    if (value > 1U)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    registerContext->pendingDigitalOutput[channel] = value;
+    registerContext->digitalOutputPendingMask |=
+        (uint16_t)(1UL << channel);
+    return MODBUS_EXCEPTION_NONE;
+}
+
+static ModbusExceptionCode_t ApplyPendingDigitalOutputs(
+    product_modbus_register_context_t *registerContext,
+    uint16_t applyKey)
+{
+    DigitalOutputState_t state;
+    uint16_t targetMask;
+    uint8_t channel;
+
+    if ((applyKey != PRODUCT_MODBUS_DO_APPLY_KEY_VALUE) ||
+        (registerContext->digitalOutputPendingMask == 0U))
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    if (!DigitalOutputService_GetState(&state))
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    targetMask = state.active_mask;
+    for (channel = 0U; channel < PRODUCT_MODBUS_DO_CHANNEL_COUNT; channel++)
+    {
+        uint16_t channelMask = (uint16_t)(1UL << channel);
+        if ((registerContext->digitalOutputPendingMask & channelMask) != 0U)
+        {
+            if (registerContext->pendingDigitalOutput[channel] != 0U)
+            {
+                targetMask |= channelMask;
+            }
+            else
+            {
+                targetMask &= (uint16_t)~channelMask;
+            }
+        }
+    }
+    if (DigitalOutputService_SetMask(targetMask) != DIGITAL_OUTPUT_STATUS_OK)
+    {
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    registerContext->digitalOutputPendingMask = 0U;
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t WriteSingleRegister(
     void *context,
     uint16_t address,
@@ -1145,6 +1324,15 @@ static ModbusExceptionCode_t WriteSingleRegister(
     if (address == PRODUCT_MODBUS_DAC_APPLY_KEY_ADDRESS)
     {
         return ApplyPendingDacCodes(registerContext, value);
+    }
+    if ((address >= PRODUCT_MODBUS_DO_BASE_ADDRESS) &&
+        (address < PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS))
+    {
+        return StageDigitalOutput(registerContext, address, value);
+    }
+    if (address == PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS)
+    {
+        return ApplyPendingDigitalOutputs(registerContext, value);
     }
 
     if (!ResolveTemperatureRegisterRange(address, 1U, &temperatureChannel,
@@ -1322,6 +1510,53 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         {
             return ApplyPendingDacCodes(
                 registerContext, PRODUCT_MODBUS_DAC_APPLY_KEY_VALUE);
+        }
+        return MODBUS_EXCEPTION_NONE;
+    }
+
+    if (IsDigitalOutputRangeValid(starting_address, quantity))
+    {
+        product_modbus_register_context_t stagedContext = *registerContext;
+        bool applyRequested = false;
+        uint16_t index;
+
+        for (index = 0U; index < quantity; index++)
+        {
+            uint16_t address = (uint16_t)(starting_address + index);
+            ModbusExceptionCode_t result;
+
+            if (address < PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS)
+            {
+                result = StageDigitalOutput(
+                    &stagedContext, address, values[index]);
+                if (result != MODBUS_EXCEPTION_NONE)
+                {
+                    return result;
+                }
+            }
+            else if ((address == PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS) &&
+                     (index == (uint16_t)(quantity - 1U)) &&
+                     (values[index] == PRODUCT_MODBUS_DO_APPLY_KEY_VALUE))
+            {
+                applyRequested = true;
+            }
+            else
+            {
+                return (address <= PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS) ?
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE :
+                    MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+            }
+        }
+
+        (void)memcpy(registerContext->pendingDigitalOutput,
+                     stagedContext.pendingDigitalOutput,
+                     sizeof(registerContext->pendingDigitalOutput));
+        registerContext->digitalOutputPendingMask =
+            stagedContext.digitalOutputPendingMask;
+        if (applyRequested)
+        {
+            return ApplyPendingDigitalOutputs(
+                registerContext, PRODUCT_MODBUS_DO_APPLY_KEY_VALUE);
         }
         return MODBUS_EXCEPTION_NONE;
     }

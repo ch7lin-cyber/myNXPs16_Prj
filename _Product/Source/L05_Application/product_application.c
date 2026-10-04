@@ -12,6 +12,8 @@
 #include "NvmConfigurationEventConsumer.h"
 #include "NvmService.h"
 #include "PwmOutputService.h"
+#include "DigitalInputService.h"
+#include "DigitalOutputService.h"
 #include "SafetyConfigurationEventConsumer.h"
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
@@ -35,6 +37,7 @@ static bool g_adc_poll_due;
 static bool g_adc_recovery_due;
 static bool g_cjc_due;
 static bool g_mcu_temperature_due;
+static bool g_digital_input_due;
 
 static void ProcessMcuTemperatureSafety(void)
 {
@@ -67,6 +70,12 @@ bool ProductApplication_Init(void)
     FactoryCalibrationService_Initialize();
 
     if (!ProductStatusLed_Initialize())
+    {
+        return false;
+    }
+
+    if ((DigitalInputService_Initialize(4U) != DIGITAL_INPUT_STATUS_OK) ||
+        (DigitalOutputService_Initialize(4U) != DIGITAL_OUTPUT_STATUS_OK))
     {
         return false;
     }
@@ -174,6 +183,7 @@ bool ProductApplication_Init(void)
     g_adc_recovery_due = false;
     g_cjc_due = false;
     g_mcu_temperature_due = false;
+    g_digital_input_due = false;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
     return true;
@@ -182,6 +192,7 @@ bool ProductApplication_Init(void)
 void ProductApplication_Tick1ms(void)
 {
     ProductStatusLed_Tick1ms();
+    g_digital_input_due = true;
 
     if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
     {
@@ -211,6 +222,11 @@ void ProductApplication_Process(void)
     uint8_t input;
 
     ProductStatusLed_Process();
+    if (g_digital_input_due)
+    {
+        g_digital_input_due = false;
+        (void)DigitalInputService_Process();
+    }
     BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();
     if (g_cjc_due)

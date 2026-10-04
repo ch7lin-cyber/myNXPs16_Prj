@@ -61,6 +61,30 @@ extern "C" {
 #define PRODUCT_MODBUS_DAC_STATUS_ROLLBACK_FAILED             (2U)
 #define PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE                (0xFFFFU)
 
+/* Four digital inputs sampled by the application at 1 ms. */
+#define PRODUCT_MODBUS_DI_BASE_ADDRESS                        (0x1500U)
+#define PRODUCT_MODBUS_DI_CHANNEL_COUNT                       (4U)
+#define PRODUCT_MODBUS_DI_STATE_MASK_ADDRESS                  (0x1504U)
+#define PRODUCT_MODBUS_DI_REVISION_ADDRESS                    (0x1505U)
+#define PRODUCT_MODBUS_DI_LAST_ADDRESS                        (0x1505U)
+
+/* Four runtime digital outputs. Writes are staged until Apply. */
+#define PRODUCT_MODBUS_DO_BASE_ADDRESS                        (0x1510U)
+#define PRODUCT_MODBUS_DO_CHANNEL_COUNT                       (4U)
+#define PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS                   (0x1514U)
+#define PRODUCT_MODBUS_DO_REVISION_ADDRESS                    (0x1515U)
+#define PRODUCT_MODBUS_DO_PENDING_MASK_ADDRESS                (0x1516U)
+#define PRODUCT_MODBUS_DO_ACTIVE_MASK_ADDRESS                 (0x1517U)
+#define PRODUCT_MODBUS_DO_STATUS_ADDRESS                      (0x1518U)
+#define PRODUCT_MODBUS_DO_FAILED_CHANNEL_ADDRESS              (0x1519U)
+#define PRODUCT_MODBUS_DO_LAST_ADDRESS                        (0x1519U)
+#define PRODUCT_MODBUS_DO_APPLY_KEY_VALUE                     (0xA5A5U)
+
+#define PRODUCT_MODBUS_DO_STATUS_READY                        (0U)
+#define PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED                 (1U)
+#define PRODUCT_MODBUS_DO_STATUS_ROLLBACK_FAILED              (2U)
+#define PRODUCT_MODBUS_DO_FAILED_CHANNEL_NONE                 (0xFFFFU)
+
 typedef struct _product_pwm_output_config
 {
     uint16_t periodMs;

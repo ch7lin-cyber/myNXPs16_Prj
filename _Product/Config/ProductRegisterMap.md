@@ -100,6 +100,61 @@ With the current DAC8562 configuration (internal 2.5 V reference, gain 1), the
 nominal DAC-pin voltage is `code / 65536 * 2.5 V`. External analog-output
 conditioning, if fitted, must be handled by a later engineering-unit layer.
 
+## Four-channel digital input
+
+Digital inputs are sampled every 1 ms. Values are runtime states and are not
+saved to FRAM. Input polarity is configured by
+`PRODUCT_DIGITAL_INPUT_ACTIVE_LOW_MASK`.
+
+| Channel | LPC55S16 pin |
+|---|---|
+| DI0 | PIO1_9 |
+| DI1 | PIO0_16 |
+| DI2 | PIO0_23 |
+| DI3 | PIO1_8 |
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x1500` | R | DI0 logical state, 0/1 |
+| `0x1501` | R | DI1 logical state, 0/1 |
+| `0x1502` | R | DI2 logical state, 0/1 |
+| `0x1503` | R | DI3 logical state, 0/1 |
+| `0x1504` | R | DI state mask, bits 0..3 |
+| `0x1505` | R | DI change revision |
+
+The revision increments whenever at least one sampled logical input changes.
+
+## Four-channel digital output
+
+Digital outputs initialize OFF and are not saved to FRAM. FC06/FC10 writes
+stage Pending values; hardware changes only after a valid Apply Key. Output
+polarity is configured by `PRODUCT_DIGITAL_OUTPUT_ACTIVE_LOW_MASK`.
+
+| Channel | LPC55S16 pin |
+|---|---|
+| DO0 | PIO0_19 |
+| DO1 | PIO0_26 |
+| DO2 | PIO0_25 |
+| DO3 | PIO1_25 |
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x1510` | R/W | DO0 Active/Pending state, 0/1 |
+| `0x1511` | R/W | DO1 Active/Pending state, 0/1 |
+| `0x1512` | R/W | DO2 Active/Pending state, 0/1 |
+| `0x1513` | R/W | DO3 Active/Pending state, 0/1 |
+| `0x1514` | W | DO Apply Key, write `0xA5A5` |
+| `0x1515` | R | Successful effective Apply revision |
+| `0x1516` | R | Pending channel mask, bits 0..3 |
+| `0x1517` | R | Active output mask, bits 0..3 |
+| `0x1518` | R | Status: 0 Ready, 1 Apply failed, 2 Rollback failed |
+| `0x1519` | R | Last failed channel, 0..3 or `0xFFFF` |
+
+FC03 reads Active states. FC10 may write all four states plus the Apply Key as
+`[DO0, DO1, DO2, DO3, 0xA5A5]` beginning at `0x1510`. If a hardware write
+fails, outputs already changed by that Apply are rolled back, Active state and
+revision remain unchanged, and Pending is retained for retry.
+
 ## Factory FRAM bank test
 
 This is a destructive factory-only checkerboard test for the complete 256 KiB

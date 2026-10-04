@@ -7,7 +7,10 @@
 #include "ModbusRegisterAdapter.h"
 #include "HalPwm.h"
 #include "HalDac.h"
+#include "HalGpio.h"
 #include "PwmOutputService.h"
+#include "DigitalInputService.h"
+#include "DigitalOutputService.h"
 #include "bsp_analog_output.h"
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
@@ -29,6 +32,53 @@ typedef struct
 } MockDacDriver_t;
 
 static MockDacDriver_t g_dacDriver[PRODUCT_MODBUS_DAC_CHANNEL_COUNT];
+
+typedef struct
+{
+    bool state;
+    bool failNextAccess;
+} MockGpioDriver_t;
+
+static MockGpioDriver_t g_digitalInput[PRODUCT_MODBUS_DI_CHANNEL_COUNT];
+static MockGpioDriver_t g_digitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
+
+static HalGpioStatus_t MockGpioInitialize(void *context)
+{
+    return (context != NULL) ? HAL_GPIO_STATUS_OK :
+                               HAL_GPIO_STATUS_INVALID_ARGUMENT;
+}
+
+static HalGpioStatus_t MockGpioRead(void *context, bool *active)
+{
+    MockGpioDriver_t *driver = (MockGpioDriver_t *)context;
+    if ((driver == NULL) || (active == NULL))
+    {
+        return HAL_GPIO_STATUS_INVALID_ARGUMENT;
+    }
+    if (driver->failNextAccess)
+    {
+        driver->failNextAccess = false;
+        return HAL_GPIO_STATUS_IO_ERROR;
+    }
+    *active = driver->state;
+    return HAL_GPIO_STATUS_OK;
+}
+
+static HalGpioStatus_t MockGpioWrite(void *context, bool active)
+{
+    MockGpioDriver_t *driver = (MockGpioDriver_t *)context;
+    if (driver == NULL)
+    {
+        return HAL_GPIO_STATUS_INVALID_ARGUMENT;
+    }
+    if (driver->failNextAccess)
+    {
+        driver->failNextAccess = false;
+        return HAL_GPIO_STATUS_IO_ERROR;
+    }
+    driver->state = active;
+    return HAL_GPIO_STATUS_OK;
+}
 
 static HalDacStatus_t MockDacInitialize(void *context)
 {
@@ -697,12 +747,111 @@ static void TestDacPendingApplyAndRollback(void)
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestDigitalIoRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t diImage[6];
+    uint16_t doImage[10];
+    const uint16_t doOneToThreeAndApply[4] =
+        {0U, 1U, 1U, PRODUCT_MODBUS_DO_APPLY_KEY_VALUE};
+    const uint16_t doZeroAndOne[2] = {0U, 1U};
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    g_digitalInput[0].state = true;
+    g_digitalInput[2].state = true;
+    assert(DigitalInputService_Process() == DIGITAL_INPUT_STATUS_OK);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DI_BASE_ADDRESS,
+               6U, diImage) == MODBUS_EXCEPTION_NONE);
+    assert(diImage[0] == 1U);
+    assert(diImage[1] == 0U);
+    assert(diImage[2] == 1U);
+    assert(diImage[3] == 0U);
+    assert(diImage[4] == 0x0005U);
+    assert(diImage[5] == 1U);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DI_BASE_ADDRESS,
+               1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               10U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[0] == 0U && doImage[1] == 0U &&
+           doImage[2] == 0U && doImage[3] == 0U);
+    assert(doImage[5] == 0U);
+    assert(doImage[6] == 0U);
+    assert(doImage[7] == 0U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               1U) == MODBUS_EXCEPTION_NONE);
+    assert(!g_digitalOutput[0].state);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               10U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[0] == 0U);
+    assert(doImage[6] == 0x0001U);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
+               0x5A5AU) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DO_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(g_digitalOutput[0].state);
+
+    assert(interface.write_multiple_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS + 1U,
+               doOneToThreeAndApply, 4U) == MODBUS_EXCEPTION_NONE);
+    assert(g_digitalOutput[0].state);
+    assert(!g_digitalOutput[1].state);
+    assert(g_digitalOutput[2].state);
+    assert(g_digitalOutput[3].state);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               10U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[5] == 2U);
+    assert(doImage[7] == 0x000DU);
+    assert(doImage[8] == PRODUCT_MODBUS_DO_STATUS_READY);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_multiple_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               doZeroAndOne, 2U) == MODBUS_EXCEPTION_NONE);
+    g_digitalOutput[1].failNextAccess = true;
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DO_APPLY_KEY_VALUE) ==
+           MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(g_digitalOutput[0].state);
+    assert(!g_digitalOutput[1].state);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               10U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[5] == 2U);
+    assert(doImage[6] == 0x0003U);
+    assert(doImage[7] == 0x000DU);
+    assert(doImage[8] == PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED);
+    assert(doImage[9] == 1U);
+
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
+               PRODUCT_MODBUS_DO_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(!g_digitalOutput[0].state);
+    assert(g_digitalOutput[1].state);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
     static const HalDacDriverOps_t dacOps =
         {MockDacInitialize, MockDacWriteCode};
+    static const HalGpioInputDriverOps_t gpioInputOps =
+        {MockGpioInitialize, MockGpioRead};
+    static const HalGpioOutputDriverOps_t gpioOutputOps =
+        {MockGpioInitialize, MockGpioWrite};
     uint8_t channel;
 
     for (channel = 0U;
@@ -725,6 +874,19 @@ int main(void)
                HAL_DAC_STATUS_OK);
     }
     assert(BspAnalogOutput_Initialize());
+    for (channel = 0U; channel < PRODUCT_MODBUS_DI_CHANNEL_COUNT; channel++)
+    {
+        assert(HalGpio_RegisterInputDriver(
+                   channel, &gpioInputOps, &g_digitalInput[channel]) ==
+               HAL_GPIO_STATUS_OK);
+        assert(HalGpio_RegisterOutputDriver(
+                   channel, &gpioOutputOps, &g_digitalOutput[channel]) ==
+               HAL_GPIO_STATUS_OK);
+    }
+    assert(DigitalInputService_Initialize(PRODUCT_MODBUS_DI_CHANNEL_COUNT) ==
+           DIGITAL_INPUT_STATUS_OK);
+    assert(DigitalOutputService_Initialize(PRODUCT_MODBUS_DO_CHANNEL_COUNT) ==
+           DIGITAL_OUTPUT_STATUS_OK);
     TestDefaultRegisterImage();
     TestFactoryFramRegistersRequireFactoryMode();
     TestMonitorAndReadOnlyRegisters();
@@ -739,5 +901,6 @@ int main(void)
     TestProductVersionRegisters();
     TestPwmPendingAndApply();
     TestDacPendingApplyAndRollback();
+    TestDigitalIoRegisters();
     return 0;
 }
