@@ -98,12 +98,35 @@ extern "C" {
 #define PRODUCT_MODBUS_DIP_SWITCH_STATUS_IO_ERROR             (1U)
 #define PRODUCT_MODBUS_DIP_SWITCH_STATUS_NOT_INITIALIZED      (2U)
 
+/* External low-voltage detector monitor. All fields are read-only. */
+#define PRODUCT_MODBUS_LOW_VOLTAGE_BASE_ADDRESS               (0x1530U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_RAW_ADDRESS                (0x1530U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_CONFIRMED_ADDRESS          (0x1531U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_FAULT_ADDRESS              (0x1532U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_REVISION_ADDRESS           (0x1533U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_INTERRUPT_COUNT_ADDRESS    (0x1534U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_ADDRESS             (0x1536U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_LAST_ADDRESS               (0x1536U)
+
+#define PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_READY               (0U)
+#define PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_NOT_INITIALIZED     (2U)
+
 typedef struct _product_pwm_output_config
 {
     uint16_t periodMs;
     uint16_t dutyPermille;
     uint16_t updateMode;
 } product_pwm_output_config_t;
+
+typedef struct _product_low_voltage_monitor
+{
+    uint32_t interruptCount;
+    uint16_t revision;
+    uint16_t status;
+    bool rawActive;
+    bool confirmedActive;
+    bool faultActive;
+} product_low_voltage_monitor_t;
 
 /* Reserve 0x2000..0x20FF for product version information. */
 #define PRODUCT_MODBUS_VERSION_BASE_ADDRESS                   (0x2000U)
@@ -258,6 +281,9 @@ uint16_t ProductModbusRegisterAdapter_GetDacPendingMask(void);
 uint16_t ProductModbusRegisterAdapter_GetDacStatus(void);
 uint16_t ProductModbusRegisterAdapter_GetDacFailedChannel(void);
 void ProductModbusRegisterAdapter_DiscardPendingDacCodes(void);
+
+void ProductModbusRegisterAdapter_SetLowVoltageMonitor(
+    const product_low_voltage_monitor_t *monitor);
 
 #ifdef __cplusplus
 }

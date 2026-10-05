@@ -41,4 +41,8 @@ extern GPIO_Type g_mock_gpio;
 #define BOARD_INITDIOPINS_DO3_PORT (1U)
 #define BOARD_INITDIOPINS_DO3_PIN  (25U)
 
+#define BOARD_INITLVPINS_LV_GPIO (&g_mock_gpio)
+#define BOARD_INITLVPINS_LV_PORT (1U)
+#define BOARD_INITLVPINS_LV_PIN  (31U)
+
 #endif

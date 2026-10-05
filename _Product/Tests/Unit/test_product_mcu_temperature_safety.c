@@ -4,6 +4,7 @@
 
 #include "EventService.h"
 #include "FaultService.h"
+#include "ProductSafetyConfig.h"
 #include "SafetyConfigurationEventConsumer.h"
 #include "product_mcu_temperature_safety.h"
 
@@ -29,6 +30,15 @@ int main(void)
     FaultService_Initialize();
     assert(SafetyConfigurationEventConsumer_Initialize(ResolveRange, NULL));
     ProductMcuTemperatureSafety_Initialize();
+
+    assert(SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE, true));
+    ProductMcuTemperatureSafety_Process(true, false, 8400);
+    assert(SafetyConfigurationEventConsumer_IsGlobalOutputInhibited());
+    assert((SafetyConfigurationEventConsumer_GetGlobalOutputInhibitMask() &
+            PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE) != 0U);
+    assert(SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE, false));
 
     ProductMcuTemperatureSafety_Process(true, false, 8400);
     assert(!FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));

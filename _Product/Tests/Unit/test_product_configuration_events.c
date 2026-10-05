@@ -9,6 +9,7 @@
 #include "SafetyConfigurationEventConsumer.h"
 #include "product_application.h"
 #include "product_dip_switch_driver.h"
+#include "product_low_voltage_safety.h"
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
 
@@ -33,6 +34,24 @@ bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
     }
     (void)memset(snapshot, 0, sizeof(*snapshot));
     snapshot->status = PRODUCT_DIP_SWITCH_STATUS_READY;
+    return true;
+}
+
+void ProductLowVoltageSafety_Initialize(void)
+{
+}
+
+void ProductLowVoltageSafety_Process(void)
+{
+}
+
+bool ProductLowVoltageSafety_GetSnapshot(ProductLowVoltageSnapshot_t *snapshot)
+{
+    if (snapshot == NULL)
+    {
+        return false;
+    }
+    (void)memset(snapshot, 0, sizeof(*snapshot));
     return true;
 }
 

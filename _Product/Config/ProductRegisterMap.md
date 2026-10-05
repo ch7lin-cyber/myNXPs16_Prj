@@ -173,6 +173,28 @@ switch 8 to bit 7; an ON switch is active-low. All registers are read-only.
 If an SPI read fails, the last valid logical and raw values are retained and
 Status changes to 1 so communication remains available for diagnostics.
 
+## Low-voltage detector
+
+The external `LV` signal is read from PIO1_31 and routed to PINT0. The default
+configuration treats a high level as low voltage. Three consecutive 1 ms
+samples assert the condition; 100 consecutive inactive samples release the
+live condition. Assertion raises latched fault `0x0202` and applies a global
+PWM safety inhibit. Clearing the fault while LV remains active causes it to be
+raised again on the next application cycle.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x1530` | R | Raw active state, 0/1 |
+| `0x1531` | R | Debounced active state, 0/1 |
+| `0x1532` | R | Latched fault active, 0/1 |
+| `0x1533` | R | Debounced-state revision |
+| `0x1534..0x1535` | R | PINT rising-edge count, unsigned 32-bit |
+| `0x1536` | R | Status: 0 Ready, 2 not initialized |
+
+The low-voltage and MCU-overtemperature inhibits use independent source bits,
+so clearing one condition cannot release an output while the other remains
+active.
+
 ## Factory FRAM bank test
 
 This is a destructive factory-only checkerboard test for the complete 256 KiB

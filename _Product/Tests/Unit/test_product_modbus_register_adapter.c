@@ -887,6 +887,32 @@ static void TestDipSwitchRegisters(void)
                1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestLowVoltageRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_low_voltage_monitor_t monitor =
+        {0x12345678UL, 9U, PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_READY,
+         true, true, true};
+    uint16_t image[7];
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_SetLowVoltageMonitor(&monitor);
+    assert(interface.read_input_registers(
+               interface.context, PRODUCT_MODBUS_LOW_VOLTAGE_BASE_ADDRESS,
+               7U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 1U);
+    assert(image[1] == 1U);
+    assert(image[2] == 1U);
+    assert(image[3] == 9U);
+    assert(image[4] == 0x1234U);
+    assert(image[5] == 0x5678U);
+    assert(image[6] == PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_READY);
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_LOW_VOLTAGE_BASE_ADDRESS,
+               0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
@@ -948,5 +974,6 @@ int main(void)
     TestDacPendingApplyAndRollback();
     TestDigitalIoRegisters();
     TestDipSwitchRegisters();
+    TestLowVoltageRegisters();
     return 0;
 }

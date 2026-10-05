@@ -23,6 +23,8 @@
 #include "ProductAdcConfig.h"
 #include "ProductDipSwitchConfig.h"
 #include "ProductInternalAdcConfig.h"
+#include "ProductLowVoltageConfig.h"
+#include "product_low_voltage_safety.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
 #include "product_sensor_configuration_consumer.h"
@@ -42,6 +44,8 @@ static bool g_mcu_temperature_due;
 static bool g_digital_input_due;
 static uint16_t g_dip_switch_elapsed_ms;
 static bool g_dip_switch_due;
+static uint16_t g_low_voltage_elapsed_ms;
+static bool g_low_voltage_due;
 
 static void ProcessMcuTemperatureSafety(void)
 {
@@ -133,6 +137,8 @@ bool ProductApplication_Init(void)
         return false;
     }
     ProductMcuTemperatureSafety_Initialize();
+    ProductLowVoltageSafety_Initialize();
+    ProductLowVoltageSafety_Process();
     ProductSensorConfigurationConsumer_Initialize();
     ProductSensorMeasurementService_Initialize();
     ProductDipSwitchDriver_Initialize();
@@ -192,6 +198,8 @@ bool ProductApplication_Init(void)
     g_digital_input_due = false;
     g_dip_switch_elapsed_ms = 0U;
     g_dip_switch_due = false;
+    g_low_voltage_elapsed_ms = 0U;
+    g_low_voltage_due = false;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
     return true;
@@ -206,6 +214,11 @@ void ProductApplication_Tick1ms(void)
     {
         g_dip_switch_elapsed_ms = 0U;
         g_dip_switch_due = true;
+    }
+    if (++g_low_voltage_elapsed_ms >= PRODUCT_LOW_VOLTAGE_SAMPLE_PERIOD_MS)
+    {
+        g_low_voltage_elapsed_ms = 0U;
+        g_low_voltage_due = true;
     }
 
     if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
@@ -245,6 +258,11 @@ void ProductApplication_Process(void)
     {
         g_dip_switch_due = false;
         (void)ProductDipSwitchDriver_Process();
+    }
+    if (g_low_voltage_due)
+    {
+        g_low_voltage_due = false;
+        ProductLowVoltageSafety_Process();
     }
     BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();

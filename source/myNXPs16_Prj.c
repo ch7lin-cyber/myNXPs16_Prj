@@ -48,6 +48,7 @@
 #include "product_dac8562_driver.h"
 #include "product_nvm_driver.h"
 #include "product_digital_io_driver.h"
+#include "product_low_voltage_driver.h"
 #include "bsp_analog_output.h"
 #include "product_rs485_direction.h"
 #include "product_rs485_driver.h"
@@ -136,6 +137,7 @@ void drv_level_detect_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
     (void)pintr;
     (void)pmatch_status;
+    ProductLowVoltageDriver_NotifyInterrupt();
 }
 
 static volatile uint32_t g_systemTick100us = 0U;

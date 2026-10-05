@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "FaultService.h"
+#include "ProductSafetyConfig.h"
 #include "SafetyConfigurationEventConsumer.h"
 
 static uint16_t TemperatureToFaultDetail(int32_t temperature_centi_c)
@@ -20,7 +21,8 @@ static uint16_t TemperatureToFaultDetail(int32_t temperature_centi_c)
 
 void ProductMcuTemperatureSafety_Initialize(void)
 {
-    SafetyConfigurationEventConsumer_SetGlobalOutputInhibit(false);
+    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_MCU_OVERTEMPERATURE, false);
 }
 
 void ProductMcuTemperatureSafety_Process(
@@ -48,6 +50,7 @@ void ProductMcuTemperatureSafety_Process(
     }
 
     /* Cooling alone cannot restart an output: the fault is operator-latched. */
-    SafetyConfigurationEventConsumer_SetGlobalOutputInhibit(
+    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_MCU_OVERTEMPERATURE,
         overtemperature || fault_active);
 }
