@@ -55,7 +55,7 @@ typedef struct _product_modbus_register_context
     uint16_t dacPendingMask;
     uint16_t dacStatus;
     uint16_t dacFailedChannel;
-    uint16_t pendingDigitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
+    uint16_t pendingDigitalOutputMask;
     uint16_t digitalOutputPendingMask;
     product_low_voltage_monitor_t lowVoltageMonitor;
 } product_modbus_register_context_t;
@@ -113,7 +113,7 @@ static product_modbus_register_context_t s_registerContext =
     .dacPendingMask = 0U,
     .dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY,
     .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE,
-    .pendingDigitalOutput = {0U, 0U, 0U, 0U},
+    .pendingDigitalOutputMask = 0U,
     .digitalOutputPendingMask = 0U,
     .lowVoltageMonitor =
     {
@@ -778,20 +778,13 @@ static void BuildDacRegisterImage(
 static bool BuildDigitalInputImage(uint16_t *registers)
 {
     DigitalInputSnapshot_t snapshot;
-    uint8_t channel;
 
     if (!DigitalInputService_GetSnapshot(&snapshot))
     {
         return false;
     }
-    for (channel = 0U; channel < PRODUCT_MODBUS_DI_CHANNEL_COUNT; channel++)
-    {
-        registers[channel] =
-            ((snapshot.state_mask & (uint16_t)(1UL << channel)) != 0U) ?
-                1U : 0U;
-    }
-    registers[4] = snapshot.state_mask;
-    registers[5] = snapshot.revision;
+    registers[0] = snapshot.state_mask;
+    registers[1] = snapshot.revision;
     return true;
 }
 
@@ -800,59 +793,43 @@ static bool BuildDigitalOutputImage(
     uint16_t *registers)
 {
     DigitalOutputState_t state;
-    uint8_t channel;
 
     if (!DigitalOutputService_GetState(&state))
     {
         return false;
     }
-    for (channel = 0U; channel < PRODUCT_MODBUS_DO_CHANNEL_COUNT; channel++)
-    {
-        registers[channel] =
-            ((state.active_mask & (uint16_t)(1UL << channel)) != 0U) ?
-                1U : 0U;
-    }
-    registers[4] = 0U;
-    registers[5] = state.revision;
-    registers[6] = registerContext->digitalOutputPendingMask;
-    registers[7] = state.active_mask;
+    registers[0] = state.active_mask;
+    registers[1] = 0U;
+    registers[2] = state.revision;
+    registers[3] = registerContext->digitalOutputPendingMask;
     if (state.last_status == DIGITAL_OUTPUT_STATUS_OK)
     {
-        registers[8] = PRODUCT_MODBUS_DO_STATUS_READY;
+        registers[4] = PRODUCT_MODBUS_DO_STATUS_READY;
     }
     else if (state.last_status == DIGITAL_OUTPUT_STATUS_ROLLBACK_ERROR)
     {
-        registers[8] = PRODUCT_MODBUS_DO_STATUS_ROLLBACK_FAILED;
+        registers[4] = PRODUCT_MODBUS_DO_STATUS_ROLLBACK_FAILED;
     }
     else
     {
-        registers[8] = PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED;
+        registers[4] = PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED;
     }
-    registers[9] = state.failed_channel;
+    registers[5] = state.failed_channel;
     return true;
 }
 
 static bool BuildDipSwitchImage(uint16_t *registers)
 {
     ProductDipSwitchSnapshot_t snapshot;
-    uint8_t switch_index;
 
     if (!ProductDipSwitchDriver_GetSnapshot(&snapshot))
     {
         return false;
     }
-    for (switch_index = 0U;
-         switch_index < PRODUCT_MODBUS_DIP_SWITCH_COUNT;
-         switch_index++)
-    {
-        registers[switch_index] =
-            ((snapshot.logical_mask &
-              (uint8_t)(1UL << switch_index)) != 0U) ? 1U : 0U;
-    }
-    registers[8] = snapshot.logical_mask;
-    registers[9] = snapshot.raw_value;
-    registers[10] = snapshot.revision;
-    registers[11] = (uint16_t)snapshot.status;
+    registers[0] = snapshot.logical_mask;
+    registers[1] = snapshot.raw_value;
+    registers[2] = snapshot.revision;
+    registers[3] = (uint16_t)snapshot.status;
     return true;
 }
 
@@ -902,9 +879,9 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
     uint16_t dacImage[9];
-    uint16_t digitalInputImage[6];
-    uint16_t digitalOutputImage[10];
-    uint16_t dipSwitchImage[12];
+    uint16_t digitalInputImage[2];
+    uint16_t digitalOutputImage[6];
+    uint16_t dipSwitchImage[4];
     uint16_t lowVoltageImage[7];
     uint16_t rotarySwitchImage[4];
     uint16_t sourceOffset;
@@ -1492,19 +1469,16 @@ static ModbusExceptionCode_t StageDigitalOutput(
     uint16_t address,
     uint16_t value)
 {
-    uint16_t channel = (uint16_t)(address - PRODUCT_MODBUS_DO_BASE_ADDRESS);
-
-    if (channel >= PRODUCT_MODBUS_DO_CHANNEL_COUNT)
+    if (address != PRODUCT_MODBUS_DO_STATE_MASK_ADDRESS)
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
-    if (value > 1U)
+    if ((value & (uint16_t)~PRODUCT_MODBUS_DO_VALID_MASK) != 0U)
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
     }
-    registerContext->pendingDigitalOutput[channel] = value;
-    registerContext->digitalOutputPendingMask |=
-        (uint16_t)(1UL << channel);
+    registerContext->pendingDigitalOutputMask = value;
+    registerContext->digitalOutputPendingMask = PRODUCT_MODBUS_DO_VALID_MASK;
     return MODBUS_EXCEPTION_NONE;
 }
 
@@ -1514,7 +1488,6 @@ static ModbusExceptionCode_t ApplyPendingDigitalOutputs(
 {
     DigitalOutputState_t state;
     uint16_t targetMask;
-    uint8_t channel;
 
     if ((applyKey != PRODUCT_MODBUS_DO_APPLY_KEY_VALUE) ||
         (registerContext->digitalOutputPendingMask == 0U))
@@ -1525,22 +1498,7 @@ static ModbusExceptionCode_t ApplyPendingDigitalOutputs(
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
-    targetMask = state.active_mask;
-    for (channel = 0U; channel < PRODUCT_MODBUS_DO_CHANNEL_COUNT; channel++)
-    {
-        uint16_t channelMask = (uint16_t)(1UL << channel);
-        if ((registerContext->digitalOutputPendingMask & channelMask) != 0U)
-        {
-            if (registerContext->pendingDigitalOutput[channel] != 0U)
-            {
-                targetMask |= channelMask;
-            }
-            else
-            {
-                targetMask &= (uint16_t)~channelMask;
-            }
-        }
-    }
+    targetMask = registerContext->pendingDigitalOutputMask;
     if (DigitalOutputService_SetMask(targetMask) != DIGITAL_OUTPUT_STATUS_OK)
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
@@ -1857,9 +1815,8 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
             }
         }
 
-        (void)memcpy(registerContext->pendingDigitalOutput,
-                     stagedContext.pendingDigitalOutput,
-                     sizeof(registerContext->pendingDigitalOutput));
+        registerContext->pendingDigitalOutputMask =
+            stagedContext.pendingDigitalOutputMask;
         registerContext->digitalOutputPendingMask =
             stagedContext.digitalOutputPendingMask;
         if (applyRequested)

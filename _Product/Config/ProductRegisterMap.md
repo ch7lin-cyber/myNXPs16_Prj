@@ -5,6 +5,27 @@ FC10; individual values and Apply Keys may use FC06. PWM period and duty writes
 are staged as Pending values and do not affect hardware until the PWM Apply Key
 is accepted.
 
+## Register persistence metadata
+
+`_Product/RegisterMap/register_map.csv` classifies persistence explicitly; it
+must not be inferred from the Modbus address or R/W access. The metadata columns
+have the following meaning:
+
+| Column | Values / meaning |
+|---|---|
+| `RegisterRole` | `Monitor`, `Configuration`, `Command`, `Identification`, or `Reserved` |
+| `Persistence` | `None` for runtime-only values, `NVM` for user configuration, or `Factory` for manufacturing-only data |
+| `ConfigGroup` | Atomic validation/apply group owning the register |
+| `ApplyPolicy` | `N/A`, `Immediate`, `ApplyKey`, or `Command` |
+| `NvmFieldId` | Stable field identifier in the versioned persistent schema; blank when `Persistence=None` |
+| `WriteRatePolicy` | `Never`, `OnApply`, `Delayed`, `Immediate`, or `OnFactoryCommit` |
+
+The register image itself is never copied wholesale to FRAM. Persistent fields
+are serialized through a versioned configuration schema. Pending Modbus writes
+remain in RAM until the owning Apply Key succeeds; only then may an `OnApply`
+field be committed. Monitor values, diagnostics, selectors, command keys, DAC
+codes, and hardware input states remain runtime-only.
+
 ## Four-channel temperature input configuration
 
 Each AD7124 has an independent 10-register block. The offsets are identical:
@@ -115,12 +136,8 @@ saved to FRAM. Input polarity is configured by
 
 | Address | Access | Meaning |
 |---|---|---|
-| `0x1500` | R | DI0 logical state, 0/1 |
-| `0x1501` | R | DI1 logical state, 0/1 |
-| `0x1502` | R | DI2 logical state, 0/1 |
-| `0x1503` | R | DI3 logical state, 0/1 |
-| `0x1504` | R | DI state mask, bits 0..3 |
-| `0x1505` | R | DI change revision |
+| `0x1500` | R | DI state mask, bits 0..3 = DI0..DI3 |
+| `0x1501` | R | DI change revision |
 
 The revision increments whenever at least one sampled logical input changes.
 
@@ -139,19 +156,16 @@ polarity is configured by `PRODUCT_DIGITAL_OUTPUT_ACTIVE_LOW_MASK`.
 
 | Address | Access | Meaning |
 |---|---|---|
-| `0x1510` | R/W | DO0 Active/Pending state, 0/1 |
-| `0x1511` | R/W | DO1 Active/Pending state, 0/1 |
-| `0x1512` | R/W | DO2 Active/Pending state, 0/1 |
-| `0x1513` | R/W | DO3 Active/Pending state, 0/1 |
-| `0x1514` | W | DO Apply Key, write `0xA5A5` |
-| `0x1515` | R | Successful effective Apply revision |
-| `0x1516` | R | Pending channel mask, bits 0..3 |
-| `0x1517` | R | Active output mask, bits 0..3 |
-| `0x1518` | R | Status: 0 Ready, 1 Apply failed, 2 Rollback failed |
-| `0x1519` | R | Last failed channel, 0..3 or `0xFFFF` |
+| `0x1510` | R/W | DO state mask, bits 0..3 = DO0..DO3; read Active, write Pending |
+| `0x1511` | W | DO Apply Key, write `0xA5A5` |
+| `0x1512` | R | Successful effective Apply revision |
+| `0x1513` | R | Pending channel mask; `0x000F` while a complete mask is staged |
+| `0x1514` | R | Status: 0 Ready, 1 Apply failed, 2 Rollback failed |
+| `0x1515` | R | Last failed channel, 0..3 or `0xFFFF` |
 
-FC03 reads Active states. FC10 may write all four states plus the Apply Key as
-`[DO0, DO1, DO2, DO3, 0xA5A5]` beginning at `0x1510`. If a hardware write
+FC03 reads the Active state mask. FC10 may write the complete mask plus the
+Apply Key as `[DO mask, 0xA5A5]` beginning at `0x1510`. Values with bits 4..15
+set are rejected with Illegal Data Value. If a hardware write
 fails, outputs already changed by that Apply are rolled back, Active state and
 revision remain unchanged, and Pending is retained for retry.
 
@@ -164,11 +178,10 @@ switch 8 to bit 7; an ON switch is active-low. All registers are read-only.
 
 | Address | Access | Meaning |
 |---|---|---|
-| `0x1520..0x1527` | R | U5 switch 1..8 logical state, 0/1 |
-| `0x1528` | R | Logical ON mask, bits 0..7 = switch 1..8 |
-| `0x1529` | R | Raw byte received from FLEXCOMM8 SPI |
-| `0x152A` | R | Revision, increments on first valid sample and value changes |
-| `0x152B` | R | Status: 0 Ready, 1 SPI I/O error, 2 not initialized |
+| `0x1520` | R | Logical ON mask, bits 0..7 = switch 1..8 |
+| `0x1521` | R | Raw byte received from FLEXCOMM8 SPI |
+| `0x1522` | R | Revision, increments on first valid sample and value changes |
+| `0x1523` | R | Status: 0 Ready, 1 SPI I/O error, 2 not initialized |
 
 If an SPI read fails, the last valid logical and raw values are retained and
 Status changes to 1 so communication remains available for diagnostics.

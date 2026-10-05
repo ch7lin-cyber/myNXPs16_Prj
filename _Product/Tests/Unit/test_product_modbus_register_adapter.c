@@ -860,11 +860,10 @@ static void TestDacPendingApplyAndRollback(void)
 static void TestDigitalIoRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    uint16_t diImage[6];
-    uint16_t doImage[10];
-    const uint16_t doOneToThreeAndApply[4] =
-        {0U, 1U, 1U, PRODUCT_MODBUS_DO_APPLY_KEY_VALUE};
-    const uint16_t doZeroAndOne[2] = {0U, 1U};
+    uint16_t diImage[2];
+    uint16_t doImage[6];
+    const uint16_t doMaskAndApply[2] =
+        {0x000DU, PRODUCT_MODBUS_DO_APPLY_KEY_VALUE};
 
     ProductModbusRegisterAdapter_GetInterface(&interface);
     g_digitalInput[0].state = true;
@@ -872,35 +871,29 @@ static void TestDigitalIoRegisters(void)
     assert(DigitalInputService_Process() == DIGITAL_INPUT_STATUS_OK);
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DI_BASE_ADDRESS,
-               6U, diImage) == MODBUS_EXCEPTION_NONE);
-    assert(diImage[0] == 1U);
-    assert(diImage[1] == 0U);
-    assert(diImage[2] == 1U);
-    assert(diImage[3] == 0U);
-    assert(diImage[4] == 0x0005U);
-    assert(diImage[5] == 1U);
+               2U, diImage) == MODBUS_EXCEPTION_NONE);
+    assert(diImage[0] == 0x0005U);
+    assert(diImage[1] == 1U);
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DI_BASE_ADDRESS,
                1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               10U, doImage) == MODBUS_EXCEPTION_NONE);
-    assert(doImage[0] == 0U && doImage[1] == 0U &&
-           doImage[2] == 0U && doImage[3] == 0U);
-    assert(doImage[5] == 0U);
-    assert(doImage[6] == 0U);
-    assert(doImage[7] == 0U);
+               6U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[0] == 0U);
+    assert(doImage[2] == 0U);
+    assert(doImage[3] == 0U);
 
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               1U) == MODBUS_EXCEPTION_NONE);
+               0x0001U) == MODBUS_EXCEPTION_NONE);
     assert(!g_digitalOutput[0].state);
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               10U, doImage) == MODBUS_EXCEPTION_NONE);
+               6U, doImage) == MODBUS_EXCEPTION_NONE);
     assert(doImage[0] == 0U);
-    assert(doImage[6] == 0x0001U);
+    assert(doImage[3] == PRODUCT_MODBUS_DO_VALID_MASK);
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
                0x5A5AU) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
@@ -910,25 +903,25 @@ static void TestDigitalIoRegisters(void)
     assert(g_digitalOutput[0].state);
 
     assert(interface.write_multiple_registers(
-               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS + 1U,
-               doOneToThreeAndApply, 4U) == MODBUS_EXCEPTION_NONE);
+               interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
+               doMaskAndApply, 2U) == MODBUS_EXCEPTION_NONE);
     assert(g_digitalOutput[0].state);
     assert(!g_digitalOutput[1].state);
     assert(g_digitalOutput[2].state);
     assert(g_digitalOutput[3].state);
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               10U, doImage) == MODBUS_EXCEPTION_NONE);
-    assert(doImage[5] == 2U);
-    assert(doImage[7] == 0x000DU);
-    assert(doImage[8] == PRODUCT_MODBUS_DO_STATUS_READY);
+               6U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[2] == 2U);
+    assert(doImage[0] == 0x000DU);
+    assert(doImage[4] == PRODUCT_MODBUS_DO_STATUS_READY);
 
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    assert(interface.write_multiple_registers(
+               0x0010U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               doZeroAndOne, 2U) == MODBUS_EXCEPTION_NONE);
+               0x0002U) == MODBUS_EXCEPTION_NONE);
     g_digitalOutput[1].failNextAccess = true;
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
@@ -938,12 +931,12 @@ static void TestDigitalIoRegisters(void)
     assert(!g_digitalOutput[1].state);
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DO_BASE_ADDRESS,
-               10U, doImage) == MODBUS_EXCEPTION_NONE);
-    assert(doImage[5] == 2U);
-    assert(doImage[6] == 0x0003U);
-    assert(doImage[7] == 0x000DU);
-    assert(doImage[8] == PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED);
-    assert(doImage[9] == 1U);
+               6U, doImage) == MODBUS_EXCEPTION_NONE);
+    assert(doImage[2] == 2U);
+    assert(doImage[3] == PRODUCT_MODBUS_DO_VALID_MASK);
+    assert(doImage[0] == 0x000DU);
+    assert(doImage[4] == PRODUCT_MODBUS_DO_STATUS_APPLY_FAILED);
+    assert(doImage[5] == 1U);
 
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_DO_APPLY_KEY_ADDRESS,
@@ -955,7 +948,7 @@ static void TestDigitalIoRegisters(void)
 static void TestDipSwitchRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    uint16_t image[12];
+    uint16_t image[4];
 
     ProductModbusRegisterAdapter_GetInterface(&interface);
     g_dipSwitchSnapshot.logical_mask = 0xA5U;
@@ -965,19 +958,11 @@ static void TestDipSwitchRegisters(void)
 
     assert(interface.read_holding_registers(
                interface.context, PRODUCT_MODBUS_DIP_SWITCH_BASE_ADDRESS,
-               12U, image) == MODBUS_EXCEPTION_NONE);
-    assert(image[0] == 1U);
-    assert(image[1] == 0U);
-    assert(image[2] == 1U);
-    assert(image[3] == 0U);
-    assert(image[4] == 0U);
-    assert(image[5] == 1U);
-    assert(image[6] == 0U);
-    assert(image[7] == 1U);
-    assert(image[8] == 0x00A5U);
-    assert(image[9] == 0x005AU);
-    assert(image[10] == 7U);
-    assert(image[11] == PRODUCT_MODBUS_DIP_SWITCH_STATUS_READY);
+               4U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 0x00A5U);
+    assert(image[1] == 0x005AU);
+    assert(image[2] == 7U);
+    assert(image[3] == PRODUCT_MODBUS_DIP_SWITCH_STATUS_READY);
 
     assert(interface.write_single_register(
                interface.context,
