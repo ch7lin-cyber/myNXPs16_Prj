@@ -491,6 +491,8 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         return MapDriverStatus(status);
     }
+    context->diagnostics.last_raw_code = sample->raw_code & 0x00FFFFFFUL;
+    context->diagnostics.last_channel = sample->channel;
     if (!error_register_read &&
         ((sample->raw_code == 0U) ||
          (sample->raw_code == 0x00FFFFFFUL)))
@@ -554,6 +556,7 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         return HAL_ADC_STATUS_DEVICE_ERROR;
     }
+    context->diagnostics.last_microvolts = sample->microvolts;
     context->diagnostics.successful_samples++;
     RecordCleanSample(context);
     return HAL_ADC_STATUS_OK;

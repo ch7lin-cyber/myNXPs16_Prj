@@ -624,9 +624,19 @@ static uint16_t ReadAdcDiagnosticValue(
             Uint32ToRegisters(diagnostics->unexpected_por_faults, &high, &low);
             return (offset == 45U) ? high : low;
         case 47U:
+        case 48U:
+            Uint32ToRegisters(diagnostics->last_raw_code, &high, &low);
+            return (offset == 47U) ? high : low;
+        case 49U:
+            return diagnostics->last_channel;
+        case 50U:
             return (uint16_t)(
                 ((uint16_t)diagnostics->consecutive_transaction_errors << 8U) |
                 diagnostics->consecutive_clean_samples);
+        case 51U:
+        case 52U:
+            Int32ToRegisters(diagnostics->last_microvolts, &high, &low);
+            return (offset == 51U) ? high : low;
         default:
             return 0U;
     }

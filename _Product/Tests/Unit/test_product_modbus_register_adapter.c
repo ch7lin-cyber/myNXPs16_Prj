@@ -566,7 +566,7 @@ static void TestProductDiagnosticsFaultRegisters(void)
 static void TestAdcDiagnosticRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    uint16_t values[48U];
+    uint16_t values[53U];
     uint16_t boundary[2U];
 
     (void)memset(g_adcDiagnostics, 0, sizeof(g_adcDiagnostics));
@@ -582,6 +582,9 @@ static void TestAdcDiagnosticRegisters(void)
     g_adcDiagnostics[0].successful_samples = 0x00012345UL;
     g_adcDiagnostics[0].reference_faults = 7U;
     g_adcDiagnostics[0].conversion_faults = 9U;
+    g_adcDiagnostics[0].last_raw_code = 0x00ABCDEFUL;
+    g_adcDiagnostics[0].last_channel = 3U;
+    g_adcDiagnostics[0].last_microvolts = -12345;
     g_adcDiagnostics[0].consecutive_transaction_errors = 2U;
     g_adcDiagnostics[0].consecutive_clean_samples = 6U;
     g_adcDiagnostics[1].initialized = true;
@@ -591,7 +594,8 @@ static void TestAdcDiagnosticRegisters(void)
     assert(interface.read_holding_registers(
                interface.context,
                PRODUCT_MODBUS_ADC0_DIAGNOSTICS_BASE_ADDRESS,
-               48U, values) == MODBUS_EXCEPTION_NONE);
+               PRODUCT_MODBUS_ADC_DIAGNOSTICS_REGISTER_COUNT,
+               values) == MODBUS_EXCEPTION_NONE);
     assert(values[0] == 1U);
     assert(values[1] == 0x04U);
     assert(values[2] == 0x42U);
@@ -611,13 +615,18 @@ static void TestAdcDiagnosticRegisters(void)
     assert(values[38] == 7U);
     assert(values[39] == 0U);
     assert(values[40] == 9U);
-    assert(values[47] == 0x0206U);
+    assert(values[47] == 0x00ABU);
+    assert(values[48] == 0xCDEFU);
+    assert(values[49] == 3U);
+    assert(values[50] == 0x0206U);
+    assert(values[51] == 0xFFFFU);
+    assert(values[52] == 0xCFC7U);
 
     assert(interface.read_holding_registers(
                interface.context,
                (uint16_t)(PRODUCT_MODBUS_ADC1_DIAGNOSTICS_BASE_ADDRESS - 1U),
                2U, boundary) == MODBUS_EXCEPTION_NONE);
-    assert(boundary[0] == 0x0206U);
+    assert(boundary[0] == 0U);
     assert(boundary[1] == 1U);
     assert(interface.write_single_register(
                interface.context,

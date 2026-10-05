@@ -30,10 +30,13 @@ typedef struct
     uint32_t input_voltage_faults;
     uint32_t internal_faults;
     uint32_t unexpected_por_faults;
+    uint32_t last_raw_code;
+    int32_t last_microvolts;
     int32_t last_driver_status;
     uint16_t active_fault_categories;
     uint16_t last_fault_categories;
     uint8_t last_status_register;
+    uint8_t last_channel;
     uint8_t consecutive_transaction_errors;
     uint8_t consecutive_clean_samples;
     uint8_t device_id;
