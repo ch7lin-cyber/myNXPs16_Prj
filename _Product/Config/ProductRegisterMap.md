@@ -155,6 +155,24 @@ FC03 reads Active states. FC10 may write all four states plus the Apply Key as
 fails, outputs already changed by that Apply are rolled back, Active state and
 revision remain unchanged, and Pending is retained for retry.
 
+## U5 eight-position DIP switch
+
+U5 is captured through the FLEXCOMM8 SPI parallel-in/serial-out interface every
+10 ms. Switch polarity and optional bit reversal are configured in
+`ProductDipSwitchConfig.h`. The default mapping is switch 1 to bit 0 through
+switch 8 to bit 7; an ON switch is active-low. All registers are read-only.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x1520..0x1527` | R | U5 switch 1..8 logical state, 0/1 |
+| `0x1528` | R | Logical ON mask, bits 0..7 = switch 1..8 |
+| `0x1529` | R | Raw byte received from FLEXCOMM8 SPI |
+| `0x152A` | R | Revision, increments on first valid sample and value changes |
+| `0x152B` | R | Status: 0 Ready, 1 SPI I/O error, 2 not initialized |
+
+If an SPI read fails, the last valid logical and raw values are retained and
+Status changes to 1 so communication remains available for diagnostics.
+
 ## Factory FRAM bank test
 
 This is a destructive factory-only checkerboard test for the complete 256 KiB

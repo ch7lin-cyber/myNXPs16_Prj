@@ -6,5 +6,6 @@
 extern SPI_Type g_mock_spi;
 #define MEM_FC7_PERIPHERAL (&g_mock_spi)
 #define DAC_FC5_PERIPHERAL (&g_mock_spi)
+#define DIPSW_SPI_PERIPHERAL (&g_mock_spi)
 
 #endif

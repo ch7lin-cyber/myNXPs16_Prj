@@ -18,8 +18,10 @@
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
+#include "product_dip_switch_driver.h"
 #include "bsp_internal_adc.h"
 #include "ProductAdcConfig.h"
+#include "ProductDipSwitchConfig.h"
 #include "ProductInternalAdcConfig.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
@@ -38,6 +40,8 @@ static bool g_adc_recovery_due;
 static bool g_cjc_due;
 static bool g_mcu_temperature_due;
 static bool g_digital_input_due;
+static uint16_t g_dip_switch_elapsed_ms;
+static bool g_dip_switch_due;
 
 static void ProcessMcuTemperatureSafety(void)
 {
@@ -131,6 +135,8 @@ bool ProductApplication_Init(void)
     ProductMcuTemperatureSafety_Initialize();
     ProductSensorConfigurationConsumer_Initialize();
     ProductSensorMeasurementService_Initialize();
+    ProductDipSwitchDriver_Initialize();
+    (void)ProductDipSwitchDriver_Process();
 
     if (!NvmConfigurationEventConsumer_Initialize())
     {
@@ -184,6 +190,8 @@ bool ProductApplication_Init(void)
     g_cjc_due = false;
     g_mcu_temperature_due = false;
     g_digital_input_due = false;
+    g_dip_switch_elapsed_ms = 0U;
+    g_dip_switch_due = false;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
     return true;
@@ -193,6 +201,12 @@ void ProductApplication_Tick1ms(void)
 {
     ProductStatusLed_Tick1ms();
     g_digital_input_due = true;
+
+    if (++g_dip_switch_elapsed_ms >= PRODUCT_DIP_SWITCH_SAMPLE_PERIOD_MS)
+    {
+        g_dip_switch_elapsed_ms = 0U;
+        g_dip_switch_due = true;
+    }
 
     if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
     {
@@ -226,6 +240,11 @@ void ProductApplication_Process(void)
     {
         g_digital_input_due = false;
         (void)DigitalInputService_Process();
+    }
+    if (g_dip_switch_due)
+    {
+        g_dip_switch_due = false;
+        (void)ProductDipSwitchDriver_Process();
     }
     BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();

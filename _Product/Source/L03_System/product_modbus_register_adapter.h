@@ -85,6 +85,19 @@ extern "C" {
 #define PRODUCT_MODBUS_DO_STATUS_ROLLBACK_FAILED              (2U)
 #define PRODUCT_MODBUS_DO_FAILED_CHANNEL_NONE                 (0xFFFFU)
 
+/* U5 eight-position DIP switch, sampled from FLEXCOMM8 SPI. */
+#define PRODUCT_MODBUS_DIP_SWITCH_BASE_ADDRESS                (0x1520U)
+#define PRODUCT_MODBUS_DIP_SWITCH_COUNT                       (8U)
+#define PRODUCT_MODBUS_DIP_SWITCH_LOGICAL_MASK_ADDRESS        (0x1528U)
+#define PRODUCT_MODBUS_DIP_SWITCH_RAW_VALUE_ADDRESS           (0x1529U)
+#define PRODUCT_MODBUS_DIP_SWITCH_REVISION_ADDRESS            (0x152AU)
+#define PRODUCT_MODBUS_DIP_SWITCH_STATUS_ADDRESS              (0x152BU)
+#define PRODUCT_MODBUS_DIP_SWITCH_LAST_ADDRESS                (0x152BU)
+
+#define PRODUCT_MODBUS_DIP_SWITCH_STATUS_READY                (0U)
+#define PRODUCT_MODBUS_DIP_SWITCH_STATUS_IO_ERROR             (1U)
+#define PRODUCT_MODBUS_DIP_SWITCH_STATUS_NOT_INITIALIZED      (2U)
+
 typedef struct _product_pwm_output_config
 {
     uint16_t periodMs;

@@ -8,12 +8,33 @@
 #include "PwmOutputService.h"
 #include "SafetyConfigurationEventConsumer.h"
 #include "product_application.h"
+#include "product_dip_switch_driver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
 
 static uint16_t g_hardware_duty_permille;
 #define TEST_NVM_SLOT_SIZE (32768U)
 static uint8_t g_nvm_storage[HAL_NVM_SLOT_COUNT][TEST_NVM_SLOT_SIZE];
+
+void ProductDipSwitchDriver_Initialize(void)
+{
+}
+
+bool ProductDipSwitchDriver_Process(void)
+{
+    return true;
+}
+
+bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
+{
+    if (snapshot == NULL)
+    {
+        return false;
+    }
+    (void)memset(snapshot, 0, sizeof(*snapshot));
+    snapshot->status = PRODUCT_DIP_SWITCH_STATUS_READY;
+    return true;
+}
 
 static HalPwmStatus_t MockPwmInitialize(void *context)
 {

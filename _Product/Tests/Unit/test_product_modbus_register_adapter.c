@@ -14,6 +14,7 @@
 #include "bsp_analog_output.h"
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
+#include "product_dip_switch_driver.h"
 #include "product_temperature_input_types.h"
 
 typedef struct
@@ -41,6 +42,17 @@ typedef struct
 
 static MockGpioDriver_t g_digitalInput[PRODUCT_MODBUS_DI_CHANNEL_COUNT];
 static MockGpioDriver_t g_digitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
+static ProductDipSwitchSnapshot_t g_dipSwitchSnapshot;
+
+bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
+{
+    if (snapshot == NULL)
+    {
+        return false;
+    }
+    *snapshot = g_dipSwitchSnapshot;
+    return true;
+}
 
 static HalGpioStatus_t MockGpioInitialize(void *context)
 {
@@ -842,6 +854,39 @@ static void TestDigitalIoRegisters(void)
     assert(g_digitalOutput[1].state);
 }
 
+static void TestDipSwitchRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t image[12];
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    g_dipSwitchSnapshot.logical_mask = 0xA5U;
+    g_dipSwitchSnapshot.raw_value = 0x5AU;
+    g_dipSwitchSnapshot.revision = 7U;
+    g_dipSwitchSnapshot.status = PRODUCT_DIP_SWITCH_STATUS_READY;
+
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_DIP_SWITCH_BASE_ADDRESS,
+               12U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 1U);
+    assert(image[1] == 0U);
+    assert(image[2] == 1U);
+    assert(image[3] == 0U);
+    assert(image[4] == 0U);
+    assert(image[5] == 1U);
+    assert(image[6] == 0U);
+    assert(image[7] == 1U);
+    assert(image[8] == 0x00A5U);
+    assert(image[9] == 0x005AU);
+    assert(image[10] == 7U);
+    assert(image[11] == PRODUCT_MODBUS_DIP_SWITCH_STATUS_READY);
+
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_DIP_SWITCH_BASE_ADDRESS,
+               1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
@@ -902,5 +947,6 @@ int main(void)
     TestPwmPendingAndApply();
     TestDacPendingApplyAndRollback();
     TestDigitalIoRegisters();
+    TestDipSwitchRegisters();
     return 0;
 }
