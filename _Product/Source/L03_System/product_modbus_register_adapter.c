@@ -17,6 +17,7 @@
 #include "bsp_analog_output.h"
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
+#include "product_adc_driver.h"
 #include "product_rotary_switch_driver.h"
 #include "product_temperature_range_resolver.h"
 
@@ -454,6 +455,21 @@ static bool IsDiagnosticsRangeValid(uint16_t startingAddress,
             PRODUCT_MODBUS_DIAGNOSTICS_LAST_USED_ADDRESS);
 }
 
+static bool IsAdcDiagnosticsRangeValid(uint16_t startingAddress,
+                                       uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >=
+            PRODUCT_MODBUS_ADC_DIAGNOSTICS_BASE_ADDRESS) &&
+           (endingAddress <=
+            PRODUCT_MODBUS_ADC_DIAGNOSTICS_LAST_ADDRESS);
+}
+
 static void Uint32ToRegisters(uint32_t value, uint16_t *high, uint16_t *low)
 {
     *high = (uint16_t)(value >> 16U);
@@ -506,6 +522,144 @@ static void BuildDiagnosticsImage(
                           &registers[7], &registers[8]);
     }
     /* Clear Code and Clear Key are write-only and always read as zero. */
+}
+
+static uint16_t ReadAdcDiagnosticValue(
+    const ProductAdcDriverDiagnostics_t *diagnostics,
+    uint16_t offset)
+{
+    uint16_t high;
+    uint16_t low;
+
+    switch (offset)
+    {
+        case 0U: return diagnostics->initialized ? 1U : 0U;
+        case 1U: return diagnostics->device_id;
+        case 2U: return diagnostics->last_status_register;
+        case 3U: return diagnostics->active_fault_categories;
+        case 4U: return diagnostics->last_fault_categories;
+        case 5U:
+        case 6U:
+            Int32ToRegisters(diagnostics->last_driver_status, &high, &low);
+            return (offset == 5U) ? high : low;
+        case 7U:
+        case 8U:
+            Uint32ToRegisters(diagnostics->initial_error_register, &high, &low);
+            return (offset == 7U) ? high : low;
+        case 9U:
+        case 10U:
+            Uint32ToRegisters(diagnostics->first_error_register, &high, &low);
+            return (offset == 9U) ? high : low;
+        case 11U:
+        case 12U:
+            Uint32ToRegisters(diagnostics->last_error_register, &high, &low);
+            return (offset == 11U) ? high : low;
+        case 13U:
+        case 14U:
+            Uint32ToRegisters(diagnostics->latched_error_register, &high, &low);
+            return (offset == 13U) ? high : low;
+        case 15U:
+        case 16U:
+            Uint32ToRegisters(diagnostics->initialization_attempts, &high, &low);
+            return (offset == 15U) ? high : low;
+        case 17U:
+        case 18U:
+            Uint32ToRegisters(diagnostics->successful_samples, &high, &low);
+            return (offset == 17U) ? high : low;
+        case 19U:
+        case 20U:
+            Uint32ToRegisters(diagnostics->discarded_samples, &high, &low);
+            return (offset == 19U) ? high : low;
+        case 21U:
+        case 22U:
+            Uint32ToRegisters(diagnostics->not_ready_polls, &high, &low);
+            return (offset == 21U) ? high : low;
+        case 23U:
+        case 24U:
+            Uint32ToRegisters(diagnostics->error_register_reads, &high, &low);
+            return (offset == 23U) ? high : low;
+        case 25U:
+        case 26U:
+            Uint32ToRegisters(
+                diagnostics->error_register_read_failures, &high, &low);
+            return (offset == 25U) ? high : low;
+        case 27U:
+        case 28U:
+            Uint32ToRegisters(diagnostics->crc_errors, &high, &low);
+            return (offset == 27U) ? high : low;
+        case 29U:
+        case 30U:
+            Uint32ToRegisters(diagnostics->transport_errors, &high, &low);
+            return (offset == 29U) ? high : low;
+        case 31U:
+        case 32U:
+            Uint32ToRegisters(diagnostics->device_errors, &high, &low);
+            return (offset == 31U) ? high : low;
+        case 33U:
+        case 34U:
+            Uint32ToRegisters(diagnostics->communication_faults, &high, &low);
+            return (offset == 33U) ? high : low;
+        case 35U:
+        case 36U:
+            Uint32ToRegisters(diagnostics->integrity_faults, &high, &low);
+            return (offset == 35U) ? high : low;
+        case 37U:
+        case 38U:
+            Uint32ToRegisters(diagnostics->reference_faults, &high, &low);
+            return (offset == 37U) ? high : low;
+        case 39U:
+        case 40U:
+            Uint32ToRegisters(diagnostics->conversion_faults, &high, &low);
+            return (offset == 39U) ? high : low;
+        case 41U:
+        case 42U:
+            Uint32ToRegisters(diagnostics->input_voltage_faults, &high, &low);
+            return (offset == 41U) ? high : low;
+        case 43U:
+        case 44U:
+            Uint32ToRegisters(diagnostics->internal_faults, &high, &low);
+            return (offset == 43U) ? high : low;
+        case 45U:
+        case 46U:
+            Uint32ToRegisters(diagnostics->unexpected_por_faults, &high, &low);
+            return (offset == 45U) ? high : low;
+        case 47U:
+            return (uint16_t)(
+                ((uint16_t)diagnostics->consecutive_transaction_errors << 8U) |
+                diagnostics->consecutive_clean_samples);
+        default:
+            return 0U;
+    }
+}
+
+static ModbusExceptionCode_t ReadAdcDiagnostics(
+    uint16_t startingAddress, uint16_t quantity, uint16_t *values)
+{
+    ProductAdcDriverDiagnostics_t diagnostics;
+    uint8_t cachedDevice = UINT8_MAX;
+    uint16_t index;
+
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t relativeAddress = (uint16_t)(
+            startingAddress + index -
+            PRODUCT_MODBUS_ADC_DIAGNOSTICS_BASE_ADDRESS);
+        uint8_t device = (uint8_t)(relativeAddress /
+            PRODUCT_MODBUS_ADC_DIAGNOSTICS_DEVICE_STRIDE);
+        uint16_t offset = (uint16_t)(relativeAddress %
+            PRODUCT_MODBUS_ADC_DIAGNOSTICS_DEVICE_STRIDE);
+
+        if (device != cachedDevice)
+        {
+            if (!ProductAdcDriver_GetDiagnostics(device, &diagnostics))
+            {
+                return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            }
+            cachedDevice = device;
+        }
+        values[index] = ReadAdcDiagnosticValue(&diagnostics, offset);
+    }
+    return MODBUS_EXCEPTION_NONE;
 }
 
 static void BuildFactoryFramImage(uint16_t *registers)
@@ -804,6 +958,10 @@ static ModbusExceptionCode_t ReadRegisters(
         (void)memcpy(values, &diagnosticsImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsAdcDiagnosticsRangeValid(starting_address, quantity))
+    {
+        return ReadAdcDiagnostics(starting_address, quantity, values);
     }
     if (IsPwmRangeValid(starting_address, quantity))
     {

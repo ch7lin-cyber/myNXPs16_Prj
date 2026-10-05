@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "ProductConfig.h"
 #include "EventService.h"
@@ -15,6 +16,7 @@
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
+#include "product_adc_driver.h"
 #include "product_rotary_switch_driver.h"
 #include "product_temperature_input_types.h"
 
@@ -45,6 +47,18 @@ static MockGpioDriver_t g_digitalInput[PRODUCT_MODBUS_DI_CHANNEL_COUNT];
 static MockGpioDriver_t g_digitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
 static ProductDipSwitchSnapshot_t g_dipSwitchSnapshot;
 static ProductRotarySwitchSnapshot_t g_rotarySwitchSnapshot;
+static ProductAdcDriverDiagnostics_t g_adcDiagnostics[4U];
+
+bool ProductAdcDriver_GetDiagnostics(
+    uint8_t device, ProductAdcDriverDiagnostics_t *diagnostics)
+{
+    if ((device >= 4U) || (diagnostics == NULL))
+    {
+        return false;
+    }
+    *diagnostics = g_adcDiagnostics[device];
+    return true;
+}
 
 bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
 {
@@ -549,6 +563,68 @@ static void TestProductDiagnosticsFaultRegisters(void)
     assert(values[2] == FAULT_CODE_NONE);
 }
 
+static void TestAdcDiagnosticRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[48U];
+    uint16_t boundary[2U];
+
+    (void)memset(g_adcDiagnostics, 0, sizeof(g_adcDiagnostics));
+    g_adcDiagnostics[0].initialized = true;
+    g_adcDiagnostics[0].device_id = 0x04U;
+    g_adcDiagnostics[0].last_status_register = 0x42U;
+    g_adcDiagnostics[0].active_fault_categories =
+        PRODUCT_ADC_FAULT_REFERENCE | PRODUCT_ADC_FAULT_CONVERSION;
+    g_adcDiagnostics[0].last_driver_status = -4;
+    g_adcDiagnostics[0].initial_error_register = 0x000123UL;
+    g_adcDiagnostics[0].last_error_register = 0x020800UL;
+    g_adcDiagnostics[0].latched_error_register = 0x028804UL;
+    g_adcDiagnostics[0].successful_samples = 0x00012345UL;
+    g_adcDiagnostics[0].reference_faults = 7U;
+    g_adcDiagnostics[0].conversion_faults = 9U;
+    g_adcDiagnostics[0].consecutive_transaction_errors = 2U;
+    g_adcDiagnostics[0].consecutive_clean_samples = 6U;
+    g_adcDiagnostics[1].initialized = true;
+    g_adcDiagnostics[1].device_id = 0x06U;
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_ADC0_DIAGNOSTICS_BASE_ADDRESS,
+               48U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == 1U);
+    assert(values[1] == 0x04U);
+    assert(values[2] == 0x42U);
+    assert(values[3] == (PRODUCT_ADC_FAULT_REFERENCE |
+                         PRODUCT_ADC_FAULT_CONVERSION));
+    assert(values[5] == 0xFFFFU);
+    assert(values[6] == 0xFFFCU);
+    assert(values[7] == 0x0000U);
+    assert(values[8] == 0x0123U);
+    assert(values[11] == 0x0002U);
+    assert(values[12] == 0x0800U);
+    assert(values[13] == 0x0002U);
+    assert(values[14] == 0x8804U);
+    assert(values[17] == 0x0001U);
+    assert(values[18] == 0x2345U);
+    assert(values[37] == 0U);
+    assert(values[38] == 7U);
+    assert(values[39] == 0U);
+    assert(values[40] == 9U);
+    assert(values[47] == 0x0206U);
+
+    assert(interface.read_holding_registers(
+               interface.context,
+               (uint16_t)(PRODUCT_MODBUS_ADC1_DIAGNOSTICS_BASE_ADDRESS - 1U),
+               2U, boundary) == MODBUS_EXCEPTION_NONE);
+    assert(boundary[0] == 0x0206U);
+    assert(boundary[1] == 1U);
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_ADC0_DIAGNOSTICS_BASE_ADDRESS,
+               0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 static void TestProductVersionRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -1007,6 +1083,7 @@ int main(void)
     TestInvalidRanges();
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
+    TestAdcDiagnosticRegisters();
     TestProductVersionRegisters();
     TestPwmPendingAndApply();
     TestDacPendingApplyAndRollback();
