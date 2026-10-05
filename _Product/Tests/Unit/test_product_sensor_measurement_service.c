@@ -91,9 +91,12 @@ static void TestConfigurationMapping(void)
     assert(configuration.cjc_table != NULL);
     assert(profile == FACTORY_CAL_PROFILE_TC_GAIN1);
 
-    /* B stays fail-safe until its platform table is marked complete. */
-    assert(!ProductSensorMeasurementService_ResolveConfiguration(
+    assert(ProductSensorMeasurementService_ResolveConfiguration(
         PRODUCT_SENSOR_TYPE_TC_B, &configuration, &profile));
+    assert(configuration.type == SENSOR_TYPE_TC_B);
+    assert(configuration.measurement_table != NULL);
+    assert(configuration.cjc_table != NULL);
+    assert(profile == FACTORY_CAL_PROFILE_TC_GAIN2);
 
     assert(ProductSensorMeasurementService_ResolveConfiguration(
         PRODUCT_SENSOR_TYPE_RTD_100_OHM, &configuration, &profile));
@@ -176,6 +179,24 @@ static void TestCurrentShuntConversion(void)
     assert(result.engineering_value <= 20010L);
 }
 
+static void TestBTypeConversionWithCjc(void)
+{
+    SensorConversionConfig_t configuration;
+    SensorConversionResult_t result;
+    FactoryCalibrationProfile_t profile;
+
+    assert(ProductSensorMeasurementService_ResolveConfiguration(
+        PRODUCT_SENSOR_TYPE_TC_B, &configuration, &profile));
+    /* At 1000 C the B-type EMF is 4834 uV; CJC at 25 C is -2 uV. */
+    assert(SensorConversionService_Convert(
+        &configuration, 4836L, 25000L, &result));
+    assert(result.cjc_uv == -2L);
+    assert(result.physical_input == 4834L);
+    assert(result.engineering_value >= 999900L);
+    assert(result.engineering_value <= 1000100L);
+    assert(result.flags == 0UL);
+}
+
 static void TestInvalidCjcIsReported(void)
 {
     ProductSensorMeasurementSnapshot_t snapshot;
@@ -195,6 +216,7 @@ int main(void)
     TestConfigurationMapping();
     TestKTypePipelineAndCjcPairing();
     TestCurrentShuntConversion();
+    TestBTypeConversionWithCjc();
     TestInvalidCjcIsReported();
     return 0;
 }
