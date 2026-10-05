@@ -195,6 +195,20 @@ The low-voltage and MCU-overtemperature inhibits use independent source bits,
 so clearing one condition cannot release an output while the other remains
 active.
 
+## SW2 rotary switch
+
+SW2 is sampled every 10 ms from the four GPIO inputs labelled `RR_SW_1`,
+`RR_SW_2`, `RR_SW_4`, and `RR_SW_8`. The default board mapping is active-low,
+so the four logical bits form the rotary position value 0..15. Polarity can be
+changed through `ProductRotarySwitchConfig.h`. All registers are read-only.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x1540` | R | Logical rotary position, 0..15 |
+| `0x1541` | R | Raw GPIO nibble, bits 0..3 = 1/2/4/8 inputs |
+| `0x1542` | R | Revision, increments on first sample and position changes |
+| `0x1543` | R | Status: 0 Ready, 2 not initialized |
+
 ## Factory FRAM bank test
 
 This is a destructive factory-only checkerboard test for the complete 256 KiB

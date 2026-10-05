@@ -19,11 +19,13 @@
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
 #include "product_dip_switch_driver.h"
+#include "product_rotary_switch_driver.h"
 #include "bsp_internal_adc.h"
 #include "ProductAdcConfig.h"
 #include "ProductDipSwitchConfig.h"
 #include "ProductInternalAdcConfig.h"
 #include "ProductLowVoltageConfig.h"
+#include "ProductRotarySwitchConfig.h"
 #include "product_low_voltage_safety.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
@@ -44,6 +46,8 @@ static bool g_mcu_temperature_due;
 static bool g_digital_input_due;
 static uint16_t g_dip_switch_elapsed_ms;
 static bool g_dip_switch_due;
+static uint16_t g_rotary_switch_elapsed_ms;
+static bool g_rotary_switch_due;
 static uint16_t g_low_voltage_elapsed_ms;
 static bool g_low_voltage_due;
 
@@ -143,6 +147,8 @@ bool ProductApplication_Init(void)
     ProductSensorMeasurementService_Initialize();
     ProductDipSwitchDriver_Initialize();
     (void)ProductDipSwitchDriver_Process();
+    ProductRotarySwitchDriver_Initialize();
+    ProductRotarySwitchDriver_Process();
 
     if (!NvmConfigurationEventConsumer_Initialize())
     {
@@ -198,6 +204,8 @@ bool ProductApplication_Init(void)
     g_digital_input_due = false;
     g_dip_switch_elapsed_ms = 0U;
     g_dip_switch_due = false;
+    g_rotary_switch_elapsed_ms = 0U;
+    g_rotary_switch_due = false;
     g_low_voltage_elapsed_ms = 0U;
     g_low_voltage_due = false;
     (void)BspInternalAdc_RequestCjcSamples();
@@ -219,6 +227,12 @@ void ProductApplication_Tick1ms(void)
     {
         g_low_voltage_elapsed_ms = 0U;
         g_low_voltage_due = true;
+    }
+    if (++g_rotary_switch_elapsed_ms >=
+        PRODUCT_ROTARY_SWITCH_SAMPLE_PERIOD_MS)
+    {
+        g_rotary_switch_elapsed_ms = 0U;
+        g_rotary_switch_due = true;
     }
 
     if (++g_adc_poll_elapsed_ms >= PRODUCT_ADC_POLL_PERIOD_MS)
@@ -263,6 +277,11 @@ void ProductApplication_Process(void)
     {
         g_low_voltage_due = false;
         ProductLowVoltageSafety_Process();
+    }
+    if (g_rotary_switch_due)
+    {
+        g_rotary_switch_due = false;
+        ProductRotarySwitchDriver_Process();
     }
     BspInternalAdc_Process();
     ProcessMcuTemperatureSafety();

@@ -15,6 +15,7 @@
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
+#include "product_rotary_switch_driver.h"
 #include "product_temperature_input_types.h"
 
 typedef struct
@@ -43,6 +44,7 @@ typedef struct
 static MockGpioDriver_t g_digitalInput[PRODUCT_MODBUS_DI_CHANNEL_COUNT];
 static MockGpioDriver_t g_digitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
 static ProductDipSwitchSnapshot_t g_dipSwitchSnapshot;
+static ProductRotarySwitchSnapshot_t g_rotarySwitchSnapshot;
 
 bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
 {
@@ -51,6 +53,17 @@ bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)
         return false;
     }
     *snapshot = g_dipSwitchSnapshot;
+    return true;
+}
+
+bool ProductRotarySwitchDriver_GetSnapshot(
+    ProductRotarySwitchSnapshot_t *snapshot)
+{
+    if (snapshot == NULL)
+    {
+        return false;
+    }
+    *snapshot = g_rotarySwitchSnapshot;
     return true;
 }
 
@@ -887,6 +900,31 @@ static void TestDipSwitchRegisters(void)
                1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestRotarySwitchRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t image[4];
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    g_rotarySwitchSnapshot.position = 9U;
+    g_rotarySwitchSnapshot.raw_value = 0x06U;
+    g_rotarySwitchSnapshot.revision = 3U;
+    g_rotarySwitchSnapshot.status = PRODUCT_ROTARY_SWITCH_STATUS_READY;
+
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_ROTARY_SWITCH_BASE_ADDRESS,
+               4U, image) == MODBUS_EXCEPTION_NONE);
+    assert(image[0] == 9U);
+    assert(image[1] == 0x06U);
+    assert(image[2] == 3U);
+    assert(image[3] == PRODUCT_MODBUS_ROTARY_SWITCH_STATUS_READY);
+
+    assert(interface.write_single_register(
+               interface.context,
+               PRODUCT_MODBUS_ROTARY_SWITCH_POSITION_ADDRESS,
+               1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 static void TestLowVoltageRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -974,6 +1012,7 @@ int main(void)
     TestDacPendingApplyAndRollback();
     TestDigitalIoRegisters();
     TestDipSwitchRegisters();
+    TestRotarySwitchRegisters();
     TestLowVoltageRegisters();
     return 0;
 }

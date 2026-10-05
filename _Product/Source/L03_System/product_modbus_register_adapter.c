@@ -17,6 +17,7 @@
 #include "bsp_analog_output.h"
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
+#include "product_rotary_switch_driver.h"
 #include "product_temperature_range_resolver.h"
 
 #include <stddef.h>
@@ -299,6 +300,20 @@ static bool IsLowVoltageRangeValid(uint16_t startingAddress,
     endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
     return (startingAddress >= PRODUCT_MODBUS_LOW_VOLTAGE_BASE_ADDRESS) &&
            (endingAddress <= PRODUCT_MODBUS_LOW_VOLTAGE_LAST_ADDRESS);
+}
+
+static bool IsRotarySwitchRangeValid(uint16_t startingAddress,
+                                     uint16_t quantity)
+{
+    uint32_t endingAddress;
+
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + (uint32_t)quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_ROTARY_SWITCH_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_ROTARY_SWITCH_LAST_ADDRESS);
 }
 
 static bool IsPwmConfigValueValid(uint16_t field, uint16_t value)
@@ -693,6 +708,21 @@ static void BuildLowVoltageImage(
     registers[6] = monitor->status;
 }
 
+static bool BuildRotarySwitchImage(uint16_t *registers)
+{
+    ProductRotarySwitchSnapshot_t snapshot;
+
+    if (!ProductRotarySwitchDriver_GetSnapshot(&snapshot))
+    {
+        return false;
+    }
+    registers[0] = snapshot.position;
+    registers[1] = snapshot.raw_value;
+    registers[2] = snapshot.revision;
+    registers[3] = (uint16_t)snapshot.status;
+    return true;
+}
+
 static ModbusExceptionCode_t ReadRegisters(
     void *context,
     uint16_t starting_address,
@@ -712,6 +742,7 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t digitalOutputImage[10];
     uint16_t dipSwitchImage[12];
     uint16_t lowVoltageImage[7];
+    uint16_t rotarySwitchImage[4];
     uint16_t sourceOffset;
     uint8_t temperatureChannel;
     ModbusSerialRegisterInfo_t serial_information;
@@ -834,6 +865,18 @@ static ModbusExceptionCode_t ReadRegisters(
         sourceOffset = (uint16_t)(starting_address -
                                  PRODUCT_MODBUS_LOW_VOLTAGE_BASE_ADDRESS);
         (void)memcpy(values, &lowVoltageImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsRotarySwitchRangeValid(starting_address, quantity))
+    {
+        if (!BuildRotarySwitchImage(rotarySwitchImage))
+        {
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_ROTARY_SWITCH_BASE_ADDRESS);
+        (void)memcpy(values, &rotarySwitchImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
