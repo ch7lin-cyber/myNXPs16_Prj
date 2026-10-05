@@ -370,7 +370,20 @@ adi_ad7124_status_t ADI_AD7124_TryReadData(
     uint32_t *code,
     uint8_t *channel)
 {
+    return ADI_AD7124_TryReadDataDiagnostic(
+        device, code, channel, NULL, NULL, NULL);
+}
+
+adi_ad7124_status_t ADI_AD7124_TryReadDataDiagnostic(
+    adi_ad7124_device_t *device,
+    uint32_t *code,
+    uint8_t *channel,
+    uint8_t *statusRegister,
+    uint32_t *errorRegister,
+    bool *errorRegisterRead)
+{
     uint32_t statusValue;
+    uint32_t errorValue = 0U;
     adi_ad7124_status_t status;
 
     if ((device == NULL) || (code == NULL))
@@ -383,6 +396,31 @@ adi_ad7124_status_t ADI_AD7124_TryReadData(
     if (status != kAdiAd7124_Ok)
     {
         return status;
+    }
+    if (statusRegister != NULL)
+    {
+        *statusRegister = (uint8_t)statusValue;
+    }
+    if (errorRegisterRead != NULL)
+    {
+        *errorRegisterRead = false;
+    }
+    if ((statusValue & ADI_AD7124_STATUS_ERROR_MASK) != 0U)
+    {
+        status = ReadRegisterUnchecked(device, ADI_AD7124_ERROR_REG,
+                                       &errorValue);
+        if (status != kAdiAd7124_Ok)
+        {
+            return status;
+        }
+        if (errorRegister != NULL)
+        {
+            *errorRegister = errorValue;
+        }
+        if (errorRegisterRead != NULL)
+        {
+            *errorRegisterRead = true;
+        }
     }
     if ((statusValue & ADI_AD7124_STATUS_RDY_MASK) != 0U)
     {

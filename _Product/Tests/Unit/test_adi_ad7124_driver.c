@@ -155,6 +155,34 @@ static void TestNonBlockingRead(void)
     assert(channel == 3U);
 }
 
+static void TestStatusErrorCapturesErrorRegister(void)
+{
+    mock_transport_t mock = {0U};
+    adi_ad7124_device_t device = {0U};
+    uint32_t code = 0U;
+    uint32_t error = 0U;
+    uint8_t channel = 0U;
+    uint8_t status_register = 0U;
+    bool error_read = false;
+
+    device.transfer = MockTransfer;
+    device.transportContext = &mock;
+    mock.statusValue = ADI_AD7124_STATUS_ERROR_MASK | 2U;
+    mock.registers[ADI_AD7124_ERROR_REG] =
+        ADI_AD7124_ERROR_REF_DET_MASK | ADI_AD7124_ERROR_ADC_CONV_MASK;
+
+    assert(ADI_AD7124_TryReadDataDiagnostic(
+               &device, &code, &channel, &status_register, &error,
+               &error_read) == kAdiAd7124_Ok);
+    assert(error_read);
+    assert(status_register == (ADI_AD7124_STATUS_ERROR_MASK | 2U));
+    assert(error == (ADI_AD7124_ERROR_REF_DET_MASK |
+                     ADI_AD7124_ERROR_ADC_CONV_MASK));
+    assert(mock.registerReadCount[ADI_AD7124_ERROR_REG] == 1U);
+    assert(code == 0x123456UL);
+    assert(channel == 2U);
+}
+
 static void TestConfigure(void)
 {
     mock_transport_t mock = {0U};
@@ -192,6 +220,7 @@ int main(void)
     TestCrc();
     TestInitAndWrite();
     TestNonBlockingRead();
+    TestStatusErrorCapturesErrorRegister();
     TestConfigure();
     return 0;
 }

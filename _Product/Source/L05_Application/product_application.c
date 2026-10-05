@@ -37,10 +37,12 @@
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
 static uint16_t g_adc_poll_elapsed_ms;
 static uint16_t g_adc_recovery_elapsed_ms;
+static uint16_t g_adc_diagnostic_elapsed_ms;
 static uint16_t g_cjc_elapsed_ms;
 static uint16_t g_mcu_temperature_elapsed_ms;
 static bool g_adc_poll_due;
 static bool g_adc_recovery_due;
+static bool g_adc_diagnostic_due;
 static bool g_cjc_due;
 static bool g_mcu_temperature_due;
 static bool g_digital_input_due;
@@ -50,6 +52,103 @@ static uint16_t g_rotary_switch_elapsed_ms;
 static bool g_rotary_switch_due;
 static uint16_t g_low_voltage_elapsed_ms;
 static bool g_low_voltage_due;
+static uint32_t g_adc_last_successful_samples[HAL_ADC_DEVICE_COUNT];
+static uint16_t g_adc_stale_elapsed_ms[HAL_ADC_DEVICE_COUNT];
+static uint8_t g_adc_last_fault_device_mask[7U];
+static uint32_t g_adc_fault_event_id;
+
+static uint8_t FoldAdcErrorRegister(uint32_t error_register)
+{
+    return (uint8_t)(error_register ^ (error_register >> 8U) ^
+                     (error_register >> 16U));
+}
+
+static void RaiseAdcCategoryFault(uint8_t category_index,
+                                  FaultCode_t code,
+                                  uint8_t device_mask,
+                                  uint8_t subcause)
+{
+    if (device_mask == 0U)
+    {
+        g_adc_last_fault_device_mask[category_index] = 0U;
+        return;
+    }
+    if ((device_mask != g_adc_last_fault_device_mask[category_index]) ||
+        !FaultService_IsActive(code))
+    {
+        uint16_t detail = (uint16_t)(((uint16_t)subcause << 8U) |
+                                     device_mask);
+        g_adc_fault_event_id++;
+        (void)FaultService_Raise(code, detail, 0U, g_adc_fault_event_id);
+        g_adc_last_fault_device_mask[category_index] = device_mask;
+    }
+}
+
+static void ProcessAdcFaults(void)
+{
+    static const uint16_t categories[6U] =
+    {
+        PRODUCT_ADC_FAULT_COMMUNICATION,
+        PRODUCT_ADC_FAULT_INTEGRITY,
+        PRODUCT_ADC_FAULT_REFERENCE,
+        PRODUCT_ADC_FAULT_CONVERSION,
+        PRODUCT_ADC_FAULT_INPUT_VOLTAGE,
+        PRODUCT_ADC_FAULT_INTERNAL
+    };
+    static const FaultCode_t codes[6U] =
+    {
+        FAULT_CODE_ADC_COMMUNICATION,
+        FAULT_CODE_ADC_INTEGRITY,
+        FAULT_CODE_ADC_REFERENCE,
+        FAULT_CODE_ADC_CONVERSION,
+        FAULT_CODE_ADC_INPUT_VOLTAGE,
+        FAULT_CODE_ADC_INTERNAL
+    };
+    uint8_t device_masks[6U] = {0U};
+    uint8_t subcauses[6U] = {0U};
+    uint8_t stale_mask = 0U;
+    uint8_t device;
+    uint8_t category;
+
+    for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+    {
+        ProductAdcDriverDiagnostics_t driver_diagnostics;
+        AnalogInputDiagnostics_t input_diagnostics;
+        if (!ProductAdcDriver_GetDiagnostics(device, &driver_diagnostics) ||
+            !AnalogInputService_GetDiagnostics(device, &input_diagnostics))
+        {
+            continue;
+        }
+        for (category = 0U; category < 6U; category++)
+        {
+            if ((driver_diagnostics.active_fault_categories &
+                 categories[category]) != 0U)
+            {
+                device_masks[category] |= (uint8_t)(1U << device);
+                subcauses[category] |= FoldAdcErrorRegister(
+                    driver_diagnostics.last_error_register);
+                if ((subcauses[category] == 0U) &&
+                    (driver_diagnostics.last_driver_status < 0))
+                {
+                    subcauses[category] |= (uint8_t)
+                        (-driver_diagnostics.last_driver_status);
+                }
+            }
+        }
+        if (!input_diagnostics.online ||
+            (g_adc_stale_elapsed_ms[device] >= 500U))
+        {
+            stale_mask |= (uint8_t)(1U << device);
+        }
+    }
+    for (category = 0U; category < 6U; category++)
+    {
+        RaiseAdcCategoryFault(category, codes[category],
+                              device_masks[category], subcauses[category]);
+    }
+    RaiseAdcCategoryFault(6U, FAULT_CODE_ADC_STALE_OFFLINE,
+                          stale_mask, 0U);
+}
 
 static void ProcessMcuTemperatureSafety(void)
 {
@@ -195,10 +294,12 @@ bool ProductApplication_Init(void)
     (void)memset(g_last_pwm_inhibited, 1, sizeof(g_last_pwm_inhibited));
     g_adc_poll_elapsed_ms = 0U;
     g_adc_recovery_elapsed_ms = 0U;
+    g_adc_diagnostic_elapsed_ms = 0U;
     g_cjc_elapsed_ms = 0U;
     g_mcu_temperature_elapsed_ms = 0U;
     g_adc_poll_due = false;
     g_adc_recovery_due = false;
+    g_adc_diagnostic_due = false;
     g_cjc_due = false;
     g_mcu_temperature_due = false;
     g_digital_input_due = false;
@@ -208,6 +309,13 @@ bool ProductApplication_Init(void)
     g_rotary_switch_due = false;
     g_low_voltage_elapsed_ms = 0U;
     g_low_voltage_due = false;
+    (void)memset(g_adc_last_successful_samples, 0,
+                 sizeof(g_adc_last_successful_samples));
+    (void)memset(g_adc_stale_elapsed_ms, 0,
+                 sizeof(g_adc_stale_elapsed_ms));
+    (void)memset(g_adc_last_fault_device_mask, 0,
+                 sizeof(g_adc_last_fault_device_mask));
+    g_adc_fault_event_id = 0U;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
     return true;
@@ -244,6 +352,11 @@ void ProductApplication_Tick1ms(void)
     {
         g_adc_recovery_elapsed_ms = 0U;
         g_adc_recovery_due = true;
+    }
+    if (++g_adc_diagnostic_elapsed_ms >= PRODUCT_ADC_DIAGNOSTIC_PERIOD_MS)
+    {
+        g_adc_diagnostic_elapsed_ms = 0U;
+        g_adc_diagnostic_due = true;
     }
     if (++g_cjc_elapsed_ms >= PRODUCT_CJC_SAMPLE_PERIOD_MS)
     {
@@ -305,6 +418,31 @@ void ProductApplication_Process(void)
         {
             (void)AnalogInputService_Process();
         }
+        for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+        {
+            ProductAdcDriverDiagnostics_t diagnostics;
+            if (ProductAdcDriver_GetDiagnostics(device, &diagnostics))
+            {
+                if (diagnostics.successful_samples !=
+                    g_adc_last_successful_samples[device])
+                {
+                    g_adc_last_successful_samples[device] =
+                        diagnostics.successful_samples;
+                    g_adc_stale_elapsed_ms[device] = 0U;
+                }
+                else if (g_adc_stale_elapsed_ms[device] <=
+                         (UINT16_MAX - PRODUCT_ADC_POLL_PERIOD_MS))
+                {
+                    g_adc_stale_elapsed_ms[device] +=
+                        PRODUCT_ADC_POLL_PERIOD_MS;
+                }
+            }
+        }
+    }
+    if (g_adc_diagnostic_due)
+    {
+        g_adc_diagnostic_due = false;
+        (void)ProductAdcDriver_AuditNextDevice();
     }
     if (g_adc_recovery_due)
     {
@@ -320,6 +458,7 @@ void ProductApplication_Process(void)
             }
         }
     }
+    ProcessAdcFaults();
     for (input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
     {
         AnalogInputSample_t sample;

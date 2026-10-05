@@ -44,6 +44,26 @@ extern "C" {
 #define ADI_AD7124_STATUS_CHANNEL_MASK    (0x0FUL)
 #define ADI_AD7124_ERROR_ENABLE_CRC_MASK  (1UL << 2U)
 
+/* AD7124 Error Register bits. */
+#define ADI_AD7124_ERROR_LDO_CAP_MASK      (1UL << 19U)
+#define ADI_AD7124_ERROR_ADC_CAL_MASK      (1UL << 18U)
+#define ADI_AD7124_ERROR_ADC_CONV_MASK     (1UL << 17U)
+#define ADI_AD7124_ERROR_ADC_SAT_MASK      (1UL << 16U)
+#define ADI_AD7124_ERROR_AINP_OV_MASK      (1UL << 15U)
+#define ADI_AD7124_ERROR_AINP_UV_MASK      (1UL << 14U)
+#define ADI_AD7124_ERROR_AINM_OV_MASK      (1UL << 13U)
+#define ADI_AD7124_ERROR_AINM_UV_MASK      (1UL << 12U)
+#define ADI_AD7124_ERROR_REF_DET_MASK      (1UL << 11U)
+#define ADI_AD7124_ERROR_DLDO_PSM_MASK     (1UL << 9U)
+#define ADI_AD7124_ERROR_ALDO_PSM_MASK     (1UL << 7U)
+#define ADI_AD7124_ERROR_SPI_IGNORE_MASK   (1UL << 6U)
+#define ADI_AD7124_ERROR_SPI_SCLK_MASK     (1UL << 5U)
+#define ADI_AD7124_ERROR_SPI_READ_MASK     (1UL << 4U)
+#define ADI_AD7124_ERROR_SPI_WRITE_MASK    (1UL << 3U)
+#define ADI_AD7124_ERROR_SPI_CRC_MASK      (1UL << 2U)
+#define ADI_AD7124_ERROR_MM_CRC_MASK       (1UL << 1U)
+#define ADI_AD7124_ERROR_ROM_CRC_MASK      (1UL << 0U)
+
 #define ADI_AD7124_ID_4_STANDARD          (0x04U)
 #define ADI_AD7124_ID_4_B_GRADE           (0x06U)
 #define ADI_AD7124_ID_4_NEW               (0x07U)
@@ -144,6 +164,13 @@ adi_ad7124_status_t ADI_AD7124_TryReadData(
     adi_ad7124_device_t *device,
     uint32_t *code,
     uint8_t *channel);
+adi_ad7124_status_t ADI_AD7124_TryReadDataDiagnostic(
+    adi_ad7124_device_t *device,
+    uint32_t *code,
+    uint8_t *channel,
+    uint8_t *statusRegister,
+    uint32_t *errorRegister,
+    bool *errorRegisterRead);
 adi_ad7124_status_t ADI_AD7124_Configure(
     adi_ad7124_device_t *device,
     const adi_ad7124_setup_config_t *setups,
