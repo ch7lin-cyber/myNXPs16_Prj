@@ -4,8 +4,6 @@
 
 #include "FaultService.h"
 #include "ProductLowVoltageConfig.h"
-#include "ProductSafetyConfig.h"
-#include "SafetyConfigurationEventConsumer.h"
 #include "product_low_voltage_driver.h"
 #include "product_modbus_register_adapter.h"
 
@@ -36,8 +34,6 @@ void ProductLowVoltageSafety_Initialize(void)
     g_snapshot.fault_active = false;
     g_assert_samples = 0U;
     g_release_samples = 0U;
-    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
-        PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE, false);
     PublishMonitor();
 }
 
@@ -93,9 +89,6 @@ void ProductLowVoltageSafety_Process(void)
     }
     g_snapshot.fault_active =
         FaultService_IsActive(FAULT_CODE_LOW_VOLTAGE);
-    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
-        PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE,
-        g_snapshot.confirmed_active || g_snapshot.fault_active);
     PublishMonitor();
 }
 

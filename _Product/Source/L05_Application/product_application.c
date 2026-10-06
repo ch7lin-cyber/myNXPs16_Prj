@@ -15,6 +15,10 @@
 #include "DigitalInputService.h"
 #include "DigitalOutputService.h"
 #include "SafetyConfigurationEventConsumer.h"
+#include "SafetyService.h"
+#include "SnapshotService.h"
+#include "SystemRoutine.h"
+#include "WarningService.h"
 #include "product_temperature_range_resolver.h"
 #include "product_modbus_register_adapter.h"
 #include "product_adc_driver.h"
@@ -26,6 +30,7 @@
 #include "ProductInternalAdcConfig.h"
 #include "ProductLowVoltageConfig.h"
 #include "ProductRotarySwitchConfig.h"
+#include "ProductSafetyConfig.h"
 #include "product_low_voltage_safety.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
@@ -56,6 +61,56 @@ static uint32_t g_adc_last_successful_samples[HAL_ADC_DEVICE_COUNT];
 static uint16_t g_adc_stale_elapsed_ms[HAL_ADC_DEVICE_COUNT];
 static uint8_t g_adc_last_fault_device_mask[7U];
 static uint32_t g_adc_fault_event_id;
+static uint32_t g_system_timestamp_ms;
+
+static const uint32_t g_adc_warning_sources[7U] =
+{
+    WARNING_SOURCE_ADC_COMMUNICATION,
+    WARNING_SOURCE_ADC_INTEGRITY,
+    WARNING_SOURCE_ADC_REFERENCE,
+    WARNING_SOURCE_ADC_CONVERSION,
+    WARNING_SOURCE_ADC_INPUT_VOLTAGE,
+    WARNING_SOURCE_ADC_INTERNAL,
+    WARNING_SOURCE_ADC_STALE
+};
+
+static bool ApplySystemSafetyOutput(bool inhibit,
+                                    uint32_t source_mask,
+                                    void *context)
+{
+    bool result = true;
+
+    (void)context;
+    result = SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_MCU_OVERTEMPERATURE,
+        inhibit && ((source_mask & SAFETY_SOURCE_MCU_OVERTEMPERATURE) != 0U)) &&
+        result;
+    result = SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
+        PRODUCT_SAFETY_INHIBIT_LOW_VOLTAGE,
+        inhibit && ((source_mask & SAFETY_SOURCE_LOW_VOLTAGE) != 0U)) &&
+        result;
+    return result;
+}
+
+static bool UpdateSystemSafetySource(
+    uint32_t source_mask,
+    bool active,
+    uint16_t detail,
+    const int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT])
+{
+    bool result = SafetyService_UpdateSource(
+        source_mask, active, detail, g_system_timestamp_ms,
+        0U, 0U, values);
+
+    if (!active)
+    {
+        SafetyResetResult_t reset_result = SafetyService_Reset(source_mask);
+
+        result = ((reset_result == SAFETY_RESET_OK) ||
+                  (reset_result == SAFETY_RESET_BLOCKED_ACTIVE)) && result;
+    }
+    return result;
+}
 
 static uint8_t FoldAdcErrorRegister(uint32_t error_register)
 {
@@ -84,7 +139,35 @@ static void RaiseAdcCategoryFault(uint8_t category_index,
     }
 }
 
-static void ProcessAdcFaults(void)
+static bool UpdateAdcCategoryWarning(uint8_t category_index,
+                                     uint8_t device_mask,
+                                     uint8_t subcause)
+{
+    int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+    uint8_t device;
+
+    values[0] = (int32_t)device_mask;
+    values[1] = (int32_t)subcause;
+    values[6] = (int32_t)category_index;
+    for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+    {
+        ProductAdcDriverDiagnostics_t diagnostics;
+
+        if (ProductAdcDriver_GetDiagnostics(device, &diagnostics))
+        {
+            values[2U + device] =
+                (int32_t)(diagnostics.last_error_register & 0x00FFFFFFUL);
+        }
+    }
+
+    return WarningService_UpdateSource(
+        g_adc_warning_sources[category_index],
+        device_mask != 0U,
+        (uint16_t)(((uint16_t)subcause << 8U) | device_mask),
+        g_system_timestamp_ms, 0U, g_adc_fault_event_id, values);
+}
+
+static bool ProcessAdcFaults(void)
 {
     static const uint16_t categories[6U] =
     {
@@ -109,6 +192,7 @@ static void ProcessAdcFaults(void)
     uint8_t stale_mask = 0U;
     uint8_t device;
     uint8_t category;
+    bool result = true;
 
     for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
     {
@@ -145,23 +229,103 @@ static void ProcessAdcFaults(void)
     {
         RaiseAdcCategoryFault(category, codes[category],
                               device_masks[category], subcauses[category]);
+        result = UpdateAdcCategoryWarning(
+            category, device_masks[category], subcauses[category]) && result;
     }
     RaiseAdcCategoryFault(6U, FAULT_CODE_ADC_STALE_OFFLINE,
                           stale_mask, 0U);
+    result = UpdateAdcCategoryWarning(6U, stale_mask, 0U) && result;
+    return result;
 }
 
-static void ProcessMcuTemperatureSafety(void)
+static bool ProcessMcuTemperatureSafety(void)
 {
     BspInternalAdcMcuTemperature_t temperature;
+    int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+    bool active;
 
     if (!BspInternalAdc_GetMcuTemperature(&temperature))
     {
-        return;
+        return true;
     }
     ProductMcuTemperatureSafety_Process(
         temperature.valid,
         temperature.overtemperature,
         temperature.temperature_centi_c);
+    if (!temperature.valid)
+    {
+        return true;
+    }
+
+    values[0] = temperature.temperature_centi_c;
+    active = temperature.overtemperature ||
+        FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE);
+    return UpdateSystemSafetySource(
+        SAFETY_SOURCE_MCU_OVERTEMPERATURE,
+        active,
+        (temperature.temperature_centi_c <= 0) ? 0U :
+        ((temperature.temperature_centi_c >= (int32_t)UINT16_MAX) ?
+         UINT16_MAX : (uint16_t)temperature.temperature_centi_c),
+        values);
+}
+
+static bool ProcessLowVoltageSafety(void)
+{
+    ProductLowVoltageSnapshot_t snapshot;
+    int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+
+    ProductLowVoltageSafety_Process();
+    if (!ProductLowVoltageSafety_GetSnapshot(&snapshot))
+    {
+        return false;
+    }
+
+    values[0] = snapshot.raw_active ? 1L : 0L;
+    values[1] = (int32_t)snapshot.interrupt_count;
+    values[2] = (int32_t)snapshot.revision;
+    return UpdateSystemSafetySource(
+        SAFETY_SOURCE_LOW_VOLTAGE,
+        snapshot.confirmed_active || snapshot.fault_active,
+        snapshot.raw_active ? 1U : 0U,
+        values);
+}
+
+static bool ProductSystemFastMonitor(uint32_t timestamp_ms, void *context)
+{
+    bool result = true;
+
+    (void)timestamp_ms;
+    (void)context;
+    if (g_low_voltage_due)
+    {
+        g_low_voltage_due = false;
+        result = ProcessLowVoltageSafety() && result;
+    }
+    result = ProcessMcuTemperatureSafety() && result;
+    return result;
+}
+
+static bool ProductSystemControlMonitor(uint32_t timestamp_ms, void *context)
+{
+    (void)timestamp_ms;
+    (void)context;
+    return ProcessAdcFaults();
+}
+
+static bool ConfigureAdcWarnings(void)
+{
+    const WarningSourceConfiguration_t configuration = {1U, 1U, false};
+    uint8_t category;
+
+    for (category = 0U; category < 7U; category++)
+    {
+        if (!WarningService_ConfigureSource(
+                g_adc_warning_sources[category], &configuration))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool IsPwmOutputInhibited(uint8_t channel, void *context)
@@ -173,10 +337,29 @@ static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 bool ProductApplication_Init(void)
 {
     AnalogInputStatus_t adc_status;
+    SystemRoutineConfiguration_t system_routine_configuration;
     uint8_t adc_device;
     uint8_t adc_route_count;
 
-    FaultService_Initialize();
+    (void)memset(&system_routine_configuration, 0,
+                 sizeof(system_routine_configuration));
+    system_routine_configuration.safety_latching_source_mask =
+        SAFETY_SOURCE_MCU_OVERTEMPERATURE |
+        SAFETY_SOURCE_LOW_VOLTAGE;
+    system_routine_configuration.safety_output_action =
+        ApplySystemSafetyOutput;
+    system_routine_configuration.fast_monitor =
+        ProductSystemFastMonitor;
+    system_routine_configuration.control_monitor =
+        ProductSystemControlMonitor;
+    if (!SystemRoutine_Initialize(&system_routine_configuration))
+    {
+        return false;
+    }
+    if (!ConfigureAdcWarnings())
+    {
+        return false;
+    }
     FactoryModeService_Initialize();
     FactoryCalibrationService_Initialize();
 
@@ -316,6 +499,7 @@ bool ProductApplication_Init(void)
     (void)memset(g_adc_last_fault_device_mask, 0,
                  sizeof(g_adc_last_fault_device_mask));
     g_adc_fault_event_id = 0U;
+    g_system_timestamp_ms = 0U;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
     return true;
@@ -323,6 +507,7 @@ bool ProductApplication_Init(void)
 
 void ProductApplication_Tick1ms(void)
 {
+    g_system_timestamp_ms++;
     ProductStatusLed_Tick1ms();
     g_digital_input_due = true;
 
@@ -386,18 +571,13 @@ void ProductApplication_Process(void)
         g_dip_switch_due = false;
         (void)ProductDipSwitchDriver_Process();
     }
-    if (g_low_voltage_due)
-    {
-        g_low_voltage_due = false;
-        ProductLowVoltageSafety_Process();
-    }
     if (g_rotary_switch_due)
     {
         g_rotary_switch_due = false;
         ProductRotarySwitchDriver_Process();
     }
     BspInternalAdc_Process();
-    ProcessMcuTemperatureSafety();
+    (void)SystemRoutine_ExecuteFast(g_system_timestamp_ms);
     if (g_cjc_due)
     {
         g_cjc_due = false;
@@ -458,7 +638,7 @@ void ProductApplication_Process(void)
             }
         }
     }
-    ProcessAdcFaults();
+    (void)SystemRoutine_ExecuteControl(g_system_timestamp_ms);
     for (input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
     {
         AnalogInputSample_t sample;

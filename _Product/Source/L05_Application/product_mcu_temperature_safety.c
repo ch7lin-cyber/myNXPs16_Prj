@@ -3,8 +3,6 @@
 #include <stdint.h>
 
 #include "FaultService.h"
-#include "ProductSafetyConfig.h"
-#include "SafetyConfigurationEventConsumer.h"
 
 static uint16_t TemperatureToFaultDetail(int32_t temperature_centi_c)
 {
@@ -21,8 +19,7 @@ static uint16_t TemperatureToFaultDetail(int32_t temperature_centi_c)
 
 void ProductMcuTemperatureSafety_Initialize(void)
 {
-    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
-        PRODUCT_SAFETY_INHIBIT_MCU_OVERTEMPERATURE, false);
+    /* FaultService and SafetyService are initialized by SystemRoutine. */
 }
 
 void ProductMcuTemperatureSafety_Process(
@@ -30,27 +27,18 @@ void ProductMcuTemperatureSafety_Process(
     bool overtemperature,
     int32_t temperature_centi_c)
 {
-    bool fault_active;
-
     if (!sample_valid)
     {
         return;
     }
 
-    fault_active = FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE);
-    if (overtemperature && !fault_active)
+    if (overtemperature &&
+        !FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE))
     {
         (void)FaultService_Raise(
             FAULT_CODE_MCU_OVERTEMPERATURE,
             TemperatureToFaultDetail(temperature_centi_c),
             0U,
             0U);
-        fault_active = FaultService_IsActive(
-            FAULT_CODE_MCU_OVERTEMPERATURE);
     }
-
-    /* Cooling alone cannot restart an output: the fault is operator-latched. */
-    (void)SafetyConfigurationEventConsumer_UpdateGlobalOutputInhibit(
-        PRODUCT_SAFETY_INHIBIT_MCU_OVERTEMPERATURE,
-        overtemperature || fault_active);
 }
