@@ -66,7 +66,7 @@ static void RaiseAndProcess(uint8_t input, uint16_t sensor_type)
         input, 1U,
         EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE,
         &old_config, &new_config, &event_id));
-    assert(ProductSensorConfigurationConsumer_Process(input));
+    assert(ProductSensorConfigurationConsumer_Process(input, 0U));
     assert(!EventService_IsTemperatureInputConfigurationChangedPending(input));
 }
 

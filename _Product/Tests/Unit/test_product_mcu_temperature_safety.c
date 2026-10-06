@@ -12,22 +12,22 @@ int main(void)
     FaultService_Initialize();
     ProductMcuTemperatureSafety_Initialize();
 
-    ProductMcuTemperatureSafety_Process(true, false, 8400);
+    ProductMcuTemperatureSafety_Process(true, false, 8400, 1U);
     assert(!FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));
 
-    ProductMcuTemperatureSafety_Process(true, true, 8512);
+    ProductMcuTemperatureSafety_Process(true, true, 8512, 2U);
     assert(FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));
     assert(FaultService_Get(FAULT_CODE_MCU_OVERTEMPERATURE, &record));
     assert(record.last_detail == 8512U);
 
-    ProductMcuTemperatureSafety_Process(true, false, 8200);
+    ProductMcuTemperatureSafety_Process(true, false, 8200, 3U);
     assert(FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));
 
     assert(FaultService_Clear(FAULT_CODE_MCU_OVERTEMPERATURE));
-    ProductMcuTemperatureSafety_Process(true, false, 8200);
+    ProductMcuTemperatureSafety_Process(true, false, 8200, 4U);
     assert(!FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));
 
-    ProductMcuTemperatureSafety_Process(true, true, 8600);
+    ProductMcuTemperatureSafety_Process(true, true, 8600, 5U);
     assert(FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE));
     return 0;
 }

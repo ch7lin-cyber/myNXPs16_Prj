@@ -6,6 +6,7 @@
 #include "AnalogInputService.h"
 #include "EventService.h"
 #include "FaultService.h"
+#include "SystemFaultService.h"
 #include "ProductAdcConfig.h"
 #include "product_temperature_input_types.h"
 
@@ -187,7 +188,8 @@ void ProductSensorConfigurationConsumer_Initialize(void)
                  sizeof(g_runtime_configuration));
 }
 
-bool ProductSensorConfigurationConsumer_Process(uint8_t channel)
+bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
+                                                uint32_t timestamp_ms)
 {
     TemperatureInputConfigurationChangedEvent_t event;
     AnalogInputStatus_t status;
@@ -219,12 +221,20 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel)
         !AnalogInputService_SetInputSensorClass(
             channel, SensorClass(event.new_configuration.sensor_type)))
     {
-        (void)FaultService_Raise(
+        int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+
+        values[0] = channel;
+        values[1] = (int32_t)status;
+        values[2] = event.new_configuration.sensor_type;
+        (void)SystemFaultService_Raise(
             FAULT_CODE_ANALOG_INPUT_RECONFIGURE_FAILED,
-            (uint16_t)status, event.configuration_revision, event.event_id);
+            (uint16_t)status, event.configuration_revision, event.event_id,
+            timestamp_ms, values);
         return false;
     }
 
-    (void)FaultService_Clear(FAULT_CODE_ANALOG_INPUT_RECONFIGURE_FAILED);
+    (void)SystemFaultService_ClearRecovered(
+        FAULT_CODE_ANALOG_INPUT_RECONFIGURE_FAILED,
+        timestamp_ms, event.event_id);
     return EventService_Acknowledge(event.event_id, EVENT_ACK_ANALOG_INPUT);
 }

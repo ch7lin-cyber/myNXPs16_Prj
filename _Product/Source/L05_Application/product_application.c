@@ -17,6 +17,7 @@
 #include "SafetyConfigurationEventConsumer.h"
 #include "SafetyService.h"
 #include "SnapshotService.h"
+#include "SystemFaultService.h"
 #include "SystemRoutine.h"
 #include "WarningService.h"
 #include "product_temperature_range_resolver.h"
@@ -98,24 +99,40 @@ static bool UpdateSystemSafetySource(
     uint16_t detail,
     const int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT])
 {
-    bool result = SafetyService_UpdateSource(
+    return SafetyService_UpdateSource(
         source_mask, active, detail, g_system_timestamp_ms,
         0U, 0U, values);
-
-    if (!active)
-    {
-        SafetyResetResult_t reset_result = SafetyService_Reset(source_mask);
-
-        result = ((reset_result == SAFETY_RESET_OK) ||
-                  (reset_result == SAFETY_RESET_BLOCKED_ACTIVE)) && result;
-    }
-    return result;
 }
 
 static uint8_t FoldAdcErrorRegister(uint32_t error_register)
 {
     return (uint8_t)(error_register ^ (error_register >> 8U) ^
                      (error_register >> 16U));
+}
+
+static void FillAdcDiagnosticValues(
+    uint8_t category_index,
+    uint8_t device_mask,
+    uint8_t subcause,
+    int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT])
+{
+    uint8_t device;
+
+    (void)memset(values, 0,
+                 sizeof(int32_t) * SNAPSHOT_SERVICE_VALUE_COUNT);
+    values[0] = (int32_t)device_mask;
+    values[1] = (int32_t)subcause;
+    values[6] = (int32_t)category_index;
+    for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
+    {
+        ProductAdcDriverDiagnostics_t diagnostics;
+
+        if (ProductAdcDriver_GetDiagnostics(device, &diagnostics))
+        {
+            values[2U + device] =
+                (int32_t)(diagnostics.last_error_register & 0x00FFFFFFUL);
+        }
+    }
 }
 
 static void RaiseAdcCategoryFault(uint8_t category_index,
@@ -133,8 +150,14 @@ static void RaiseAdcCategoryFault(uint8_t category_index,
     {
         uint16_t detail = (uint16_t)(((uint16_t)subcause << 8U) |
                                      device_mask);
+        int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT];
+
+        FillAdcDiagnosticValues(category_index, device_mask,
+                                subcause, values);
         g_adc_fault_event_id++;
-        (void)FaultService_Raise(code, detail, 0U, g_adc_fault_event_id);
+        (void)SystemFaultService_Raise(
+            code, detail, 0U, g_adc_fault_event_id,
+            g_system_timestamp_ms, values);
         g_adc_last_fault_device_mask[category_index] = device_mask;
     }
 }
@@ -144,21 +167,8 @@ static bool UpdateAdcCategoryWarning(uint8_t category_index,
                                      uint8_t subcause)
 {
     int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
-    uint8_t device;
-
-    values[0] = (int32_t)device_mask;
-    values[1] = (int32_t)subcause;
-    values[6] = (int32_t)category_index;
-    for (device = 0U; device < HAL_ADC_DEVICE_COUNT; device++)
-    {
-        ProductAdcDriverDiagnostics_t diagnostics;
-
-        if (ProductAdcDriver_GetDiagnostics(device, &diagnostics))
-        {
-            values[2U + device] =
-                (int32_t)(diagnostics.last_error_register & 0x00FFFFFFUL);
-        }
-    }
+    FillAdcDiagnosticValues(category_index, device_mask,
+                            subcause, values);
 
     return WarningService_UpdateSource(
         g_adc_warning_sources[category_index],
@@ -251,15 +261,15 @@ static bool ProcessMcuTemperatureSafety(void)
     ProductMcuTemperatureSafety_Process(
         temperature.valid,
         temperature.overtemperature,
-        temperature.temperature_centi_c);
+        temperature.temperature_centi_c,
+        g_system_timestamp_ms);
     if (!temperature.valid)
     {
         return true;
     }
 
     values[0] = temperature.temperature_centi_c;
-    active = temperature.overtemperature ||
-        FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE);
+    active = temperature.overtemperature;
     return UpdateSystemSafetySource(
         SAFETY_SOURCE_MCU_OVERTEMPERATURE,
         active,
@@ -274,7 +284,7 @@ static bool ProcessLowVoltageSafety(void)
     ProductLowVoltageSnapshot_t snapshot;
     int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
 
-    ProductLowVoltageSafety_Process();
+    ProductLowVoltageSafety_Process(g_system_timestamp_ms);
     if (!ProductLowVoltageSafety_GetSnapshot(&snapshot))
     {
         return false;
@@ -285,7 +295,7 @@ static bool ProcessLowVoltageSafety(void)
     values[2] = (int32_t)snapshot.revision;
     return UpdateSystemSafetySource(
         SAFETY_SOURCE_LOW_VOLTAGE,
-        snapshot.confirmed_active || snapshot.fault_active,
+        snapshot.confirmed_active,
         snapshot.raw_active ? 1U : 0U,
         values);
 }
@@ -424,7 +434,7 @@ bool ProductApplication_Init(void)
     }
     ProductMcuTemperatureSafety_Initialize();
     ProductLowVoltageSafety_Initialize();
-    ProductLowVoltageSafety_Process();
+    ProductLowVoltageSafety_Process(0U);
     ProductSensorConfigurationConsumer_Initialize();
     ProductSensorMeasurementService_Initialize();
     ProductDipSwitchDriver_Initialize();
@@ -508,6 +518,7 @@ bool ProductApplication_Init(void)
 void ProductApplication_Tick1ms(void)
 {
     g_system_timestamp_ms++;
+    ProductModbusRegisterAdapter_SetSystemTimestamp(g_system_timestamp_ms);
     ProductStatusLed_Tick1ms();
     g_digital_input_due = true;
 
@@ -652,7 +663,8 @@ void ProductApplication_Process(void)
          input < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
          input++)
     {
-        (void)ProductSensorConfigurationConsumer_Process(input);
+        (void)ProductSensorConfigurationConsumer_Process(
+            input, g_system_timestamp_ms);
         (void)ProductSensorMeasurementService_Process(input);
         (void)AlarmConfigurationEventConsumer_Process(input);
         (void)SafetyConfigurationEventConsumer_Process(input);
@@ -664,7 +676,8 @@ void ProductApplication_Process(void)
              input < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
              input++)
         {
-            (void)NvmConfigurationEventConsumer_Process(input);
+            (void)NvmConfigurationEventConsumer_Process(
+                input, g_system_timestamp_ms);
         }
     }
 

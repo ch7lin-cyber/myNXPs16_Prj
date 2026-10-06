@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "FaultService.h"
+#include "SystemFaultService.h"
 
 static uint16_t TemperatureToFaultDetail(int32_t temperature_centi_c)
 {
@@ -25,7 +26,8 @@ void ProductMcuTemperatureSafety_Initialize(void)
 void ProductMcuTemperatureSafety_Process(
     bool sample_valid,
     bool overtemperature,
-    int32_t temperature_centi_c)
+    int32_t temperature_centi_c,
+    uint32_t timestamp_ms)
 {
     if (!sample_valid)
     {
@@ -35,10 +37,15 @@ void ProductMcuTemperatureSafety_Process(
     if (overtemperature &&
         !FaultService_IsActive(FAULT_CODE_MCU_OVERTEMPERATURE))
     {
-        (void)FaultService_Raise(
+        int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+
+        values[0] = temperature_centi_c;
+        (void)SystemFaultService_Raise(
             FAULT_CODE_MCU_OVERTEMPERATURE,
             TemperatureToFaultDetail(temperature_centi_c),
             0U,
-            0U);
+            0U,
+            timestamp_ms,
+            values);
     }
 }

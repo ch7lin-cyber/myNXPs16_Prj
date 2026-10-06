@@ -10,6 +10,11 @@
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
 #include "FaultService.h"
+#include "SafetyService.h"
+#include "SystemFaultService.h"
+#include "SnapshotService.h"
+#include "SystemEventService.h"
+#include "WarningService.h"
 #include "ModbusRegisterAdapter.h"
 #include "PwmOutputService.h"
 #include "DigitalInputService.h"
@@ -42,6 +47,12 @@ typedef struct _product_modbus_register_context
     uint16_t
         configurationRevision[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     uint16_t diagnosticFaultIndex;
+    uint16_t diagnosticResetResult;
+    uint16_t diagnosticResetLastCode;
+    uint32_t diagnosticResetTimestampMs;
+    uint32_t systemTimestampMs;
+    uint16_t systemEventIndex;
+    uint16_t snapshotIndex;
     bool pendingDirty[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     product_pwm_output_config_t
         activePwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
@@ -115,6 +126,7 @@ static product_modbus_register_context_t s_registerContext =
     .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE,
     .pendingDigitalOutputMask = 0U,
     .digitalOutputPendingMask = 0U,
+    .diagnosticResetResult = PRODUCT_DIAGNOSTICS_RESET_RESULT_READY,
     .lowVoltageMonitor =
     {
         0U, 0U, PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_NOT_INITIALIZED,
@@ -470,6 +482,45 @@ static bool IsAdcDiagnosticsRangeValid(uint16_t startingAddress,
             PRODUCT_MODBUS_ADC_DIAGNOSTICS_LAST_ADDRESS);
 }
 
+static bool IsSystemStatusRangeValid(uint16_t startingAddress,
+                                     uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_SYSTEM_STATUS_LAST_ADDRESS);
+}
+
+static bool IsSystemEventRangeValid(uint16_t startingAddress,
+                                    uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_SYSTEM_EVENT_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_SYSTEM_EVENT_LAST_ADDRESS);
+}
+
+static bool IsSnapshotRangeValid(uint16_t startingAddress,
+                                 uint16_t quantity)
+{
+    uint32_t endingAddress;
+    if (quantity == 0U)
+    {
+        return false;
+    }
+    endingAddress = (uint32_t)startingAddress + quantity - 1UL;
+    return (startingAddress >= PRODUCT_MODBUS_SNAPSHOT_BASE_ADDRESS) &&
+           (endingAddress <= PRODUCT_MODBUS_SNAPSHOT_LAST_ADDRESS);
+}
+
 static void Uint32ToRegisters(uint32_t value, uint16_t *high, uint16_t *low)
 {
     *high = (uint16_t)(value >> 16U);
@@ -506,7 +557,7 @@ static void BuildDiagnosticsImage(
 {
     FaultRecord_t fault;
 
-    (void)memset(registers, 0, 11U * sizeof(registers[0]));
+    (void)memset(registers, 0, 15U * sizeof(registers[0]));
     registers[0] = FaultService_GetActiveCount();
     registers[1] = registerContext->diagnosticFaultIndex;
 
@@ -521,7 +572,101 @@ static void BuildDiagnosticsImage(
         Uint32ToRegisters(fault.occurrence_count,
                           &registers[7], &registers[8]);
     }
-    /* Clear Code and Clear Key are write-only and always read as zero. */
+    /* Reset Code and Reset Key are write-only and always read as zero. */
+    registers[11] = registerContext->diagnosticResetResult;
+    registers[12] = registerContext->diagnosticResetLastCode;
+    Uint32ToRegisters(registerContext->diagnosticResetTimestampMs,
+                      &registers[13], &registers[14]);
+}
+
+static void BuildSystemStatusImage(uint16_t *registers)
+{
+    WarningServiceStatus_t warning;
+    SafetyServiceStatus_t safety;
+    SystemEventRecord_t event;
+    SnapshotRecord_t snapshot;
+
+    (void)memset(registers, 0, 16U * sizeof(registers[0]));
+    if (WarningService_GetStatus(&warning))
+    {
+        Uint32ToRegisters(warning.warning_source_mask,
+                          &registers[0], &registers[1]);
+    }
+    if (SafetyService_GetStatus(&safety))
+    {
+        Uint32ToRegisters(safety.active_source_mask,
+                          &registers[2], &registers[3]);
+        Uint32ToRegisters(safety.latched_source_mask,
+                          &registers[4], &registers[5]);
+        Uint32ToRegisters(safety.trip_source_mask,
+                          &registers[6], &registers[7]);
+        registers[14] = (uint16_t)safety.state;
+        registers[15] = safety.output_inhibited ? 1U : 0U;
+    }
+    registers[8] = SystemEventService_GetCount();
+    registers[9] = SnapshotService_GetCount();
+    if (SystemEventService_GetNewest(0U, &event))
+    {
+        Uint32ToRegisters(event.sequence, &registers[10], &registers[11]);
+    }
+    if (SnapshotService_GetNewest(0U, &snapshot))
+    {
+        Uint32ToRegisters(snapshot.sequence,
+                          &registers[12], &registers[13]);
+    }
+}
+
+static void BuildSystemEventImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    SystemEventRecord_t event;
+
+    (void)memset(registers, 0, 12U * sizeof(registers[0]));
+    registers[0] = registerContext->systemEventIndex;
+    if (SystemEventService_GetOldest(
+            registerContext->systemEventIndex, &event))
+    {
+        Uint32ToRegisters(event.sequence, &registers[1], &registers[2]);
+        Uint32ToRegisters(event.timestamp_ms,
+                          &registers[3], &registers[4]);
+        registers[5] = (uint16_t)event.domain;
+        registers[6] = (uint16_t)event.state;
+        registers[7] = event.code;
+        registers[8] = event.detail;
+        registers[9] = event.configuration_revision;
+        Uint32ToRegisters(event.correlation_event_id,
+                          &registers[10], &registers[11]);
+    }
+}
+
+static void BuildSnapshotImage(
+    const product_modbus_register_context_t *registerContext,
+    uint16_t *registers)
+{
+    SnapshotRecord_t snapshot;
+    uint16_t value;
+
+    (void)memset(registers, 0, 27U * sizeof(registers[0]));
+    registers[0] = registerContext->snapshotIndex;
+    if (SnapshotService_GetOldest(registerContext->snapshotIndex, &snapshot))
+    {
+        Uint32ToRegisters(snapshot.sequence, &registers[1], &registers[2]);
+        Uint32ToRegisters(snapshot.timestamp_ms,
+                          &registers[3], &registers[4]);
+        registers[5] = (uint16_t)snapshot.source;
+        registers[6] = snapshot.code;
+        registers[7] = snapshot.detail;
+        registers[8] = snapshot.configuration_revision;
+        Uint32ToRegisters(snapshot.event_id,
+                          &registers[9], &registers[10]);
+        for (value = 0U; value < SNAPSHOT_SERVICE_VALUE_COUNT; value++)
+        {
+            Int32ToRegisters(snapshot.values[value],
+                             &registers[11U + (value * 2U)],
+                             &registers[12U + (value * 2U)]);
+        }
+    }
 }
 
 static uint16_t ReadAdcDiagnosticValue(
@@ -875,7 +1020,10 @@ static ModbusExceptionCode_t ReadRegisters(
     uint16_t registerImage[10];
     uint16_t versionImage[9];
     uint16_t factoryImage[14];
-    uint16_t diagnosticsImage[11];
+    uint16_t diagnosticsImage[15];
+    uint16_t systemStatusImage[16];
+    uint16_t systemEventImage[12];
+    uint16_t snapshotImage[27];
     uint16_t factoryFramImage[13];
     uint16_t pwmImage[15];
     uint16_t dacImage[9];
@@ -946,9 +1094,36 @@ static ModbusExceptionCode_t ReadRegisters(
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
+    if (IsSystemStatusRangeValid(starting_address, quantity))
+    {
+        BuildSystemStatusImage(systemStatusImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS);
+        (void)memcpy(values, &systemStatusImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
     if (IsAdcDiagnosticsRangeValid(starting_address, quantity))
     {
         return ReadAdcDiagnostics(starting_address, quantity, values);
+    }
+    if (IsSystemEventRangeValid(starting_address, quantity))
+    {
+        BuildSystemEventImage(registerContext, systemEventImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_SYSTEM_EVENT_BASE_ADDRESS);
+        (void)memcpy(values, &systemEventImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (IsSnapshotRangeValid(starting_address, quantity))
+    {
+        BuildSnapshotImage(registerContext, snapshotImage);
+        sourceOffset = (uint16_t)(starting_address -
+                                 PRODUCT_MODBUS_SNAPSHOT_BASE_ADDRESS);
+        (void)memcpy(values, &snapshotImage[sourceOffset],
+                     (size_t)quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
     }
     if (IsPwmRangeValid(starting_address, quantity))
     {
@@ -1573,6 +1748,24 @@ static ModbusExceptionCode_t WriteSingleRegister(
         registerContext->diagnosticFaultIndex = value;
         return MODBUS_EXCEPTION_NONE;
     }
+    if (address == PRODUCT_MODBUS_SYSTEM_EVENT_INDEX_ADDRESS)
+    {
+        if (value >= SystemEventService_GetCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->systemEventIndex = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if (address == PRODUCT_MODBUS_SNAPSHOT_INDEX_ADDRESS)
+    {
+        if (value >= SnapshotService_GetCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->snapshotIndex = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
 
     if ((address >= PRODUCT_MODBUS_PWM_BASE_ADDRESS) &&
         (address < PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS))
@@ -1841,18 +2034,55 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return ExecuteFactoryFramCommand(values[0]);
     }
 
-    if ((starting_address == PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS) &&
+    if ((starting_address == PRODUCT_MODBUS_DIAGNOSTICS_RESET_CODE_ADDRESS) &&
         (quantity == 2U))
     {
         FaultCode_t code = (FaultCode_t)values[0];
-        if ((values[1] != PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE) ||
-            !FaultService_IsActive(code))
+        uint32_t safety_source_mask = 0U;
+        SystemFaultResetResult_t reset_result;
+
+        registerContext->diagnosticResetLastCode = values[0];
+        registerContext->diagnosticResetTimestampMs =
+            registerContext->systemTimestampMs;
+        if (values[1] != PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE)
         {
+            registerContext->diagnosticResetResult =
+                PRODUCT_DIAGNOSTICS_RESET_RESULT_INVALID_KEY;
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
-        if (!FaultService_Clear(code))
+        if (code == FAULT_CODE_MCU_OVERTEMPERATURE)
         {
-            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            safety_source_mask = SAFETY_SOURCE_MCU_OVERTEMPERATURE;
+        }
+        else if (code == FAULT_CODE_LOW_VOLTAGE)
+        {
+            safety_source_mask = SAFETY_SOURCE_LOW_VOLTAGE;
+        }
+
+        reset_result = SystemFaultService_Reset(
+            code, safety_source_mask, registerContext->systemTimestampMs, 0U);
+        switch (reset_result)
+        {
+            case SYSTEM_FAULT_RESET_OK:
+                registerContext->diagnosticResetResult =
+                    PRODUCT_DIAGNOSTICS_RESET_RESULT_SUCCESS;
+                break;
+            case SYSTEM_FAULT_RESET_NOT_ACTIVE:
+                registerContext->diagnosticResetResult =
+                    PRODUCT_DIAGNOSTICS_RESET_RESULT_NOT_ACTIVE;
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            case SYSTEM_FAULT_RESET_CONDITION_ACTIVE:
+                registerContext->diagnosticResetResult =
+                    PRODUCT_DIAGNOSTICS_RESET_RESULT_CONDITION_ACTIVE;
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            case SYSTEM_FAULT_RESET_INVALID_ARGUMENT:
+                registerContext->diagnosticResetResult =
+                    PRODUCT_DIAGNOSTICS_RESET_RESULT_INVALID_CODE;
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            default:
+                registerContext->diagnosticResetResult =
+                    PRODUCT_DIAGNOSTICS_RESET_RESULT_FAILED;
+                return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
         }
         if (registerContext->diagnosticFaultIndex >=
             FaultService_GetActiveCount())
@@ -1870,6 +2100,26 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
         }
         registerContext->diagnosticFaultIndex = values[0];
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if ((starting_address == PRODUCT_MODBUS_SYSTEM_EVENT_INDEX_ADDRESS) &&
+        (quantity == 1U))
+    {
+        if (values[0] >= SystemEventService_GetCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->systemEventIndex = values[0];
+        return MODBUS_EXCEPTION_NONE;
+    }
+    if ((starting_address == PRODUCT_MODBUS_SNAPSHOT_INDEX_ADDRESS) &&
+        (quantity == 1U))
+    {
+        if (values[0] >= SnapshotService_GetCount())
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->snapshotIndex = values[0];
         return MODBUS_EXCEPTION_NONE;
     }
 
@@ -1938,6 +2188,11 @@ void ProductModbusRegisterAdapter_GetInterface(
         interface->write_multiple_registers = WriteMultipleRegisters;
         interface->context = &s_registerContext;
     }
+}
+
+void ProductModbusRegisterAdapter_SetSystemTimestamp(uint32_t timestamp_ms)
+{
+    s_registerContext.systemTimestampMs = timestamp_ms;
 }
 
 bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(

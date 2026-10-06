@@ -201,10 +201,19 @@ typedef struct _product_low_voltage_monitor
 #define PRODUCT_MODBUS_DIAGNOSTICS_FAULT_REVISION_ADDRESS     (0x4804U)
 #define PRODUCT_MODBUS_DIAGNOSTICS_EVENT_ID_ADDRESS           (0x4805U)
 #define PRODUCT_MODBUS_DIAGNOSTICS_OCCURRENCE_COUNT_ADDRESS   (0x4807U)
-#define PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS         (0x4809U)
-#define PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_KEY_ADDRESS          (0x480AU)
-#define PRODUCT_MODBUS_DIAGNOSTICS_LAST_USED_ADDRESS          (0x480AU)
+#define PRODUCT_MODBUS_DIAGNOSTICS_RESET_CODE_ADDRESS         (0x4809U)
+#define PRODUCT_MODBUS_DIAGNOSTICS_RESET_KEY_ADDRESS          (0x480AU)
+#define PRODUCT_MODBUS_DIAGNOSTICS_RESET_RESULT_ADDRESS       (0x480BU)
+#define PRODUCT_MODBUS_DIAGNOSTICS_RESET_LAST_CODE_ADDRESS    (0x480CU)
+#define PRODUCT_MODBUS_DIAGNOSTICS_RESET_TIME_ADDRESS         (0x480DU)
+#define PRODUCT_MODBUS_DIAGNOSTICS_LAST_USED_ADDRESS          (0x480EU)
 #define PRODUCT_MODBUS_DIAGNOSTICS_RESERVED_LAST_ADDRESS      (0x48FFU)
+
+/* Backward-compatible names; Clear now uses the validated Reset path. */
+#define PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS \
+    PRODUCT_MODBUS_DIAGNOSTICS_RESET_CODE_ADDRESS
+#define PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_KEY_ADDRESS \
+    PRODUCT_MODBUS_DIAGNOSTICS_RESET_KEY_ADDRESS
 
 /* Four read-only AD7124 diagnostic blocks, 0x40 registers per device. */
 #define PRODUCT_MODBUS_ADC_DIAGNOSTICS_BASE_ADDRESS           (0x4820U)
@@ -216,7 +225,54 @@ typedef struct _product_low_voltage_monitor
 #define PRODUCT_MODBUS_ADC3_DIAGNOSTICS_BASE_ADDRESS          (0x48E0U)
 #define PRODUCT_MODBUS_ADC_DIAGNOSTICS_LAST_ADDRESS           (0x4914U)
 
+/* SystemRoutine live summary. All values are read-only. */
+#define PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS             (0x4810U)
+#define PRODUCT_MODBUS_WARNING_MASK_ADDRESS                   (0x4810U)
+#define PRODUCT_MODBUS_SAFETY_ACTIVE_MASK_ADDRESS             (0x4812U)
+#define PRODUCT_MODBUS_SAFETY_LATCHED_MASK_ADDRESS            (0x4814U)
+#define PRODUCT_MODBUS_SAFETY_TRIP_MASK_ADDRESS               (0x4816U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_COUNT_ADDRESS             (0x4818U)
+#define PRODUCT_MODBUS_SNAPSHOT_COUNT_ADDRESS                 (0x4819U)
+#define PRODUCT_MODBUS_LATEST_EVENT_SEQUENCE_ADDRESS          (0x481AU)
+#define PRODUCT_MODBUS_LATEST_SNAPSHOT_SEQUENCE_ADDRESS       (0x481CU)
+#define PRODUCT_MODBUS_SAFETY_STATE_ADDRESS                   (0x481EU)
+#define PRODUCT_MODBUS_SAFETY_INHIBITED_ADDRESS               (0x481FU)
+#define PRODUCT_MODBUS_SYSTEM_STATUS_LAST_ADDRESS             (0x481FU)
+
+/* Runtime Event browser; selection index zero is the oldest retained event. */
+#define PRODUCT_MODBUS_SYSTEM_EVENT_BASE_ADDRESS              (0x4920U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_INDEX_ADDRESS             (0x4920U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_SEQUENCE_ADDRESS          (0x4921U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_TIMESTAMP_ADDRESS         (0x4923U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_DOMAIN_ADDRESS            (0x4925U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_STATE_ADDRESS             (0x4926U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_CODE_ADDRESS              (0x4927U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_DETAIL_ADDRESS            (0x4928U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_REVISION_ADDRESS          (0x4929U)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_CORRELATION_ADDRESS       (0x492AU)
+#define PRODUCT_MODBUS_SYSTEM_EVENT_LAST_ADDRESS              (0x492BU)
+
+/* Snapshot browser; selection index zero is the oldest retained snapshot. */
+#define PRODUCT_MODBUS_SNAPSHOT_BASE_ADDRESS                  (0x4940U)
+#define PRODUCT_MODBUS_SNAPSHOT_INDEX_ADDRESS                 (0x4940U)
+#define PRODUCT_MODBUS_SNAPSHOT_SEQUENCE_ADDRESS              (0x4941U)
+#define PRODUCT_MODBUS_SNAPSHOT_TIMESTAMP_ADDRESS             (0x4943U)
+#define PRODUCT_MODBUS_SNAPSHOT_SOURCE_ADDRESS                (0x4945U)
+#define PRODUCT_MODBUS_SNAPSHOT_CODE_ADDRESS                  (0x4946U)
+#define PRODUCT_MODBUS_SNAPSHOT_DETAIL_ADDRESS                (0x4947U)
+#define PRODUCT_MODBUS_SNAPSHOT_REVISION_ADDRESS              (0x4948U)
+#define PRODUCT_MODBUS_SNAPSHOT_EVENT_ID_ADDRESS              (0x4949U)
+#define PRODUCT_MODBUS_SNAPSHOT_VALUES_ADDRESS                (0x494BU)
+#define PRODUCT_MODBUS_SNAPSHOT_LAST_ADDRESS                  (0x495AU)
+
 #define PRODUCT_DIAGNOSTICS_CLEAR_KEY_VALUE                   (0xC1EAU)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_READY                (0U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_SUCCESS              (1U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_NOT_ACTIVE           (2U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_CONDITION_ACTIVE     (3U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_INVALID_CODE         (4U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_FAILED               (5U)
+#define PRODUCT_DIAGNOSTICS_RESET_RESULT_INVALID_KEY          (6U)
 
 typedef struct _product_temperature_input_monitor
 {
@@ -234,6 +290,9 @@ typedef struct _product_temperature_input_config
 /* Build the product register callback table used by ModbusSlave. */
 void ProductModbusRegisterAdapter_GetInterface(
     ModbusSlaveRegisterInterface_t *interface);
+
+/* Supplies the monotonic application time used by diagnostic commands. */
+void ProductModbusRegisterAdapter_SetSystemTimestamp(uint32_t timestamp_ms);
 
 /* Update read-only monitor registers from the L3 sensor service. */
 bool ProductModbusRegisterAdapter_SetTemperatureInputMonitor(

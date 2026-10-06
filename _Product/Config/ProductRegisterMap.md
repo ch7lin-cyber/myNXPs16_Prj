@@ -192,8 +192,7 @@ The external `LV` signal is read from PIO1_31 and routed to PINT0. The default
 configuration treats a high level as low voltage. Three consecutive 1 ms
 samples assert the condition; 100 consecutive inactive samples release the
 live condition. Assertion raises latched fault `0x0202` and applies a global
-PWM safety inhibit. Clearing the fault while LV remains active causes it to be
-raised again on the next application cycle.
+PWM safety inhibit. A Reset request is rejected while LV remains active.
 
 | Address | Access | Meaning |
 |---|---|---|
@@ -207,6 +206,87 @@ raised again on the next application cycle.
 The low-voltage and MCU-overtemperature inhibits use independent source bits,
 so clearing one condition cannot release an output while the other remains
 active.
+
+## Fault diagnostics and reset
+
+Fault Reset is an FC10 command containing the Fault Code and key `0xC1EA`.
+For faults associated with a Safety source, Reset is rejected until the live
+physical condition has cleared. A successful command clears both the fault
+record and its Safety latch. FC06 writes to either command register are not
+accepted.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x4800` | R | Active fault count |
+| `0x4801` | R/W | Active fault selection index |
+| `0x4802` | R | Selected fault code |
+| `0x4803` | R | Selected fault detail |
+| `0x4804` | R | Selected fault configuration revision |
+| `0x4805..0x4806` | R | Selected fault correlation event ID |
+| `0x4807..0x4808` | R | Selected fault occurrence count |
+| `0x4809` | W | Reset target fault code |
+| `0x480A` | W | Reset key, `0xC1EA` |
+| `0x480B` | R | Reset result |
+| `0x480C` | R | Last Reset target fault code |
+| `0x480D..0x480E` | R | Last Reset attempt timestamp in ms |
+
+Reset result values are: 0 Ready, 1 Success, 2 Fault not active, 3 physical
+condition still active, 4 invalid Fault Code, 5 internal failure, and 6 invalid
+key. Rejected commands also return Modbus exception 03; an internal failure
+returns exception 04.
+
+## SystemRoutine diagnostic summary
+
+All 32-bit values use high-word first. These registers are read-only.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x4810..0x4811` | R | Active or latched Warning source mask |
+| `0x4812..0x4813` | R | Live Safety source mask |
+| `0x4814..0x4815` | R | Latched Safety source mask |
+| `0x4816..0x4817` | R | Aggregate Safety trip source mask |
+| `0x4818` | R | Retained Runtime Event count, maximum 32 |
+| `0x4819` | R | Retained Snapshot count, maximum 16 |
+| `0x481A..0x481B` | R | Latest Runtime Event sequence |
+| `0x481C..0x481D` | R | Latest Snapshot sequence |
+| `0x481E` | R | Safety state: 0 Normal, 1 Tripped, 2 Action error |
+| `0x481F` | R | Safety output inhibited, 0/1 |
+
+## Runtime Event browser
+
+Write the retained-event index to `0x4920`; index zero selects the oldest
+retained event. Only the index is writable. An index outside the current count
+returns Modbus exception 03.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x4920` | R/W | Selected retained-event index |
+| `0x4921..0x4922` | R | Event sequence |
+| `0x4923..0x4924` | R | Timestamp in ms |
+| `0x4925` | R | Domain: 1 Warning, 2 Safety, 3 Fault, 4 System |
+| `0x4926` | R | State: 1 Asserted, 2 Cleared, 3 Reset, 4 Action error |
+| `0x4927` | R | Source or Fault code |
+| `0x4928` | R | Detail |
+| `0x4929` | R | Configuration revision |
+| `0x492A..0x492B` | R | Correlation event ID |
+
+## Snapshot browser
+
+Write the retained-snapshot index to `0x4940`; index zero selects the oldest
+retained Snapshot. Each diagnostic value is a signed 32-bit integer stored
+high-word first.
+
+| Address | Access | Meaning |
+|---|---|---|
+| `0x4940` | R/W | Selected retained-snapshot index |
+| `0x4941..0x4942` | R | Snapshot sequence |
+| `0x4943..0x4944` | R | Timestamp in ms |
+| `0x4945` | R | Source: 1 Event, 2 Warning, 3 Safety, 4 Fault, 5 Application |
+| `0x4946` | R | Source or Fault code |
+| `0x4947` | R | Detail |
+| `0x4948` | R | Configuration revision |
+| `0x4949..0x494A` | R | Correlation event ID |
+| `0x494B..0x495A` | R | Diagnostic values 0..7, signed 32-bit each |
 
 ## SW2 rotary switch
 
@@ -256,6 +336,6 @@ output inhibit. All four PWM outputs are then driven to 0.0%.
 
 The fault is visible through the existing diagnostic block at `0x4800`. Its
 detail value is the MCU temperature in 0.01 degree Celsius (`8500` = 85.00
-degrees Celsius). Cooling does not clear the latched fault. Clear it through
-`0x4809 = 0x0201`, `0x480A = 0xC1EA`; if the MCU remains overtemperature, the
-application raises it again and keeps all outputs inhibited.
+degrees Celsius). Cooling does not clear the latched fault. Reset it through
+`0x4809 = 0x0201`, `0x480A = 0xC1EA`; the command is rejected while the MCU
+remains overtemperature.

@@ -12,6 +12,10 @@
 #include "PwmOutputService.h"
 #include "DigitalInputService.h"
 #include "DigitalOutputService.h"
+#include "SafetyService.h"
+#include "SnapshotService.h"
+#include "SystemEventService.h"
+#include "WarningService.h"
 #include "bsp_analog_output.h"
 #include "product_modbus_register_adapter.h"
 #include "product_fram_bank_test.h"
@@ -513,7 +517,7 @@ static void TestProductSerialPolicy(void)
 static void TestProductDiagnosticsFaultRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    uint16_t values[11];
+    uint16_t values[15];
     const uint16_t invalidClear[2] =
         {FAULT_CODE_NVM_ERASE_FAILED, 0x0000U};
     const uint16_t validClear[2] =
@@ -522,12 +526,13 @@ static void TestProductDiagnosticsFaultRegisters(void)
 
     FaultService_Initialize();
     ProductModbusRegisterAdapter_GetInterface(&interface);
+    ProductModbusRegisterAdapter_SetSystemTimestamp(1234U);
     assert(FaultService_Raise(FAULT_CODE_NVM_ERASE_FAILED,
                               3U, 7U, 0x12345678UL));
     assert(interface.read_holding_registers(
                interface.context,
                PRODUCT_MODBUS_DIAGNOSTICS_BASE_ADDRESS,
-               11U, values) == MODBUS_EXCEPTION_NONE);
+               15U, values) == MODBUS_EXCEPTION_NONE);
     assert(values[0] == 1U);
     assert(values[1] == 0U);
     assert(values[2] == FAULT_CODE_NVM_ERASE_FAILED);
@@ -539,6 +544,7 @@ static void TestProductDiagnosticsFaultRegisters(void)
     assert(values[8] == 1U);
     assert(values[9] == 0U);
     assert(values[10] == 0U);
+    assert(values[11] == PRODUCT_DIAGNOSTICS_RESET_RESULT_READY);
 
     assert(interface.write_single_register(
                interface.context,
@@ -550,6 +556,14 @@ static void TestProductDiagnosticsFaultRegisters(void)
                PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS,
                invalidClear, 2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
     assert(FaultService_IsActive(FAULT_CODE_NVM_ERASE_FAILED));
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_RESET_RESULT_ADDRESS,
+               4U, &values[11]) == MODBUS_EXCEPTION_NONE);
+    assert(values[11] == PRODUCT_DIAGNOSTICS_RESET_RESULT_INVALID_KEY);
+    assert(values[12] == FAULT_CODE_NVM_ERASE_FAILED);
+    assert(values[13] == 0U);
+    assert(values[14] == 1234U);
     assert(interface.write_multiple_registers(
                interface.context,
                PRODUCT_MODBUS_DIAGNOSTICS_CLEAR_CODE_ADDRESS,
@@ -561,6 +575,12 @@ static void TestProductDiagnosticsFaultRegisters(void)
                3U, values) == MODBUS_EXCEPTION_NONE);
     assert(values[0] == 0U);
     assert(values[2] == FAULT_CODE_NONE);
+    assert(interface.read_holding_registers(
+               interface.context,
+               PRODUCT_MODBUS_DIAGNOSTICS_RESET_RESULT_ADDRESS,
+               2U, &values[11]) == MODBUS_EXCEPTION_NONE);
+    assert(values[11] == PRODUCT_DIAGNOSTICS_RESET_RESULT_SUCCESS);
+    assert(values[12] == FAULT_CODE_NVM_ERASE_FAILED);
 }
 
 static void TestAdcDiagnosticRegisters(void)
@@ -632,6 +652,67 @@ static void TestAdcDiagnosticRegisters(void)
                interface.context,
                PRODUCT_MODBUS_ADC0_DIAGNOSTICS_BASE_ADDRESS,
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
+static void TestSystemRoutineDiagnosticRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t status[16U];
+    uint16_t event[12U];
+    uint16_t snapshot[27U];
+    int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {1234, 0};
+
+    SnapshotService_Initialize();
+    SystemEventService_Initialize();
+    WarningService_Initialize();
+    assert(SafetyService_Initialize(
+        SAFETY_SOURCE_LOW_VOLTAGE, NULL, NULL));
+    assert(WarningService_UpdateSource(
+        WARNING_SOURCE_ADC_REFERENCE, true, 0x12U,
+        100U, 3U, 7U, values));
+    assert(SafetyService_UpdateSource(
+        SAFETY_SOURCE_LOW_VOLTAGE, true, 1U,
+        101U, 3U, 8U, values));
+    assert(SafetyService_Process());
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS,
+               16U, status) == MODBUS_EXCEPTION_NONE);
+    assert(status[0] == 0U);
+    assert(status[1] == WARNING_SOURCE_ADC_REFERENCE);
+    assert(status[3] == SAFETY_SOURCE_LOW_VOLTAGE);
+    assert(status[5] == SAFETY_SOURCE_LOW_VOLTAGE);
+    assert(status[7] == SAFETY_SOURCE_LOW_VOLTAGE);
+    assert(status[8] == 2U);
+    assert(status[9] == 2U);
+    assert(status[14] == SAFETY_STATE_TRIPPED);
+    assert(status[15] == 1U);
+
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_SYSTEM_EVENT_BASE_ADDRESS,
+               12U, event) == MODBUS_EXCEPTION_NONE);
+    assert(event[0] == 0U);
+    assert(event[5] == SYSTEM_EVENT_DOMAIN_WARNING);
+    assert(event[7] == WARNING_SOURCE_ADC_REFERENCE);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_SYSTEM_EVENT_INDEX_ADDRESS,
+               1U) == MODBUS_EXCEPTION_NONE);
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_SYSTEM_EVENT_BASE_ADDRESS,
+               12U, event) == MODBUS_EXCEPTION_NONE);
+    assert(event[5] == SYSTEM_EVENT_DOMAIN_SAFETY);
+
+    assert(interface.read_holding_registers(
+               interface.context, PRODUCT_MODBUS_SNAPSHOT_BASE_ADDRESS,
+               27U, snapshot) == MODBUS_EXCEPTION_NONE);
+    assert(snapshot[0] == 0U);
+    assert(snapshot[5] == SNAPSHOT_SOURCE_WARNING);
+    assert(snapshot[11] == 0U);
+    assert(snapshot[12] == 1234U);
+    assert(interface.write_single_register(
+               interface.context, PRODUCT_MODBUS_SNAPSHOT_INDEX_ADDRESS,
+               2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
 }
 
 static void TestProductVersionRegisters(void)
@@ -1078,6 +1159,7 @@ int main(void)
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestAdcDiagnosticRegisters();
+    TestSystemRoutineDiagnosticRegisters();
     TestProductVersionRegisters();
     TestPwmPendingAndApply();
     TestDacPendingApplyAndRollback();

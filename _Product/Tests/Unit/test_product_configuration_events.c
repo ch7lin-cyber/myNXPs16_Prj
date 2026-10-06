@@ -62,8 +62,9 @@ void ProductLowVoltageSafety_Initialize(void)
 {
 }
 
-void ProductLowVoltageSafety_Process(void)
+void ProductLowVoltageSafety_Process(uint32_t timestamp_ms)
 {
+    (void)timestamp_ms;
 }
 
 bool ProductLowVoltageSafety_GetSnapshot(ProductLowVoltageSnapshot_t *snapshot)

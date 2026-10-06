@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 void ProductSensorConfigurationConsumer_Initialize(void);
-bool ProductSensorConfigurationConsumer_Process(uint8_t channel);
+bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
+                                                uint32_t timestamp_ms);
 
 #endif

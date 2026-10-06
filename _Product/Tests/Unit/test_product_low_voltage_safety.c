@@ -47,11 +47,11 @@ int main(void)
     g_interrupt_count = 1U;
     for (sample = 1U; sample < PRODUCT_LOW_VOLTAGE_ASSERT_SAMPLES; sample++)
     {
-        ProductLowVoltageSafety_Process();
+        ProductLowVoltageSafety_Process(sample);
     }
     assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
     assert(!snapshot.confirmed_active);
-    ProductLowVoltageSafety_Process();
+    ProductLowVoltageSafety_Process(sample);
     assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
     assert(snapshot.raw_active);
     assert(snapshot.confirmed_active);
@@ -63,18 +63,18 @@ int main(void)
     g_low_voltage_active = false;
     for (sample = 1U; sample < PRODUCT_LOW_VOLTAGE_RELEASE_SAMPLES; sample++)
     {
-        ProductLowVoltageSafety_Process();
+        ProductLowVoltageSafety_Process(sample);
     }
     assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
     assert(snapshot.confirmed_active);
-    ProductLowVoltageSafety_Process();
+    ProductLowVoltageSafety_Process(sample);
     assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
     assert(!snapshot.confirmed_active);
     assert(snapshot.fault_active);
     assert(snapshot.revision == 2U);
 
     assert(FaultService_Clear(FAULT_CODE_LOW_VOLTAGE));
-    ProductLowVoltageSafety_Process();
+    ProductLowVoltageSafety_Process((uint32_t)sample + 1U);
     assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
     assert(!snapshot.fault_active);
     assert(g_monitor.status == PRODUCT_MODBUS_LOW_VOLTAGE_STATUS_READY);

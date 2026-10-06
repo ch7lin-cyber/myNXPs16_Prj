@@ -4,6 +4,7 @@
 
 #include "FaultService.h"
 #include "ProductLowVoltageConfig.h"
+#include "SystemFaultService.h"
 #include "product_low_voltage_driver.h"
 #include "product_modbus_register_adapter.h"
 
@@ -37,7 +38,7 @@ void ProductLowVoltageSafety_Initialize(void)
     PublishMonitor();
 }
 
-void ProductLowVoltageSafety_Process(void)
+void ProductLowVoltageSafety_Process(uint32_t timestamp_ms)
 {
     bool previous_confirmed = g_snapshot.confirmed_active;
 
@@ -84,8 +85,14 @@ void ProductLowVoltageSafety_Process(void)
     if (g_snapshot.confirmed_active &&
         !FaultService_IsActive(FAULT_CODE_LOW_VOLTAGE))
     {
-        (void)FaultService_Raise(FAULT_CODE_LOW_VOLTAGE, 1U,
-                                 g_snapshot.revision, 0U);
+        int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
+
+        values[0] = g_snapshot.raw_active ? 1L : 0L;
+        values[1] = (int32_t)g_snapshot.interrupt_count;
+        values[2] = (int32_t)g_snapshot.revision;
+        (void)SystemFaultService_Raise(
+            FAULT_CODE_LOW_VOLTAGE, 1U,
+            g_snapshot.revision, 0U, timestamp_ms, values);
     }
     g_snapshot.fault_active =
         FaultService_IsActive(FAULT_CODE_LOW_VOLTAGE);
