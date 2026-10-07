@@ -64,6 +64,17 @@ ADC_DIAGNOSTIC_NAMES = {
     0x32: "Transaction/clean streaks",
     0x33: "Latest signed microvolts (high)",
     0x34: "Latest signed microvolts (low)",
+    0x35: "Configure attempts (high)",
+    0x36: "Configure attempts (low)",
+    0x37: "IO_CONTROL1 readback (high)",
+    0x38: "IO_CONTROL1 readback (low)",
+    0x39: "CHANNEL0 readback (high)",
+    0x3A: "CHANNEL0 readback (low)",
+    0x3B: "CONFIG0 readback (high)",
+    0x3C: "CONFIG0 readback (low)",
+    0x3D: "FILTER0 readback (high)",
+    0x3E: "FILTER0 readback (low)",
+    0x3F: "Configuration readback valid",
 }
 
 
@@ -306,6 +317,39 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
     print(f"  ADC channel= {raw_registers[2]}")
     print(f"  Streaks    = 0x{raw_registers[3]:04X}")
     print(f"  Microvolts = {int32_from_registers(raw_registers[4:6])} uV")
+
+    configuration_address = diagnostic_base + 0x35
+    print(f"\n[CH{channel} AD7124 configuration readback]")
+    configuration_registers = client.read_holding_registers(
+        configuration_address, 11
+    )
+    print_registers(
+        configuration_address,
+        configuration_registers,
+        ADC_DIAGNOSTIC_NAMES,
+        name_offset_base=0x35,
+    )
+    print(
+        "  Configure attempts = "
+        f"{uint32_from_registers(configuration_registers[0:2])}"
+    )
+    print(
+        "  IO_CONTROL1       = "
+        f"0x{uint32_from_registers(configuration_registers[2:4]):08X}"
+    )
+    print(
+        "  CHANNEL0          = "
+        f"0x{uint32_from_registers(configuration_registers[4:6]):08X}"
+    )
+    print(
+        "  CONFIG0           = "
+        f"0x{uint32_from_registers(configuration_registers[6:8]):08X}"
+    )
+    print(
+        "  FILTER0           = "
+        f"0x{uint32_from_registers(configuration_registers[8:10]):08X}"
+    )
+    print(f"  Readback valid    = {configuration_registers[10]}")
 
 
 def read_arbitrary_registers(client: ModbusRtuClient) -> None:

@@ -33,6 +33,11 @@ typedef struct
     uint32_t last_raw_code;
     int32_t last_microvolts;
     int32_t last_driver_status;
+    uint32_t configure_attempts;
+    uint32_t configured_io_control1;
+    uint32_t configured_channel0;
+    uint32_t configured_config0;
+    uint32_t configured_filter0;
     uint16_t active_fault_categories;
     uint16_t last_fault_categories;
     uint8_t last_status_register;
@@ -41,6 +46,7 @@ typedef struct
     uint8_t consecutive_clean_samples;
     uint8_t device_id;
     bool initialized;
+    bool configuration_registers_valid;
 } ProductAdcDriverDiagnostics_t;
 
 typedef enum

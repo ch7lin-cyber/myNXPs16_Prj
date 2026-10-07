@@ -134,6 +134,21 @@ int main(void)
     assert(g_adc[2].channel.negative_input == PRODUCT_ADC_TC_AIN_NEGATIVE);
     assert(g_adc[2].input_mode == HAL_ADC_INPUT_MODE_VOLTAGE);
 
+    RaiseAndProcess(2U, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V);
+    assert(g_adc[2].setup.gain == HAL_ADC_GAIN_32);
+    assert(g_adc[2].setup.reference == HAL_ADC_REFERENCE_INTERNAL);
+    assert(g_adc[2].channel.positive_input ==
+           PRODUCT_ADC_VOLTAGE_AIN_POSITIVE);
+    assert(g_adc[2].channel.negative_input ==
+           PRODUCT_ADC_VOLTAGE_AIN_NEGATIVE);
+    assert(g_adc[2].input_mode == HAL_ADC_INPUT_MODE_VOLTAGE);
+    {
+        uint16_t configure_count = g_adc[2].configure_count;
+
+        assert(ProductSensorConfigurationConsumer_Process(2U, 0U));
+        assert(g_adc[2].configure_count == configure_count);
+    }
+
     RaiseAndProcess(3U, PRODUCT_SENSOR_TYPE_TC_B);
     assert(g_adc[3].setup.gain == HAL_ADC_GAIN_128);
     assert(g_adc[3].channel.positive_input == PRODUCT_ADC_TC_AIN_POSITIVE);

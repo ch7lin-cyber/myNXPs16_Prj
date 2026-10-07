@@ -21,6 +21,8 @@ typedef struct
 
 static ProductSensorRuntimeConfiguration_t
     g_runtime_configuration[PRODUCT_SENSOR_INPUT_COUNT];
+static uint32_t g_applied_event_id[PRODUCT_SENSOR_INPUT_COUNT];
+static uint16_t g_applied_revision[PRODUCT_SENSOR_INPUT_COUNT];
 
 static bool IsRtd(uint16_t sensor_type)
 {
@@ -186,6 +188,8 @@ void ProductSensorConfigurationConsumer_Initialize(void)
 {
     (void)memset(g_runtime_configuration, 0,
                  sizeof(g_runtime_configuration));
+    (void)memset(g_applied_event_id, 0, sizeof(g_applied_event_id));
+    (void)memset(g_applied_revision, 0, sizeof(g_applied_revision));
 }
 
 bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
@@ -206,6 +210,18 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     if ((event.completed_ack_mask & EVENT_ACK_ANALOG_INPUT) != 0U)
     {
         return true;
+    }
+    /*
+     * Hardware reconfiguration and event acknowledgement are two separate
+     * operations.  If acknowledgement must be retried, never configure the
+     * ADC again: doing so continually rearms the mandatory first-sample
+     * discard and prevents the measurement chain from publishing a sample.
+     */
+    if ((g_applied_event_id[channel] == event.event_id) &&
+        (g_applied_revision[channel] == event.configuration_revision))
+    {
+        return EventService_Acknowledge(event.event_id,
+                                        EVENT_ACK_ANALOG_INPUT);
     }
     if ((event.changed_mask &
          EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE) == 0U)
@@ -236,5 +252,7 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     (void)SystemFaultService_ClearRecovered(
         FAULT_CODE_ANALOG_INPUT_RECONFIGURE_FAILED,
         timestamp_ms, event.event_id);
+    g_applied_event_id[channel] = event.event_id;
+    g_applied_revision[channel] = event.configuration_revision;
     return EventService_Acknowledge(event.event_id, EVENT_ACK_ANALOG_INPUT);
 }

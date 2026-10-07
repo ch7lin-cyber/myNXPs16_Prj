@@ -338,6 +338,44 @@ static uint8_t MapGain(HalAdcGain_t gain)
     return code;
 }
 
+static HalAdcStatus_t CaptureConfigurationRegisters(
+    ProductAdcDriverContext_t *context)
+{
+    static const uint8_t addresses[] =
+    {
+        ADI_AD7124_IO_CONTROL1_REG,
+        ADI_AD7124_CHANNEL0_REG,
+        ADI_AD7124_CONFIG0_REG,
+        ADI_AD7124_FILTER0_REG
+    };
+    uint32_t *destinations[] =
+    {
+        &context->diagnostics.configured_io_control1,
+        &context->diagnostics.configured_channel0,
+        &context->diagnostics.configured_config0,
+        &context->diagnostics.configured_filter0
+    };
+    adi_ad7124_device_t *device =
+        ProductAd7124_GetDevice(context->device_index);
+    uint8_t index;
+
+    context->diagnostics.configuration_registers_valid = false;
+    for (index = 0U;
+         index < (uint8_t)(sizeof(addresses) / sizeof(addresses[0]));
+         index++)
+    {
+        adi_ad7124_status_t driver_status = ADI_AD7124_ReadRegister(
+            device, addresses[index], destinations[index]);
+        RecordDriverStatus(context, driver_status);
+        if (driver_status != kAdiAd7124_Ok)
+        {
+            return MapDriverStatus(driver_status);
+        }
+    }
+    context->diagnostics.configuration_registers_valid = true;
+    return HAL_ADC_STATUS_OK;
+}
+
 static HalAdcStatus_t ProductAdcConfigure(
     void *driver_context, const HalAdcDeviceConfig_t *config)
 {
@@ -352,6 +390,8 @@ static HalAdcStatus_t ProductAdcConfigure(
     {
         return HAL_ADC_STATUS_INVALID_ARGUMENT;
     }
+    context->diagnostics.configure_attempts++;
+    context->diagnostics.configuration_registers_valid = false;
     for (index = 0U; index < config->setup_count; index++)
     {
         setups[index].setup = index;
@@ -427,6 +467,10 @@ static HalAdcStatus_t ProductAdcConfigure(
                     status = HAL_ADC_STATUS_DEVICE_ERROR;
                 }
             }
+        }
+        if (status == HAL_ADC_STATUS_OK)
+        {
+            status = CaptureConfigurationRegisters(context);
         }
         if (status == HAL_ADC_STATUS_OK)
         {

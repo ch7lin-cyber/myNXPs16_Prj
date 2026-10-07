@@ -782,6 +782,29 @@ static uint16_t ReadAdcDiagnosticValue(
         case 52U:
             Int32ToRegisters(diagnostics->last_microvolts, &high, &low);
             return (offset == 51U) ? high : low;
+        case 53U:
+        case 54U:
+            Uint32ToRegisters(diagnostics->configure_attempts, &high, &low);
+            return (offset == 53U) ? high : low;
+        case 55U:
+        case 56U:
+            Uint32ToRegisters(diagnostics->configured_io_control1,
+                              &high, &low);
+            return (offset == 55U) ? high : low;
+        case 57U:
+        case 58U:
+            Uint32ToRegisters(diagnostics->configured_channel0, &high, &low);
+            return (offset == 57U) ? high : low;
+        case 59U:
+        case 60U:
+            Uint32ToRegisters(diagnostics->configured_config0, &high, &low);
+            return (offset == 59U) ? high : low;
+        case 61U:
+        case 62U:
+            Uint32ToRegisters(diagnostics->configured_filter0, &high, &low);
+            return (offset == 61U) ? high : low;
+        case 63U:
+            return diagnostics->configuration_registers_valid ? 1U : 0U;
         default:
             return 0U;
     }
