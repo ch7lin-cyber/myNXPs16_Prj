@@ -197,6 +197,7 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
 {
     TemperatureInputConfigurationChangedEvent_t event;
     AnalogInputStatus_t status;
+    AnalogInputRoute_t route;
 
     if (channel >= PRODUCT_SENSOR_INPUT_COUNT)
     {
@@ -230,9 +231,16 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
                                         EVENT_ACK_ANALOG_INPUT);
     }
 
-    BuildConfiguration(channel, &event.new_configuration);
-    status = AnalogInputService_ReconfigureDevice(
-        channel, &g_runtime_configuration[channel].device);
+    /* Validate routing before touching hardware on every event retry. */
+    status = ANALOG_INPUT_STATUS_INVALID_ARGUMENT;
+    if (AnalogInputService_GetRoute(channel, &route) &&
+        (route.device == channel) &&
+        (route.channel == PRODUCT_ADC_ACTIVE_CHANNEL))
+    {
+        BuildConfiguration(channel, &event.new_configuration);
+        status = AnalogInputService_ReconfigureDevice(
+            channel, &g_runtime_configuration[channel].device);
+    }
     if ((status != ANALOG_INPUT_STATUS_OK) ||
         !AnalogInputService_SetInputSensorClass(
             channel, SensorClass(event.new_configuration.sensor_type)))

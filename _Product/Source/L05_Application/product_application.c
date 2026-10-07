@@ -350,6 +350,7 @@ bool ProductApplication_Init(void)
     SystemRoutineConfiguration_t system_routine_configuration;
     uint8_t adc_device;
     uint8_t adc_route_count;
+    const AnalogInputRoute_t *adc_routes;
 
     (void)memset(&system_routine_configuration, 0,
                  sizeof(system_routine_configuration));
@@ -402,8 +403,8 @@ bool ProductApplication_Init(void)
             return false;
         }
     }
-    if (AnalogInputService_SetRoutes(
-            ProductAdcDriver_GetRoutes(&adc_route_count), adc_route_count) !=
+    adc_routes = ProductAdcDriver_GetRoutes(&adc_route_count);
+    if (AnalogInputService_SetRoutes(adc_routes, adc_route_count) !=
         ANALOG_INPUT_STATUS_OK)
     {
         return false;

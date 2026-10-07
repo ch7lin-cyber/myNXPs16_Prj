@@ -70,7 +70,7 @@ static void RaiseAndProcess(uint8_t input, uint16_t sensor_type)
     assert(!EventService_IsTemperatureInputConfigurationChangedPending(input));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     static const HalAdcDriverOps_t ops =
         {MockInitialize, MockConfigure, MockTryRead};
@@ -97,7 +97,9 @@ int main(void)
         assert(AnalogInputService_SetDeviceConfiguration(
                    input, &initial_config) == ANALOG_INPUT_STATUS_OK);
     }
-    assert(AnalogInputService_SetRoutes(routes, PRODUCT_ADC_DEVICE_COUNT) ==
+    (void)argv;
+    assert(AnalogInputService_SetRoutes(
+               routes, (argc > 1) ? 2U : PRODUCT_ADC_DEVICE_COUNT) ==
            ANALOG_INPUT_STATUS_OK);
     assert(AnalogInputService_Initialize(PRODUCT_ADC_DEVICE_COUNT) ==
            ANALOG_INPUT_STATUS_OK);
@@ -106,6 +108,27 @@ int main(void)
         EVENT_ACK_ANALOG_INPUT));
     FaultService_Initialize();
     ProductSensorConfigurationConsumer_Initialize();
+
+    if (argc > 1)
+    {
+        EventTemperatureInputConfiguration_t old_config =
+            {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
+        EventTemperatureInputConfiguration_t new_config =
+            {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V};
+        uint32_t event_id;
+        uint16_t configure_count = g_adc[2].configure_count;
+
+        assert(EventService_RaiseTemperatureInputConfigurationChanged(
+            2U, 1U, EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE,
+            &old_config, &new_config, &event_id));
+        for (input = 0U; input < 10U; input++)
+        {
+            assert(!ProductSensorConfigurationConsumer_Process(2U, 0U));
+            assert(g_adc[2].configure_count == configure_count);
+        }
+        assert(EventService_IsTemperatureInputConfigurationChangedPending(2U));
+        return 0;
+    }
 
     RaiseAndProcess(0U, PRODUCT_SENSOR_TYPE_RTD_100_OHM);
     assert(g_adc[0].setup.gain == HAL_ADC_GAIN_8);
