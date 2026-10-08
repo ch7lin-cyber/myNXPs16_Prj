@@ -352,6 +352,34 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
     print(f"  Readback valid    = {configuration_registers[10]}")
 
 
+    trace_address = 0x4A00 + channel * ADC_DIAGNOSTIC_DEVICE_STRIDE
+    print(f"\n[CH{channel} ADC configuration trace]")
+    trace = client.read_holding_registers(trace_address, 35)
+    sources = {0: "unknown", 1: "startup", 2: "sensor event", 3: "recovery"}
+    stages = {0: "none", 1: "validate", 2: "ADC registers",
+              3: "ERROR_ENABLE write", 4: "ERROR_ENABLE verify",
+              5: "configuration readback", 6: "complete"}
+    event_stages = {0: "idle", 1: "route", 2: "configure",
+                    3: "sensor class", 4: "ACK", 5: "complete"}
+    print(f"  Last source       = {sources.get(trace[0], trace[0])}")
+    print(f"  Last stage        = {stages.get(trace[1], trace[1])}")
+    print(f"  HAL result        = {trace[2]} (0 = OK)")
+    print(f"  Discard pending   = {trace[3]}")
+    for offset, label in [(4, "Startup config"), (6, "Event config"),
+                          (8, "Recovery config"), (10, "Unknown config"),
+                          (12, "Event ID"), (16, "Event attempts"),
+                          (18, "Apply failures"), (20, "ACK attempts"),
+                          (22, "First discards"), (24, "Fault discards"),
+                          (28, "Driver errors"), (30, "Config successes"),
+                          (32, "ACK failures")]:
+        print(f"  {label:18s}= {uint32_from_registers(trace[offset:offset + 2])}")
+    print(f"  Event revision    = {trace[14]}")
+    print(f"  Event apply result= {trace[15]} (0 = OK)")
+    print(f"  Online            = {trace[26]}")
+    print(f"  Consecutive errors= {trace[27]}")
+    print(f"  Event stage       = {event_stages.get(trace[34], trace[34])}")
+
+
 def read_arbitrary_registers(client: ModbusRtuClient) -> None:
     address = parse_integer(input("Start address (example 0x1000): "))
     maximum_quantity = 0x10000 - address

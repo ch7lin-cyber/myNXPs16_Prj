@@ -7,6 +7,26 @@
 #include "AnalogInputService.h"
 #include "HalAdc.h"
 
+/* Configure source and stage values are exposed through Modbus diagnostics. */
+typedef enum
+{
+    PRODUCT_ADC_CONFIG_SOURCE_UNKNOWN = 0,
+    PRODUCT_ADC_CONFIG_SOURCE_STARTUP,
+    PRODUCT_ADC_CONFIG_SOURCE_SENSOR_EVENT,
+    PRODUCT_ADC_CONFIG_SOURCE_RECOVERY
+} ProductAdcConfigureSource_t;
+
+typedef enum
+{
+    PRODUCT_ADC_CONFIG_STAGE_NONE = 0,
+    PRODUCT_ADC_CONFIG_STAGE_VALIDATE,
+    PRODUCT_ADC_CONFIG_STAGE_REGISTERS,
+    PRODUCT_ADC_CONFIG_STAGE_ERROR_ENABLE_WRITE,
+    PRODUCT_ADC_CONFIG_STAGE_ERROR_ENABLE_VERIFY,
+    PRODUCT_ADC_CONFIG_STAGE_READBACK,
+    PRODUCT_ADC_CONFIG_STAGE_COMPLETE
+} ProductAdcConfigureStage_t;
+
 /* Register all product ADC devices with the shared generic HAL. */
 typedef struct
 {
@@ -34,6 +54,13 @@ typedef struct
     int32_t last_microvolts;
     int32_t last_driver_status;
     uint32_t configure_attempts;
+    uint32_t configure_source_counts[4];
+    uint32_t configure_successes;
+    uint32_t first_sample_discards;
+    uint32_t fault_sample_discards;
+    ProductAdcConfigureSource_t last_configure_source;
+    ProductAdcConfigureStage_t last_configure_stage;
+    HalAdcStatus_t last_configure_result;
     uint32_t configured_io_control1;
     uint32_t configured_channel0;
     uint32_t configured_config0;
@@ -47,6 +74,7 @@ typedef struct
     uint8_t device_id;
     bool initialized;
     bool configuration_registers_valid;
+    bool discard_pending;
 } ProductAdcDriverDiagnostics_t;
 
 typedef enum
@@ -61,6 +89,9 @@ typedef enum
     PRODUCT_ADC_FAULT_STALE_OFFLINE = (1U << 6U)
 } ProductAdcFaultCategory_t;
 
+/* Mark the immediately following synchronous Configure call. */
+void ProductAdcDriver_SetConfigureSource(
+    uint8_t device, ProductAdcConfigureSource_t source);
 bool ProductAdcDriver_Init(void);
 const HalAdcDeviceConfig_t *ProductAdcDriver_GetDeviceConfig(uint8_t device);
 const AnalogInputRoute_t *ProductAdcDriver_GetRoutes(uint8_t *route_count);

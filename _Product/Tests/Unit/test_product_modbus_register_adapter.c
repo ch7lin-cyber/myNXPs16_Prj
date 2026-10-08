@@ -21,6 +21,7 @@
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
 #include "product_adc_driver.h"
+#include "product_sensor_configuration_consumer.h"
 #include "product_rotary_switch_driver.h"
 #include "product_temperature_input_types.h"
 
@@ -52,6 +53,25 @@ static MockGpioDriver_t g_digitalOutput[PRODUCT_MODBUS_DO_CHANNEL_COUNT];
 static ProductDipSwitchSnapshot_t g_dipSwitchSnapshot;
 static ProductRotarySwitchSnapshot_t g_rotarySwitchSnapshot;
 static ProductAdcDriverDiagnostics_t g_adcDiagnostics[4U];
+
+static ProductSensorConfigurationDiagnostics_t g_configDiagnostics[4U];
+
+bool ProductSensorConfigurationConsumer_GetDiagnostics(
+    uint8_t device, ProductSensorConfigurationDiagnostics_t *diagnostics)
+{
+    if ((device >= 4U) || (diagnostics == NULL)) return false;
+    *diagnostics = g_configDiagnostics[device];
+    return true;
+}
+
+bool AnalogInputService_GetDiagnostics(uint8_t device, AnalogInputDiagnostics_t *diagnostics)
+{
+    if ((device >= 4U) || (diagnostics == NULL)) return false;
+    (void)memset(diagnostics, 0, sizeof(*diagnostics));
+    diagnostics->online = true;
+    diagnostics->driver_errors = 0x12345678UL;
+    return true;
+}
 
 bool ProductAdcDriver_GetDiagnostics(
     uint8_t device, ProductAdcDriverDiagnostics_t *diagnostics)
@@ -671,6 +691,42 @@ static void TestAdcDiagnosticRegisters(void)
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestAdcTraceRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[35U];
+    uint16_t boundary[2U];
+    g_adcDiagnostics[0].last_configure_source = PRODUCT_ADC_CONFIG_SOURCE_RECOVERY;
+    g_adcDiagnostics[0].last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_READBACK;
+    g_adcDiagnostics[0].last_configure_result = HAL_ADC_STATUS_IO_ERROR;
+    g_adcDiagnostics[0].configure_source_counts[3] = 0x10002UL;
+    g_adcDiagnostics[0].first_sample_discards = 30UL;
+    g_adcDiagnostics[0].fault_sample_discards = 2UL;
+    g_configDiagnostics[0].event_id = 0xABCDEUL;
+    g_configDiagnostics[0].revision = 7U;
+    g_configDiagnostics[0].ack_failures = 10UL;
+    g_configDiagnostics[0].stage = 4U;
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS, 35U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == 3U && values[1] == 5U);
+    assert(values[2] == HAL_ADC_STATUS_IO_ERROR);
+    assert(values[8] == 1U && values[9] == 2U);
+    assert(values[12] == 0xAU && values[13] == 0xBCDEU);
+    assert(values[14] == 7U);
+    assert(values[23] == 30U && values[25] == 2U);
+    assert(values[26] == 1U);
+    assert(values[28] == 0x1234U && values[29] == 0x5678U);
+    assert(values[33] == 10U && values[34] == 4U);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS + 63U, 2U, boundary) == MODBUS_EXCEPTION_NONE);
+    assert(boundary[0] == 0U && boundary[1] == 0U);
+    assert(interface.write_single_register(interface.context,
+        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS, 0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_TRACE_LAST_ADDRESS, 2U, boundary) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 static void TestSystemRoutineDiagnosticRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -1176,6 +1232,7 @@ int main(void)
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestAdcDiagnosticRegisters();
+    TestAdcTraceRegisters();
     TestSystemRoutineDiagnosticRegisters();
     TestProductVersionRegisters();
     TestPwmPendingAndApply();

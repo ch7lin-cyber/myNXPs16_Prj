@@ -23,6 +23,7 @@
 #include "product_fram_bank_test.h"
 #include "product_dip_switch_driver.h"
 #include "product_adc_driver.h"
+#include "product_sensor_configuration_consumer.h"
 #include "product_rotary_switch_driver.h"
 #include "product_temperature_range_resolver.h"
 
@@ -810,6 +811,59 @@ static uint16_t ReadAdcDiagnosticValue(
     }
 }
 
+static ModbusExceptionCode_t ReadAdcTrace(
+    uint16_t starting_address, uint16_t quantity, uint16_t *values)
+{
+    uint16_t image[PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE];
+    uint8_t cached_device = UINT8_MAX;
+    uint16_t index;
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t relative = (uint16_t)(starting_address + index -
+            PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS);
+        uint8_t device = (uint8_t)(relative / PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE);
+        uint16_t offset = (uint16_t)(relative % PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE);
+        if (device != cached_device)
+        {
+            ProductAdcDriverDiagnostics_t adc;
+            ProductSensorConfigurationDiagnostics_t event;
+            AnalogInputDiagnostics_t service = {0};
+            if (!ProductAdcDriver_GetDiagnostics(device, &adc) ||
+                !ProductSensorConfigurationConsumer_GetDiagnostics(device, &event))
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+            }
+            (void)AnalogInputService_GetDiagnostics(device, &service);
+            (void)memset(image, 0, sizeof(image));
+            image[0] = (uint16_t)adc.last_configure_source;
+            image[1] = (uint16_t)adc.last_configure_stage;
+            image[2] = (uint16_t)adc.last_configure_result;
+            image[3] = adc.discard_pending ? 1U : 0U;
+            Uint32ToRegisters(adc.configure_source_counts[1], &image[4], &image[5]);
+            Uint32ToRegisters(adc.configure_source_counts[2], &image[6], &image[7]);
+            Uint32ToRegisters(adc.configure_source_counts[3], &image[8], &image[9]);
+            Uint32ToRegisters(adc.configure_source_counts[0], &image[10], &image[11]);
+            Uint32ToRegisters(event.event_id, &image[12], &image[13]);
+            image[14] = event.revision;
+            image[15] = event.last_status;
+            Uint32ToRegisters(event.configure_attempts, &image[16], &image[17]);
+            Uint32ToRegisters(event.apply_failures, &image[18], &image[19]);
+            Uint32ToRegisters(event.ack_attempts, &image[20], &image[21]);
+            Uint32ToRegisters(adc.first_sample_discards, &image[22], &image[23]);
+            Uint32ToRegisters(adc.fault_sample_discards, &image[24], &image[25]);
+            image[26] = service.online ? 1U : 0U;
+            image[27] = service.consecutive_driver_errors;
+            Uint32ToRegisters(service.driver_errors, &image[28], &image[29]);
+            Uint32ToRegisters(adc.configure_successes, &image[30], &image[31]);
+            Uint32ToRegisters(event.ack_failures, &image[32], &image[33]);
+            image[34] = event.stage;
+            cached_device = device;
+        }
+        values[index] = image[offset];
+    }
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t ReadAdcDiagnostics(
     uint16_t startingAddress, uint16_t quantity, uint16_t *values)
 {
@@ -1125,6 +1179,13 @@ static ModbusExceptionCode_t ReadRegisters(
         (void)memcpy(values, &systemStatusImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
+    }
+    if ((quantity > 0U) &&
+        (starting_address >= PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS) &&
+        (((uint32_t)starting_address + quantity - 1UL) <=
+            PRODUCT_MODBUS_ADC_TRACE_LAST_ADDRESS))
+    {
+        return ReadAdcTrace(starting_address, quantity, values);
     }
     if (IsAdcDiagnosticsRangeValid(starting_address, quantity))
     {

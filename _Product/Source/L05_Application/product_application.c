@@ -409,6 +409,10 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
+    for (adc_device = 0U; adc_device < HAL_ADC_DEVICE_COUNT; adc_device++)
+    {
+        ProductAdcDriver_SetConfigureSource(adc_device, PRODUCT_ADC_CONFIG_SOURCE_STARTUP);
+    }
     adc_status = AnalogInputService_Initialize(HAL_ADC_DEVICE_COUNT);
     if (adc_status == ANALOG_INPUT_STATUS_INVALID_ARGUMENT)
     {
@@ -646,6 +650,7 @@ void ProductApplication_Process(void)
             if (AnalogInputService_GetDiagnostics(device, &diagnostics) &&
                 !diagnostics.online)
             {
+                ProductAdcDriver_SetConfigureSource(device, PRODUCT_ADC_CONFIG_SOURCE_RECOVERY);
                 (void)AnalogInputService_RetryDevice(device);
             }
         }

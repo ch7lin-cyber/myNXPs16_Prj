@@ -8,6 +8,7 @@
 #include "FaultService.h"
 #include "SystemFaultService.h"
 #include "ProductAdcConfig.h"
+#include "product_adc_driver.h"
 #include "product_temperature_input_types.h"
 
 #define PRODUCT_SENSOR_INPUT_COUNT (4U)
@@ -23,6 +24,32 @@ static ProductSensorRuntimeConfiguration_t
     g_runtime_configuration[PRODUCT_SENSOR_INPUT_COUNT];
 static uint32_t g_applied_event_id[PRODUCT_SENSOR_INPUT_COUNT];
 static uint16_t g_applied_revision[PRODUCT_SENSOR_INPUT_COUNT];
+static ProductSensorConfigurationDiagnostics_t g_diagnostics[PRODUCT_SENSOR_INPUT_COUNT];
+
+bool ProductSensorConfigurationConsumer_GetDiagnostics(
+    uint8_t channel, ProductSensorConfigurationDiagnostics_t *diagnostics)
+{
+    if ((channel >= PRODUCT_SENSOR_INPUT_COUNT) || (diagnostics == NULL))
+    {
+        return false;
+    }
+    *diagnostics = g_diagnostics[channel];
+    return true;
+}
+
+static bool AcknowledgeConfiguration(uint8_t channel, uint32_t event_id)
+{
+    ProductSensorConfigurationDiagnostics_t *diagnostics = &g_diagnostics[channel];
+    diagnostics->stage = 4U;
+    diagnostics->ack_attempts++;
+    if (!EventService_Acknowledge(event_id, EVENT_ACK_ANALOG_INPUT))
+    {
+        diagnostics->ack_failures++;
+        return false;
+    }
+    diagnostics->stage = 5U;
+    return true;
+}
 
 static bool IsRtd(uint16_t sensor_type)
 {
@@ -190,6 +217,7 @@ void ProductSensorConfigurationConsumer_Initialize(void)
                  sizeof(g_runtime_configuration));
     (void)memset(g_applied_event_id, 0, sizeof(g_applied_event_id));
     (void)memset(g_applied_revision, 0, sizeof(g_applied_revision));
+    (void)memset(g_diagnostics, 0, sizeof(g_diagnostics));
 }
 
 bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
@@ -208,6 +236,8 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     {
         return true;
     }
+    g_diagnostics[channel].event_id = event.event_id;
+    g_diagnostics[channel].revision = event.configuration_revision;
     if ((event.completed_ack_mask & EVENT_ACK_ANALOG_INPUT) != 0U)
     {
         return true;
@@ -221,30 +251,42 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     if ((g_applied_event_id[channel] == event.event_id) &&
         (g_applied_revision[channel] == event.configuration_revision))
     {
-        return EventService_Acknowledge(event.event_id,
-                                        EVENT_ACK_ANALOG_INPUT);
+        return AcknowledgeConfiguration(channel, event.event_id);
     }
     if ((event.changed_mask &
          EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE) == 0U)
     {
-        return EventService_Acknowledge(event.event_id,
-                                        EVENT_ACK_ANALOG_INPUT);
+        return AcknowledgeConfiguration(channel, event.event_id);
     }
 
     /* Validate routing before touching hardware on every event retry. */
+    g_diagnostics[channel].stage = 1U;
     status = ANALOG_INPUT_STATUS_INVALID_ARGUMENT;
     if (AnalogInputService_GetRoute(channel, &route) &&
         (route.device == channel) &&
         (route.channel == PRODUCT_ADC_ACTIVE_CHANNEL))
     {
         BuildConfiguration(channel, &event.new_configuration);
+        g_diagnostics[channel].stage = 2U;
+        g_diagnostics[channel].configure_attempts++;
+        ProductAdcDriver_SetConfigureSource(channel, PRODUCT_ADC_CONFIG_SOURCE_SENSOR_EVENT);
         status = AnalogInputService_ReconfigureDevice(
             channel, &g_runtime_configuration[channel].device);
     }
-    if ((status != ANALOG_INPUT_STATUS_OK) ||
-        !AnalogInputService_SetInputSensorClass(
-            channel, SensorClass(event.new_configuration.sensor_type)))
+    g_diagnostics[channel].last_status = (uint16_t)status;
+    if (status == ANALOG_INPUT_STATUS_OK)
     {
+        g_diagnostics[channel].stage = 3U;
+        if (!AnalogInputService_SetInputSensorClass(
+                channel, SensorClass(event.new_configuration.sensor_type)))
+        {
+            status = ANALOG_INPUT_STATUS_INVALID_ARGUMENT;
+            g_diagnostics[channel].last_status = (uint16_t)status;
+        }
+    }
+    if (status != ANALOG_INPUT_STATUS_OK)
+    {
+        g_diagnostics[channel].apply_failures++;
         int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
 
         values[0] = channel;
@@ -262,5 +304,5 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
         timestamp_ms, event.event_id);
     g_applied_event_id[channel] = event.event_id;
     g_applied_revision[channel] = event.configuration_revision;
-    return EventService_Acknowledge(event.event_id, EVENT_ACK_ANALOG_INPUT);
+    return AcknowledgeConfiguration(channel, event.event_id);
 }

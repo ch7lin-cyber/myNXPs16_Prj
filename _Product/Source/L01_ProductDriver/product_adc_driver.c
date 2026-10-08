@@ -27,6 +27,17 @@ static ProductAdcDriverContext_t g_adc_context[HAL_ADC_DEVICE_COUNT] =
     {.device_index = 2U}, {.device_index = 3U}
 };
 static uint8_t g_next_audit_device;
+static ProductAdcConfigureSource_t g_configure_source[HAL_ADC_DEVICE_COUNT];
+
+void ProductAdcDriver_SetConfigureSource(
+    uint8_t device, ProductAdcConfigureSource_t source)
+{
+    if ((device < HAL_ADC_DEVICE_COUNT) &&
+        (source <= PRODUCT_ADC_CONFIG_SOURCE_RECOVERY))
+    {
+        g_configure_source[device] = source;
+    }
+}
 
 #define PRODUCT_ADC_ERROR_COMM_MASK \
     (ADI_AD7124_ERROR_SPI_IGNORE_MASK | ADI_AD7124_ERROR_SPI_SCLK_MASK | \
@@ -391,6 +402,13 @@ static HalAdcStatus_t ProductAdcConfigure(
         return HAL_ADC_STATUS_INVALID_ARGUMENT;
     }
     context->diagnostics.configure_attempts++;
+    context->diagnostics.last_configure_source =
+        g_configure_source[context->device_index];
+    context->diagnostics.configure_source_counts[
+        context->diagnostics.last_configure_source]++;
+    g_configure_source[context->device_index] = PRODUCT_ADC_CONFIG_SOURCE_UNKNOWN;
+    context->diagnostics.last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_VALIDATE;
+    context->diagnostics.last_configure_result = HAL_ADC_STATUS_INVALID_ARGUMENT;
     context->diagnostics.configuration_registers_valid = false;
     for (index = 0U; index < config->setup_count; index++)
     {
@@ -421,6 +439,7 @@ static HalAdcStatus_t ProductAdcConfigure(
     ioConfig.excitationOutput0 = config->excitation_output0;
     ioConfig.excitationOutput1 = config->excitation_output1;
     {
+        context->diagnostics.last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_REGISTERS;
         adi_ad7124_status_t driverStatus = ADI_AD7124_Configure(
             ProductAd7124_GetDevice(context->device_index), setups,
             config->setup_count, channels, config->channel_count, &ioConfig);
@@ -449,6 +468,8 @@ static HalAdcStatus_t ProductAdcConfigure(
 #if PRODUCT_ADC_SPI_CRC_ENABLED
             error_enable |= ADI_AD7124_ERROR_SPI_CRC_MASK;
 #endif
+            context->diagnostics.last_configure_stage =
+                PRODUCT_ADC_CONFIG_STAGE_ERROR_ENABLE_WRITE;
             driverStatus = ADI_AD7124_WriteRegister(
                 ProductAd7124_GetDevice(context->device_index),
                 ADI_AD7124_ERROR_ENABLE_REG, error_enable);
@@ -456,6 +477,8 @@ static HalAdcStatus_t ProductAdcConfigure(
             status = MapDriverStatus(driverStatus);
             if (status == HAL_ADC_STATUS_OK)
             {
+                context->diagnostics.last_configure_stage =
+                    PRODUCT_ADC_CONFIG_STAGE_ERROR_ENABLE_VERIFY;
                 driverStatus = ADI_AD7124_ReadRegister(
                     ProductAd7124_GetDevice(context->device_index),
                     ADI_AD7124_ERROR_ENABLE_REG, &error_enable_verify);
@@ -470,6 +493,7 @@ static HalAdcStatus_t ProductAdcConfigure(
         }
         if (status == HAL_ADC_STATUS_OK)
         {
+            context->diagnostics.last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_READBACK;
             status = CaptureConfigurationRegisters(context);
         }
         if (status == HAL_ADC_STATUS_OK)
@@ -482,7 +506,10 @@ static HalAdcStatus_t ProductAdcConfigure(
                               PRODUCT_ADC_CV_SELECT_VOLTAGE);
             context->discard_next_sample = true;
             context->active_config = config;
+            context->diagnostics.last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_COMPLETE;
+            context->diagnostics.configure_successes++;
         }
+        context->diagnostics.last_configure_result = status;
         return status;
     }
 }
@@ -557,12 +584,14 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         context->diagnostics.consecutive_clean_samples = 0U;
         context->diagnostics.discarded_samples++;
+        context->diagnostics.fault_sample_discards++;
         return HAL_ADC_STATUS_NOT_READY;
     }
     if (context->discard_next_sample)
     {
         context->discard_next_sample = false;
         context->diagnostics.discarded_samples++;
+        context->diagnostics.first_sample_discards++;
         return HAL_ADC_STATUS_NOT_READY;
     }
     if (context->active_config == NULL)
@@ -678,5 +707,6 @@ bool ProductAdcDriver_GetDiagnostics(
         return false;
     }
     *diagnostics = g_adc_context[device].diagnostics;
+    diagnostics->discard_pending = g_adc_context[device].discard_next_sample;
     return true;
 }

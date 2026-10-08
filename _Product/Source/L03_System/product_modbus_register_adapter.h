@@ -225,6 +225,19 @@ typedef struct _product_low_voltage_monitor
 #define PRODUCT_MODBUS_ADC3_DIAGNOSTICS_BASE_ADDRESS          (0x48E0U)
 #define PRODUCT_MODBUS_ADC_DIAGNOSTICS_LAST_ADDRESS           (0x491FU)
 
+/* Read-only configure tracing; CH0..3 bases 4A00/4A40/4A80/4AC0.
+ * Offsets: 0 source, 1 stage, 2 HAL result, 3 discard pending;
+ * 4..11 startup/event/recovery/unknown uint32 counts; 12..13 event ID,
+ * 14 revision, 15 apply result, 16..17 event configure attempts,
+ * 18..19 apply failures, 20..21 ACK attempts, 22..23 first discards,
+ * 24..25 fault discards, 26 online, 27 consecutive driver errors,
+ * 28..29 driver errors, 30..31 configure successes, 32..33 ACK failures,
+ * 34 event stage. Remaining offsets reserved (zero). uint32 is high/low.
+ */
+#define PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS                 (0x4A00U)
+#define PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE                (0x0040U)
+#define PRODUCT_MODBUS_ADC_TRACE_LAST_ADDRESS                 (0x4AFFU)
+
 /* SystemRoutine live summary. All values are read-only. */
 #define PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS             (0x4810U)
 #define PRODUCT_MODBUS_WARNING_MASK_ADDRESS                   (0x4810U)

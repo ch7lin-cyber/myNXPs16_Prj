@@ -7,6 +7,7 @@
 #include "FaultService.h"
 #include "HalAdc.h"
 #include "ProductAdcConfig.h"
+#include "product_adc_driver.h"
 #include "product_sensor_configuration_consumer.h"
 #include "product_temperature_input_types.h"
 
@@ -22,6 +23,13 @@ typedef struct
 } MockAdc_t;
 
 static MockAdc_t g_adc[PRODUCT_ADC_DEVICE_COUNT];
+static uint32_t g_source_marks[PRODUCT_ADC_DEVICE_COUNT];
+void ProductAdcDriver_SetConfigureSource(uint8_t device, ProductAdcConfigureSource_t source)
+{
+    assert(device < PRODUCT_ADC_DEVICE_COUNT);
+    assert(source == PRODUCT_ADC_CONFIG_SOURCE_SENSOR_EVENT);
+    g_source_marks[device]++;
+}
 
 static HalAdcStatus_t MockInitialize(void *context)
 {
@@ -126,6 +134,12 @@ int main(int argc, char **argv)
             assert(!ProductSensorConfigurationConsumer_Process(2U, 0U));
             assert(g_adc[2].configure_count == configure_count);
         }
+        ProductSensorConfigurationDiagnostics_t diagnostics;
+        assert(ProductSensorConfigurationConsumer_GetDiagnostics(2U, &diagnostics));
+        assert(diagnostics.stage == 1U);
+        assert(diagnostics.apply_failures == 10U);
+        assert(diagnostics.configure_attempts == 0U);
+        assert(g_source_marks[2] == 0U);
         assert(EventService_IsTemperatureInputConfigurationChangedPending(2U));
         return 0;
     }
@@ -177,5 +191,31 @@ int main(int argc, char **argv)
     assert(g_adc[3].channel.positive_input == PRODUCT_ADC_TC_AIN_POSITIVE);
     assert(g_adc[3].channel.negative_input == PRODUCT_ADC_TC_AIN_NEGATIVE);
     assert(g_adc[3].input_mode == HAL_ADC_INPUT_MODE_VOLTAGE);
+    /* Force ACK rejection: configuration must still happen exactly once. */
+    assert(EventService_ConfigureTemperatureInputRequiredAckMask(EVENT_ACK_NVM));
+    {
+        EventTemperatureInputConfiguration_t old_config = {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
+        EventTemperatureInputConfiguration_t new_config = {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V};
+        ProductSensorConfigurationDiagnostics_t before, after;
+        uint32_t event_id;
+        uint16_t configure_count = g_adc[0].configure_count;
+        uint32_t marks = g_source_marks[0];
+        assert(ProductSensorConfigurationConsumer_GetDiagnostics(0U, &before));
+        assert(EventService_RaiseTemperatureInputConfigurationChanged(0U, 9U,
+            EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE, &old_config, &new_config, &event_id));
+        for (input = 0U; input < 10U; input++)
+        {
+            assert(!ProductSensorConfigurationConsumer_Process(0U, 100U));
+        }
+        assert(g_adc[0].configure_count == configure_count + 1U);
+        assert(g_source_marks[0] == marks + 1U);
+        assert(ProductSensorConfigurationConsumer_GetDiagnostics(0U, &after));
+        assert(after.event_id == event_id && after.revision == 9U);
+        assert(after.configure_attempts == before.configure_attempts + 1U);
+        assert(after.apply_failures == before.apply_failures);
+        assert(after.ack_attempts == before.ack_attempts + 10U);
+        assert(after.ack_failures == before.ack_failures + 10U);
+        assert(after.stage == 4U);
+    }
     return 0;
 }
