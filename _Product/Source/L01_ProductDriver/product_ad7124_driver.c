@@ -23,13 +23,14 @@ typedef struct _product_ad7124_transport
     uint8_t chipSelectPin;
 } product_ad7124_transport_t;
 
-/* Physical FC3 SSEL0/1/2/3 pins are controlled as active-low GPIO CS. */
+/* Schematic FC3 #CS0..3 nets are controlled as active-low GPIO CS.
+ * Device order follows physical CH0..3, not the peripheral SSEL numbering. */
 static product_ad7124_transport_t s_transport[PRODUCT_AD7124_DEVICE_COUNT] =
 {
-    {0U, 20U}, /* Pin 74: FC3 SSEL0, ADC0. */
-    {0U, 21U}, /* Pin 76: FC3 SSEL1, ADC1. */
-    {0U, 9U},  /* Pin 55: FC3 SSEL2, ADC2. */
-    {1U, 24U}  /* Pin 3:  FC3 SSEL3, ADC3. */
+    {0U, 9U},  /* Pin 55: FC3 #CS0, ADC0. */
+    {0U, 21U}, /* Pin 76: FC3 #CS1, ADC1. */
+    {0U, 20U}, /* Pin 74: FC3 #CS2, ADC2. */
+    {1U, 24U}  /* Pin 3:  FC3 #CS3, ADC3. */
 };
 
 static adi_ad7124_device_t s_devices[PRODUCT_AD7124_DEVICE_COUNT];
