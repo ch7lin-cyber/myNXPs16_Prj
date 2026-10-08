@@ -644,9 +644,11 @@ static HalAdcStatus_t ProductAdcTryReadInternal(
             PRODUCT_ADC_EXTERNAL_REFERENCE2_UV :
             PRODUCT_ADC_SUPPLY_REFERENCE_UV;
     context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_CONVERT;
-    if (!HalAdcMeasurement_CodeToMicrovolts(
+    /* Capture the actual arguments and arithmetic inside the conversion. */
+    if (!HalAdcMeasurement_CodeToMicrovoltsDiagnostic(
             sample->raw_code, reference_uv, (uint16_t)setup->gain,
-            setup->bipolar, &sample->microvolts))
+            setup->bipolar, &sample->microvolts,
+            &context->diagnostics.conversion_diagnostics))
     {
         return HAL_ADC_STATUS_DEVICE_ERROR;
     }

@@ -92,6 +92,7 @@ int main(void)
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_DEVICE_ERROR);
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_CONVERT);
     assert(context->diagnostics.failure_gain == 0U);
+    assert(context->diagnostics.conversion_diagnostics.result == HAL_ADC_CONVERSION_GAIN_ZERO);
     assert(context->diagnostics.failure_reference_uv == 2500000UL);
     assert(context->diagnostics.failure_raw_code == g_raw);
     assert(context->diagnostics.failure_driver_status == 0);

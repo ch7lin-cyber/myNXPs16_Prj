@@ -811,6 +811,56 @@ static uint16_t ReadAdcDiagnosticValue(
     }
 }
 
+static void Int64ToRegisters(int64_t value, uint16_t *registers)
+{
+    uint64_t bits = (uint64_t)value;
+    uint8_t index;
+    for (index = 0U; index < 4U; index++)
+    {
+        registers[index] = (uint16_t)(bits >> (48U - 16U * index));
+    }
+}
+
+static ModbusExceptionCode_t ReadAdcConversion(
+    uint16_t starting_address, uint16_t quantity, uint16_t *values)
+{
+    uint16_t image[PRODUCT_MODBUS_ADC_CONVERSION_DEVICE_STRIDE];
+    uint8_t cached_device = UINT8_MAX;
+    uint16_t index;
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t relative = (uint16_t)(starting_address + index -
+            PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS);
+        uint8_t device = (uint8_t)(relative / PRODUCT_MODBUS_ADC_CONVERSION_DEVICE_STRIDE);
+        uint16_t offset = (uint16_t)(relative % PRODUCT_MODBUS_ADC_CONVERSION_DEVICE_STRIDE);
+        if (device != cached_device)
+        {
+            ProductAdcDriverDiagnostics_t adc;
+            const HalAdcConversionDiagnostics_t *conversion;
+            if (!ProductAdcDriver_GetDiagnostics(device, &adc))
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+            }
+            conversion = &adc.conversion_diagnostics;
+            (void)memset(image, 0, sizeof(image));
+            image[0] = (uint16_t)conversion->result;
+            Uint32ToRegisters(conversion->raw_code, &image[1], &image[2]);
+            Uint32ToRegisters(conversion->reference_uv, &image[3], &image[4]);
+            image[5] = conversion->gain;
+            image[6] = conversion->bipolar ? 1U : 0U;
+            image[7] = conversion->output_valid ? 1U : 0U;
+            Int64ToRegisters(conversion->numerator, &image[8]);
+            Int64ToRegisters(conversion->denominator, &image[12]);
+            Int64ToRegisters(conversion->quotient, &image[16]);
+            Int64ToRegisters(conversion->minimum, &image[20]);
+            Int64ToRegisters(conversion->maximum, &image[24]);
+            cached_device = device;
+        }
+        values[index] = image[offset];
+    }
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t ReadAdcTrace(
     uint16_t starting_address, uint16_t quantity, uint16_t *values)
 {
@@ -1192,6 +1242,13 @@ static ModbusExceptionCode_t ReadRegisters(
         (void)memcpy(values, &systemStatusImage[sourceOffset],
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
+    }
+    if ((quantity > 0U) &&
+        (starting_address >= PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS) &&
+        (((uint32_t)starting_address + quantity - 1UL) <=
+            PRODUCT_MODBUS_ADC_CONVERSION_LAST_ADDRESS))
+    {
+        return ReadAdcConversion(starting_address, quantity, values);
     }
     if ((quantity > 0U) &&
         (starting_address >= PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS) &&

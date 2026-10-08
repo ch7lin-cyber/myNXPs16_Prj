@@ -242,6 +242,16 @@ typedef struct _product_low_voltage_monitor
 #define PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE                (0x0040U)
 #define PRODUCT_MODBUS_ADC_TRACE_LAST_ADDRESS                 (0x4AFFU)
 
+/* Conversion internals, CH0..3 bases 4B00/4B40/4B80/4BC0 (read-only).
+ * 0 result, 1..2 RAW, 3..4 reference uV, 5 gain, 6 bipolar, 7 output valid;
+ * 8..11 numerator, 12..15 denominator, 16..19 quotient,
+ * 20..23 INT32_MIN, 24..27 INT32_MAX (signed int64, MSW first).
+ * Captures the most recent conversion, retained across recovery and audits.
+ */
+#define PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS            (0x4B00U)
+#define PRODUCT_MODBUS_ADC_CONVERSION_DEVICE_STRIDE           (0x0040U)
+#define PRODUCT_MODBUS_ADC_CONVERSION_LAST_ADDRESS            (0x4BFFU)
+
 /* SystemRoutine live summary. All values are read-only. */
 #define PRODUCT_MODBUS_SYSTEM_STATUS_BASE_ADDRESS             (0x4810U)
 #define PRODUCT_MODBUS_WARNING_MASK_ADDRESS                   (0x4810U)

@@ -6,6 +6,7 @@
 
 #include "AnalogInputService.h"
 #include "HalAdc.h"
+#include "HalAdcMeasurement.h"
 
 /* Configure source and stage values are exposed through Modbus diagnostics. */
 typedef enum
@@ -71,6 +72,7 @@ typedef struct
     uint32_t configure_attempts;
     uint32_t configure_source_counts[4];
     uint32_t configure_successes;
+    HalAdcConversionDiagnostics_t conversion_diagnostics;
     ProductAdcReadStage_t last_read_stage;
     HalAdcStatus_t last_read_result;
     ProductAdcReadStage_t last_read_failure_stage;

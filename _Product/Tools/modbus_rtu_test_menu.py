@@ -111,6 +111,15 @@ def int32_from_registers(registers: Sequence[int]) -> int:
     return value - 0x100000000 if value & 0x80000000 else value
 
 
+def int64_from_registers(registers: Sequence[int]) -> int:
+    if len(registers) != 4:
+        raise ValueError("int64 needs four registers")
+    value = 0
+    for register in registers:
+        value = (value << 16) | register
+    return value - (1 << 64) if value & (1 << 63) else value
+
+
 def float32_from_registers(registers: Sequence[int]) -> float:
     packed = struct.pack(">HH", registers[0], registers[1])
     return struct.unpack(">f", packed)[0]
@@ -396,6 +405,23 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
     print(f"  Read failures     = {uint32_from_registers(trace[47:49])}")
     print(f"  Config valid      = {trace[49]}")
     print(f"  Failure ADI status= {int32_from_registers(trace[50:52])}")
+
+
+    conversion_address = 0x4B00 + channel * ADC_DIAGNOSTIC_DEVICE_STRIDE
+    print(f"\n[CH{channel} ADC microvolt conversion internals]")
+    conversion = client.read_holding_registers(conversion_address, 28)
+    reasons = {0: "not called", 1: "OK", 2: "RAW out of range",
+               3: "zero reference", 4: "zero gain", 5: "NULL output",
+               6: "int32 range rejected"}
+    print(f"  Conversion result = {reasons.get(conversion[0], conversion[0])}")
+    print(f"  Actual RAW        = 0x{uint32_from_registers(conversion[1:3]):08X}")
+    print(f"  Actual reference  = {uint32_from_registers(conversion[3:5])} uV")
+    print(f"  Actual gain       = {conversion[5]}")
+    print(f"  Bipolar           = {conversion[6]}")
+    print(f"  Output valid      = {conversion[7]}")
+    for offset, label in [(8, "Numerator"), (12, "Denominator"),
+                          (16, "Quotient"), (20, "INT32_MIN"), (24, "INT32_MAX")]:
+        print(f"  {label:18s}= {int64_from_registers(conversion[offset:offset + 4])}")
 
 
 def read_arbitrary_registers(client: ModbusRtuClient) -> None:

@@ -691,6 +691,47 @@ static void TestAdcDiagnosticRegisters(void)
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+static void TestAdcConversionRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[28U];
+    uint16_t boundary[2U];
+    HalAdcConversionDiagnostics_t *d = &g_adcDiagnostics[0].conversion_diagnostics;
+    d->result = HAL_ADC_CONVERSION_OUT_OF_RANGE;
+    d->raw_code = 0x8955DDUL;
+    d->reference_uv = 2500000UL;
+    d->gain = 32U;
+    d->bipolar = true;
+    d->output_valid = true;
+    d->numerator = -0x123456789LL;
+    d->denominator = 268435456LL;
+    d->quotient = -78125LL;
+    d->minimum = -2147483648LL;
+    d->maximum = 2147483647LL;
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS, 28U, values) == MODBUS_EXCEPTION_NONE);
+    assert(values[0] == HAL_ADC_CONVERSION_OUT_OF_RANGE);
+    assert(values[1] == 0x89U && values[2] == 0x55DDU);
+    assert(values[3] == 0x26U && values[4] == 0x25A0U);
+    assert(values[5] == 32U && values[6] == 1U && values[7] == 1U);
+    assert(values[8] == 0xFFFFU && values[9] == 0xFFFEU);
+    assert(values[10] == 0xDCBAU && values[11] == 0x9877U);
+    assert(values[12] == 0U && values[13] == 0U);
+    assert(values[14] == 0x1000U && values[15] == 0U);
+    assert(values[20] == 0xFFFFU && values[21] == 0xFFFFU);
+    assert(values[22] == 0x8000U && values[23] == 0U);
+    assert(values[24] == 0U && values[25] == 0U);
+    assert(values[26] == 0x7FFFU && values[27] == 0xFFFFU);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS + 63U, 2U, boundary) == MODBUS_EXCEPTION_NONE);
+    assert(boundary[0] == 0U && boundary[1] == 0U);
+    assert(interface.write_single_register(interface.context,
+        PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS, 0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_CONVERSION_LAST_ADDRESS, 2U, boundary) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 static void TestAdcTraceRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -1249,6 +1290,7 @@ int main(void)
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestAdcDiagnosticRegisters();
+    TestAdcConversionRegisters();
     TestAdcTraceRegisters();
     TestSystemRoutineDiagnosticRegisters();
     TestProductVersionRegisters();
