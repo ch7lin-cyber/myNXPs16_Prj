@@ -15,6 +15,10 @@ python _Product/Tools/calys1500_loop_test.py --calys-port COM12 --dut-port COM8
 COM12、COM8 是範例，請依 Windows 裝置管理員修改。
 CALYS 固定 115200、8N1、無流量控制；DUT 預設 Modbus RTU、115200、8N1、slave 2。
 DUT 可用 `--dut-baud`、`--slave` 修改。兩台設備必須使用不同 port。
+DUT 回應 timeout 預設 2 秒（`--dut-timeout`），每次請求前等待 50 ms
+（`--dut-request-delay`）。讀取若遇到 timeout、不完整封包或 CRC 錯誤，
+最多重試 2 次（`--dut-read-retries`），重試前至少等 150 ms。
+有效的 Modbus 例外回應不重試；Sensor／Apply 寫入不自動重送。
 選單修改 port 後保存至 `calys1500_ports.json`，下次啟動沿用；命令列參數優先。
 只列出對映、不需要 pyserial 或硬體：
 
@@ -93,6 +97,8 @@ DUT 設定使用 FC10 寫 `0x1007 + CH*0x10`：Sensor、reserved=0、Apply=0xA5A
 
 CSV 保存時間、通道、Sensor、Gain、輸出設定值及單位、PV、input error、RAW、
 ADC 微伏值、成功樣本數、儀器身分、冷端／供電設定、等待時間與流程狀態。
+成功樣本數使用該點新樣本輪詢取得的計數，不在 RAW 讀回後重複讀取；
+`dut_read_retries` 保存每點通訊重試次數。
 `recorded` 只表示讀回已完成，**不代表 OK**；不計算公差、不做 OK／NG。
 電壓／電流／mV 的 PV 是韌體工程量，不能直接將其與 V／mA／mV 設定值相減。
 各 Modbus 區塊分次讀取，並非同一瞬間的原子快照；RAW／微伏與 PV 可能差一個採樣週期。
@@ -151,5 +157,6 @@ python -m unittest discover -s _Product/Tests -p test_calys1500_loop.py
 
 測試包含十點端點／小數、單位換算、非法值、_X 阻擋、SCPI 錯誤與關閉、
 指令等待、分段／空白回應、身分查詢重試與逾時診斷、
+Modbus 暫時性讀取失敗恢復、例外／寫入不重送、讀取重試上限、
 模擬 DUT 設定及讀回、CSV 中斷保存、新樣本逾時、校正入口無寫入。
 尚未在實體 CALYS 1500／DUT 上驗證；首次以選單 0.1.0、0.2、0.3 打通，再跑 1.1.0。

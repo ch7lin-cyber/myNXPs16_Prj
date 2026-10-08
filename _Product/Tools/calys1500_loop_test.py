@@ -27,7 +27,38 @@ CALIBRATION_MENU = {
 }
 FIELDS = ["utc", "point", "channel", "sensor_code", "sensor", "gain", "setpoint",
           "unit", "pv", "input_error", "raw_code", "microvolts", "successful_samples",
-          "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds", "status", "error"]
+          "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds",
+          "dut_read_retries", "status", "error"]
+
+
+class DutLink:
+    """Pace requests; retry only read transport errors, never writes/apply."""
+    def __init__(self, client, retries=2, request_delay=0.05):
+        self.client = client
+        self.retries = retries
+        self.request_delay = request_delay
+        self.read_retries = 0
+
+    def read_holding_registers(self, address, quantity):
+        for attempt in range(self.retries + 1):
+            time.sleep(self.request_delay if attempt == 0 else max(0.15, self.request_delay))
+            try:
+                return self.client.read_holding_registers(address, quantity)
+            except RuntimeError as exc:
+                # A valid Modbus exception is a DUT rejection, not a lost frame.
+                retryable = any(message in str(exc) for message in (
+                    "response timeout", "response is incomplete", "response CRC error"))
+                if not retryable or attempt == self.retries:
+                    raise
+                self.read_retries += 1
+                print(f"DUT 讀取 0x{address:04X} 重試 {attempt + 1}/{self.retries}：{exc}")
+
+    def write_multiple_registers(self, address, values):
+        time.sleep(self.request_delay)
+        return self.client.write_multiple_registers(address, values)
+
+    def close(self):
+        self.client.close()
 
 
 def list_sensors():
@@ -76,6 +107,7 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
         writer.writeheader()
         stream.flush()
         for index, point in enumerate(ten_points(sensor), 1):
+            retries_before = getattr(dut, "read_retries", 0)
             row = dict(utc=datetime.now(timezone.utc).isoformat(), point=index,
                        channel=channel, sensor_code=sensor.code, sensor=sensor.name,
                        gain=sensor.gain, setpoint=str(point), unit=sensor.unit,
@@ -88,23 +120,28 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
                 time.sleep(dwell)
                 before = sample_count(dut, channel)
                 deadline = time.monotonic() + fresh_timeout
-                while sample_count(dut, channel) == before:
+                while True:
+                    current_count = sample_count(dut, channel)
+                    if current_count != before:
+                        break
                     if time.monotonic() >= deadline:
                         raise TimeoutError("等待新成功樣本逾時")
                     time.sleep(0.1)
                 pv = dut.read_holding_registers(0x1000 + channel * 0x10, 3)
-                raw = dut.read_holding_registers(0x484F + channel * 0x40, 6)
                 row.update(pv=f32(pv[:2]), input_error=pv[2],
-                           raw_code=f"0x{u32(raw[:2]):08X}", microvolts=i32(raw[4:6]),
-                           successful_samples=sample_count(dut, channel))
+                           successful_samples=current_count)
+                raw = dut.read_holding_registers(0x484F + channel * 0x40, 6)
+                row.update(raw_code=f"0x{u32(raw[:2]):08X}", microvolts=i32(raw[4:6]))
                 print(f"[{index}/10] 輸出 {point} {sensor.unit} → PV={row['pv']}, "
                       f"error={row['input_error']}, ADC={row['microvolts']} uV")
             except BaseException as exc:
                 row.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "error",
-                           error=str(exc) or type(exc).__name__)
+                           error=str(exc) or type(exc).__name__,
+                           dut_read_retries=getattr(dut, "read_retries", 0) - retries_before)
                 writer.writerow(row)
                 stream.flush()
                 raise
+            row["dut_read_retries"] = getattr(dut, "read_retries", 0) - retries_before
             writer.writerow(row)
             stream.flush()
     return path
@@ -124,11 +161,21 @@ def nonnegative(text):
     return value
 
 
+def retry_count(text):
+    value = int(text)
+    if not 0 <= value <= 10:
+        raise argparse.ArgumentTypeError("重試次數必須介於 0～10")
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--calys-port")
     parser.add_argument("--dut-port")
     parser.add_argument("--dut-baud", type=int, default=115200)
+    parser.add_argument("--dut-timeout", type=positive, default=2.0)
+    parser.add_argument("--dut-read-retries", type=retry_count, default=2)
+    parser.add_argument("--dut-request-delay", type=nonnegative, default=0.05)
     parser.add_argument("--slave", type=int, choices=range(1, 248), default=2,
                         metavar="1..247")
     parser.add_argument("--dwell", type=positive, default=2.0)
@@ -228,7 +275,8 @@ def main(argv=None):
                     device = connect()
                     device.configure(selected, **settings)
                     cls, *_ = modbus_helpers()
-                    dut = cls(dut_port, args.slave, args.dut_baud)
+                    dut = DutLink(cls(dut_port, args.slave, args.dut_baud, args.dut_timeout),
+                                  args.dut_read_retries, args.dut_request_delay)
                     path = args.results / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
                                           + f"_CH{channel}_{selected.code}.csv")
                     print("十點：", ", ".join(str(p) for p in ten_points(selected)))

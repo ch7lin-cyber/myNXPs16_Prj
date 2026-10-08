@@ -193,6 +193,60 @@ class Tests(unittest.TestCase):
             calys.assert_not_called()
             dut.assert_not_called()
 
+    @patch.object(loop.time, "sleep")
+    def test_dut_read_retry_only(self, sleep):
+        from unittest.mock import Mock
+        client = Mock()
+        client.read_holding_registers.side_effect = [
+            RuntimeError("response timeout: expected 3-byte header, received 0"), [0, 50]]
+        dut = loop.DutLink(client)
+        self.assertEqual(dut.read_holding_registers(0x4831, 2), [0, 50])
+        self.assertEqual(dut.read_retries, 1)
+        self.assertEqual(client.read_holding_registers.call_count, 2)
+        client.read_holding_registers.reset_mock()
+        client.read_holding_registers.side_effect = RuntimeError("Modbus exception: code=0x02")
+        with self.assertRaises(RuntimeError):
+            dut.read_holding_registers(0x4831, 2)
+        self.assertEqual(client.read_holding_registers.call_count, 1)
+        client.write_multiple_registers.side_effect = RuntimeError("response timeout")
+        with self.assertRaises(RuntimeError):
+            dut.write_multiple_registers(0x1007, [113, 0, 0xA5A5])
+        self.assertEqual(client.write_multiple_registers.call_count, 1)
+
+    @patch.object(loop, "modbus_helpers", helpers)
+    @patch.object(loop.time, "sleep", lambda seconds: None)
+    def test_sweep_recovers_timeout_without_redundant_count(self):
+        client = DutFake()
+        original = client.read_holding_registers
+        addresses = []
+        def read(address, quantity):
+            addresses.append(address)
+            if len(addresses) == 1:
+                raise RuntimeError("response timeout: expected 3-byte header, received 0")
+            return original(address, quantity)
+        client.read_holding_registers = read
+        dut = loop.DutLink(client)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "results.csv"
+            loop.run_sweep(CalysFake(), dut, 1, protocol.SENSORS[48], path, dwell=0)
+            with path.open(encoding="utf-8-sig") as stream:
+                rows = list(csv.DictReader(stream))
+            self.assertEqual(len(rows), 10)
+            self.assertEqual(rows[0]["dut_read_retries"], "1")
+            self.assertEqual(rows[-1]["status"], "recorded")
+            self.assertEqual(addresses.count(0x4871), 21)  # 2/point + one retry
+
+    @patch.object(loop.time, "sleep")
+    def test_dut_read_retry_exhausted(self, sleep):
+        from unittest.mock import Mock
+        client = Mock()
+        client.read_holding_registers.side_effect = RuntimeError("response CRC error")
+        dut = loop.DutLink(client)
+        with self.assertRaises(RuntimeError):
+            dut.read_holding_registers(0x4831, 2)
+        self.assertEqual(client.read_holding_registers.call_count, 3)
+        self.assertEqual(dut.read_retries, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
