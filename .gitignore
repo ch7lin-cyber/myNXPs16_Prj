@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+calys_results/
+calys1500_ports.json
