@@ -149,6 +149,8 @@ int main(int argc, char **argv)
     RaiseAndProcess(0U, PRODUCT_SENSOR_TYPE_RTD_100_OHM);
     assert(g_adc[0].setup.gain == HAL_ADC_GAIN_8);
     assert(g_adc[0].setup.reference == HAL_ADC_REFERENCE_EXTERNAL_1);
+    assert(g_adc[0].setup.reference_buffer_enabled);
+    assert(g_adc[0].setup.filter_word == 47U);
     assert(g_adc[0].channel.positive_input == PRODUCT_ADC_RTD_AIN_POSITIVE);
     assert(g_adc[0].channel.negative_input == PRODUCT_ADC_RTD_AIN_NEGATIVE);
     assert(g_adc[0].excitation_current_ua == 500U);

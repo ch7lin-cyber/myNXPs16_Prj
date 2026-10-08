@@ -165,6 +165,19 @@ int main(void)
     /* Product board must request REFOUT even for an external-reference RTD. */
     setup.reference = HAL_ADC_REFERENCE_EXTERNAL_1;
     setup.gain = HAL_ADC_GAIN_8;
+    config.excitation_current_ua = 500U;
     assert(ProductAdcConfigure(context, &config) == HAL_ADC_STATUS_OK);
+    g_read_status = kAdiAd7124_Ok;
+    g_raw = 0x0097D05FUL; /* 100 ohm, gain 8, effective reference 4300 ohm. */
+    assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_READY);
+    assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
+    assert(sample.microvolts >= 49999 && sample.microvolts <= 50000);
+    setup.gain = HAL_ADC_GAIN_1;
+    config.excitation_current_ua = 250U;
+    g_raw = 0x009DC477UL; /* 1000 ohm, gain 1. */
+    assert(ProductAdcConfigure(context, &config) == HAL_ADC_STATUS_OK);
+    assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_READY);
+    assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
+    assert(sample.microvolts >= 249999 && sample.microvolts <= 250000);
     return 0;
 }

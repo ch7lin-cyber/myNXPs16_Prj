@@ -597,6 +597,10 @@ adi_ad7124_status_t ADI_AD7124_Configure(
         }
         value = ((uint32_t)setup->filter << 21U) |
                 (uint32_t)setup->filterWord;
+        if (setup->singleCycle)
+        {
+            value |= (1UL << 16U);
+        }
         if (setup->reject60Hz)
         {
             value |= ADI_AD7124_FILTER_REJECT_60_HZ;

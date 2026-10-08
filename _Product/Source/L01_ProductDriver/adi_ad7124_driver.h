@@ -105,6 +105,7 @@ typedef struct _adi_ad7124_setup_config
     bool inputBufferEnabled;
     bool referenceBufferEnabled;
     bool reject60Hz;
+    bool singleCycle;
 } adi_ad7124_setup_config_t;
 
 typedef struct _adi_ad7124_channel_config

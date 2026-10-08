@@ -441,6 +441,9 @@ static HalAdcStatus_t ProductAdcConfigure(
         setups[index].referenceBufferEnabled =
             config->setups[index].reference_buffer_enabled;
         setups[index].reject60Hz = (PRODUCT_ADC_REJECT_60_HZ != 0U);
+        setups[index].singleCycle =
+            (config->excitation_current_ua > 0U) &&
+            (config->setups[index].reference == PRODUCT_ADC_RTD_REFERENCE);
     }
     for (index = 0U; index < config->channel_count; index++)
     {
@@ -662,6 +665,17 @@ static HalAdcStatus_t ProductAdcTryReadInternal(
         (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_2) ?
             PRODUCT_ADC_EXTERNAL_REFERENCE2_UV :
             PRODUCT_ADC_SUPPLY_REFERENCE_UV;
+    /* Legacy RTD ratio: R = centered RAW * 4300 / (gain * 2^23).
+     * Expose R * I as equivalent microvolts to retain the HAL, calibration
+     * targets and NVM units. This coefficient is NOT measured REFIN voltage.
+     * Existing conversion performs the numerator/division in signed 64-bit.
+     */
+    if ((context->active_config->excitation_current_ua > 0U) &&
+        (setup->reference == PRODUCT_ADC_RTD_REFERENCE))
+    {
+        reference_uv = PRODUCT_ADC_RTD_REFERENCE_OHM *
+                       context->active_config->excitation_current_ua;
+    }
     PRODUCT_ADC_DEBUG_ONLY(context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_CONVERT);
 #if PRODUCT_ADC_DEBUG_ENABLE
     /* Capture the actual arguments and arithmetic inside the conversion. */

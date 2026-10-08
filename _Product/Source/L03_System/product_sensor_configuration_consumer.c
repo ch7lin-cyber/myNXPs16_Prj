@@ -187,7 +187,7 @@ static void BuildConfiguration(
                                          PRODUCT_ADC_TC_FILTER_WORD;
     runtime->setup.bipolar = true;
     runtime->setup.input_buffer_enabled = true;
-    runtime->setup.reference_buffer_enabled = false;
+    runtime->setup.reference_buffer_enabled = is_rtd;
 
     runtime->adc_channel.channel = PRODUCT_ADC_ACTIVE_CHANNEL;
     runtime->adc_channel.setup = PRODUCT_ADC_DEFAULT_SETUP;

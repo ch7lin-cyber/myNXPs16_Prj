@@ -54,8 +54,8 @@
 #define PRODUCT_ADC_SPI_BAUD_RATE_HZ           (200000UL)
 #define PRODUCT_ADC_SPI_MODE                   (3U)
 
-/* Analog front-end component values read from the production schematic. */
-#define PRODUCT_ADC_RTD_REFERENCE_OHM          (6490UL)
+/* Legacy RTD RAW-to-resistance equivalent coefficient; not an R82 value. */
+#define PRODUCT_ADC_RTD_REFERENCE_OHM          (4300UL)
 #define PRODUCT_ADC_CURRENT_SHUNT_MILLIOHM     (49900UL)
 #define PRODUCT_ADC_INPUT_SERIES_OHM           (510000UL)
 #define PRODUCT_ADC_VOLTAGE_DIVIDER_OHM        (6200UL)
@@ -88,7 +88,9 @@
 #define PRODUCT_ADC_GAIN_PT1000               HAL_ADC_GAIN_1
 #define PRODUCT_ADC_GAIN_GENERAL              HAL_ADC_GAIN_32
 #define PRODUCT_ADC_RTD_FILTER                HAL_ADC_FILTER_SINC4
-#define PRODUCT_ADC_RTD_FILTER_WORD           (384U)
+#define PRODUCT_ADC_RTD_LEGACY_RATE_ARGUMENT  (101UL)
+#define PRODUCT_ADC_RTD_FILTER_WORD           \
+    (PRODUCT_ADC_INTERNAL_CLOCK_HZ / PRODUCT_ADC_RTD_LEGACY_RATE_ARGUMENT / 32UL / 4UL)
 #define PRODUCT_ADC_RTD_REFERENCE             HAL_ADC_REFERENCE_EXTERNAL_1
 
 #if defined(__cplusplus)
