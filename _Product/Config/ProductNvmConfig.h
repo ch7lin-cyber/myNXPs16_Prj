@@ -9,6 +9,11 @@
 #define PRODUCT_NVM_SLOT1_ADDRESS             (0x008000UL)
 #define PRODUCT_NVM_ADDRESS_MASK              (0x03FFFFUL)
 
+/* Forty calibration records, two 64-byte copies each. End is exclusive.
+ * Separate from temperature configuration slots at 0x00000 / 0x08000. */
+#define PRODUCT_NVM_CALIBRATION_BASE_ADDRESS  (0x010000UL)
+#define PRODUCT_NVM_CALIBRATION_END_ADDRESS   (0x011400UL)
+
 /* RDID response: Manufacturer / continuation / product bytes. */
 #define PRODUCT_NVM_MANUFACTURER_ID           (0x04U)
 #define PRODUCT_NVM_CONTINUATION_CODE         (0x7FU)

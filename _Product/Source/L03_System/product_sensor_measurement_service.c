@@ -268,7 +268,6 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
     product_temperature_input_config_t product_configuration;
     SensorConversionConfig_t conversion_configuration;
     FactoryCalibrationProfile_t calibration_profile;
-    HalAdcFactoryCalibration_t calibration;
     AnalogInputSample_t sample;
     SensorConversionResult_t result;
     product_temperature_input_monitor_t monitor;
@@ -319,10 +318,8 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
         state->last_sample_sequence = sample.sequence;
         return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_FAIL);
     }
-    if (!FactoryCalibrationService_GetCalibration(
-            channel, calibration_profile, &calibration) ||
-        !HalAdcMeasurement_ApplyFactoryCalibration(
-            sample.microvolts, &calibration, &calibrated_uv))
+    if (!FactoryCalibrationService_Convert(channel, calibration_profile,
+            sample.microvolts, &calibrated_uv))
     {
         state->last_sample_sequence = sample.sequence;
         return UpdateErrorMonitor(channel,

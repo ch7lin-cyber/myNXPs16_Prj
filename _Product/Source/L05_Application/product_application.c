@@ -8,6 +8,7 @@
 #include "EventService.h"
 #include "FaultService.h"
 #include "FactoryCalibrationService.h"
+#include "product_factory_calibration_storage.h"
 #include "FactoryModeService.h"
 #include "NvmConfigurationEventConsumer.h"
 #include "NvmService.h"
@@ -452,6 +453,7 @@ bool ProductApplication_Init(void)
         return false;
     }
     ProductFramBankTest_Initialize();
+    (void)ProductFactoryCalibrationStorage_Initialize();
 
     {
         uint8_t channel;

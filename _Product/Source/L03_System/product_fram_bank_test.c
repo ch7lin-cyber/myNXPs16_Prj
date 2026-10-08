@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "FactoryModeService.h"
+#include "FactoryCalibrationService.h"
 #include "HalNvm.h"
 #include "NvmService.h"
 #include "ProductNvmConfig.h"
@@ -132,6 +133,17 @@ bool ProductFramBankTest_Start(void)
     {
         Fail(PRODUCT_FRAM_TEST_ERROR_FACTORY_MODE_LOCKED, 0U, 0U, 0U);
         return false;
+    }
+    /* The whole-chip checkerboard test would destroy saved calibration. */
+    for (uint8_t input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
+    for (uint8_t profile = 0U; profile < FACTORY_CALIBRATION_PROFILE_COUNT; profile++)
+    {
+        if (FactoryCalibrationService_IsCalibrated(input,
+                (FactoryCalibrationProfile_t)profile))
+        {
+            Fail(PRODUCT_FRAM_TEST_ERROR_CALIBRATION_PRESENT, 0U, 0U, 0U);
+            return false;
+        }
     }
     if ((nvm_state != NVM_SERVICE_STATE_IDLE) &&
         (nvm_state != NVM_SERVICE_STATE_COMPLETE))

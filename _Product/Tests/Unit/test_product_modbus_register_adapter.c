@@ -604,6 +604,13 @@ static void TestProductDiagnosticsFaultRegisters(void)
     assert(values[12] == FAULT_CODE_NVM_ERASE_FAILED);
 }
 
+static bool FailCalibrationSave(uint8_t input, FactoryCalibrationProfile_t profile,
+                                const HalAdcFactoryCalibration_t *calibration)
+{
+    (void)input; (void)profile; (void)calibration;
+    return false;
+}
+
 static void TestFactoryCalibrationSlots(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -646,6 +653,21 @@ static void TestFactoryCalibrationSlots(void)
         assert(interface.write_single_register(interface.context, base, 0U) ==
             MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
+    assert(!ProductFramBankTest_Start());
+    {
+        ProductFramBankTestSnapshot_t snapshot;
+        ProductFramBankTest_GetSnapshot(&snapshot);
+        assert(snapshot.error == PRODUCT_FRAM_TEST_ERROR_CALIBRATION_PRESENT);
+    }
+    {
+        uint16_t metadata[8U];
+        assert(interface.read_holding_registers(interface.context,
+            PRODUCT_MODBUS_FACTORY_CAL_STATUS_BASE_ADDRESS, 8U, metadata) == MODBUS_EXCEPTION_NONE);
+        assert(metadata[0] == 0U && metadata[1] == 0U);
+        assert(metadata[2] == 0U && metadata[3] == 30000U);
+        assert(interface.write_single_register(interface.context,
+            PRODUCT_MODBUS_FACTORY_CAL_TARGET_SPAN_ADDRESS, 0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    }
     /* Confirm every slot is independent after all 40 have been applied. */
     for (uint8_t ch = 0U; ch < 4U; ch++)
     for (uint8_t p = 0U; p < 10U; p++)
@@ -662,6 +684,17 @@ static void TestFactoryCalibrationSlots(void)
         0x4DFFU, 2U, boundary) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     FactoryCalibrationService_Initialize();
     assert(!FactoryCalibrationService_IsCalibrated(0U, FACTORY_CAL_PROFILE_TC_GAIN32));
+    FactoryCalibrationService_SetSaveCallback(FailCalibrationSave);
+    assert(FactoryCalibrationService_Select(0U, FACTORY_CAL_PROFILE_TC_GAIN32));
+    FactoryCalibrationService_UpdateLiveMicrovolts(0U, 0L);
+    assert(FactoryCalibrationService_CaptureZero());
+    FactoryCalibrationService_UpdateLiveMicrovolts(0U, 30000L);
+    assert(FactoryCalibrationService_CaptureSpan());
+    assert(interface.write_single_register(interface.context,
+        PRODUCT_MODBUS_FACTORY_CAL_COMMAND_ADDRESS, PRODUCT_FACTORY_CAL_COMMAND_APPLY) ==
+        MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(!FactoryCalibrationService_IsCalibrated(0U, FACTORY_CAL_PROFILE_TC_GAIN32));
+    FactoryCalibrationService_Initialize();
 }
 
 static void TestAdcDiagnosticRegisters(void)

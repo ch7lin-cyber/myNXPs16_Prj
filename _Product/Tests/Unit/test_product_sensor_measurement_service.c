@@ -63,19 +63,12 @@ bool ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
     return true;
 }
 
-bool FactoryCalibrationService_GetCalibration(
-    uint8_t input,
-    FactoryCalibrationProfile_t profile,
-    HalAdcFactoryCalibration_t *calibration)
+bool FactoryCalibrationService_Convert(uint8_t input,
+    FactoryCalibrationProfile_t profile, int32_t raw_uv, int32_t *calibrated_uv)
 {
     (void)profile;
-    if ((input >= 4U) || (calibration == NULL))
-    {
-        return false;
-    }
-    calibration->measured_zero_uv = 0L;
-    calibration->measured_span_uv = 30000L;
-    calibration->valid = true;
+    if ((input >= 4U) || (calibrated_uv == NULL)) return false;
+    *calibrated_uv = raw_uv;
     return true;
 }
 

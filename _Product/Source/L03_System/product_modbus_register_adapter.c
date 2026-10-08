@@ -9,6 +9,7 @@
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
+#include "product_factory_calibration_storage.h"
 #include "FaultService.h"
 #include "SafetyService.h"
 #include "SystemFaultService.h"
@@ -605,6 +606,25 @@ static void BuildFactoryCalibrationImage(uint16_t *registers)
     Int32ToRegisters(snapshot.pending_span_uv,
                      &registers[11], &registers[12]);
     registers[13] = snapshot.revision;
+}
+
+static void BuildFactoryCalibrationStatusImage(uint16_t *registers)
+{
+    FactoryCalibrationSnapshot_t snapshot;
+    FactoryCalibrationTargets_t targets;
+    ProductFactoryCalibrationStorageStatus_t storage;
+    memset(registers, 0, 8U * sizeof(registers[0]));
+    FactoryCalibrationService_GetSnapshot(&snapshot);
+    if (FactoryCalibrationService_GetTargets(snapshot.profile, &targets))
+    {
+        Int32ToRegisters(targets.zero_uv, &registers[0], &registers[1]);
+        Int32ToRegisters(targets.span_uv, &registers[2], &registers[3]);
+    }
+    ProductFactoryCalibrationStorage_GetStatus(&storage);
+    registers[4] = storage.ready ? 1U : 0U;
+    registers[5] = storage.loaded_records;
+    registers[6] = storage.last_error;
+    registers[7] = storage.corrupt_records;
 }
 
 static void BuildDiagnosticsImage(
@@ -1274,6 +1294,16 @@ static ModbusExceptionCode_t ReadRegisters(
     {
         return ReadFactoryCalibrationData(starting_address, quantity, values);
     }
+    if ((quantity > 0U) &&
+        (starting_address >= PRODUCT_MODBUS_FACTORY_CAL_STATUS_BASE_ADDRESS) &&
+        ((uint32_t)starting_address + quantity - 1UL <= PRODUCT_MODBUS_FACTORY_CAL_STATUS_LAST_ADDRESS))
+    {
+        uint16_t status_image[8U];
+        BuildFactoryCalibrationStatusImage(status_image);
+        memcpy(values, &status_image[starting_address - PRODUCT_MODBUS_FACTORY_CAL_STATUS_BASE_ADDRESS],
+               quantity * sizeof(values[0]));
+        return MODBUS_EXCEPTION_NONE;
+    }
     if (IsFactoryCalibrationRangeValid(starting_address, quantity))
     {
         BuildFactoryCalibrationImage(factoryImage);
@@ -1464,8 +1494,13 @@ static ModbusExceptionCode_t ExecuteFactoryCalibrationCommand(uint16_t command)
         default:
             return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
     }
-    return success ? MODBUS_EXCEPTION_NONE :
-                     MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    if (!success)
+    {
+        FactoryCalibrationService_GetSnapshot(&snapshot);
+        if (snapshot.error == FACTORY_CAL_ERROR_STORAGE)
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    return success ? MODBUS_EXCEPTION_NONE : MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
 }
 
 static ModbusExceptionCode_t ExecuteFactoryFramCommand(uint16_t command)
