@@ -95,6 +95,7 @@
 									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100"/>
 									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100_cm33"/>
 									<listOptionValue builtIn="false" value="SDK_OS_BAREMETAL"/>
+									<listOptionValue builtIn="false" value="FACTORY_CALIBRATION_INPUT_COUNT=4"/>
 									<listOptionValue builtIn="false" value="SDK_DEBUGCONSOLE=1"/>
 									<listOptionValue builtIn="false" value="CR_INTEGER_PRINTF"/>
 									<listOptionValue builtIn="false" value="PRINTF_FLOAT_ENABLE=0"/>
@@ -491,6 +492,7 @@
 									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100"/>
 									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100_cm33"/>
 									<listOptionValue builtIn="false" value="SDK_OS_BAREMETAL"/>
+									<listOptionValue builtIn="false" value="FACTORY_CALIBRATION_INPUT_COUNT=4"/>
 									<listOptionValue builtIn="false" value="SDK_DEBUGCONSOLE=1"/>
 									<listOptionValue builtIn="false" value="CR_INTEGER_PRINTF"/>
 									<listOptionValue builtIn="false" value="PRINTF_FLOAT_ENABLE=0"/>

@@ -535,6 +535,61 @@ static void Int32ToRegisters(int32_t value, uint16_t *high, uint16_t *low)
     *low = (uint16_t)bits;
 }
 
+/* Permanent calibration data map, independent of ADC debug tracing. */
+static ModbusExceptionCode_t ReadFactoryCalibrationData(
+    uint16_t address, uint16_t quantity, uint16_t *values)
+{
+    uint16_t index;
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t relative = (uint16_t)(address + index -
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_BASE_ADDRESS);
+        uint8_t channel = (uint8_t)(relative /
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_CHANNEL_STRIDE);
+        uint16_t channel_offset = (uint16_t)(relative %
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_CHANNEL_STRIDE);
+        uint8_t profile = (uint8_t)(channel_offset /
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_PROFILE_STRIDE);
+        uint16_t offset = (uint16_t)(channel_offset %
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_PROFILE_STRIDE);
+        HalAdcFactoryCalibration_t calibration;
+        uint16_t high, low;
+        values[index] = 0U;
+        if (profile >= PRODUCT_MODBUS_FACTORY_CAL_DATA_PROFILE_COUNT)
+        {
+            continue; /* Reserved tail of each channel. */
+        }
+        if (!FactoryCalibrationService_GetCalibration(channel,
+                (FactoryCalibrationProfile_t)profile, &calibration))
+        {
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+        switch (offset)
+        {
+            case 0U:
+            case 1U:
+                Int32ToRegisters(calibration.measured_zero_uv, &high, &low);
+                values[index] = (offset == 0U) ? high : low;
+                break;
+            case 2U:
+            case 3U:
+                Int32ToRegisters(calibration.measured_span_uv, &high, &low);
+                values[index] = (offset == 2U) ? high : low;
+                break;
+            case 4U:
+                values[index] = calibration.valid ? 1U : 0U;
+                break;
+            case 5U:
+                values[index] = FactoryCalibrationService_IsCalibrated(
+                    channel, (FactoryCalibrationProfile_t)profile) ? 1U : 0U;
+                break;
+            default:
+                break;
+        }
+    }
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static void BuildFactoryCalibrationImage(uint16_t *registers)
 {
     FactoryCalibrationSnapshot_t snapshot;
@@ -1212,6 +1267,13 @@ static ModbusExceptionCode_t ReadRegisters(
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
+    if ((quantity > 0U) &&
+        (starting_address >= PRODUCT_MODBUS_FACTORY_CAL_DATA_BASE_ADDRESS) &&
+        (((uint32_t)starting_address + quantity - 1UL) <=
+            PRODUCT_MODBUS_FACTORY_CAL_DATA_LAST_ADDRESS))
+    {
+        return ReadFactoryCalibrationData(starting_address, quantity, values);
+    }
     if (IsFactoryCalibrationRangeValid(starting_address, quantity))
     {
         BuildFactoryCalibrationImage(factoryImage);
@@ -1879,6 +1941,10 @@ static ModbusExceptionCode_t WriteSingleRegister(
     {
         FactoryCalibrationSnapshot_t snapshot;
         FactoryCalibrationService_GetSnapshot(&snapshot);
+        if (value >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT)
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
         return FactoryCalibrationService_Select(
                    (uint8_t)value, snapshot.profile) ?
                    MODBUS_EXCEPTION_NONE : MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;

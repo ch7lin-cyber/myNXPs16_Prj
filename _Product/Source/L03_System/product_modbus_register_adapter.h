@@ -168,6 +168,17 @@ typedef struct _product_low_voltage_monitor
 #define PRODUCT_MODBUS_FACTORY_CAL_REVISION_ADDRESS           (0x470DU)
 #define PRODUCT_MODBUS_FACTORY_CAL_LAST_ADDRESS               (0x470DU)
 
+/* Applied calibration slots (read-only, always available including DEBUG=0).
+ * CH0/1/2/3: 4C00/4C80/4D00/4D80; profile 0..9, stride 8 registers.
+ * +0..1 zero uV, +2..3 span uV (signed int32, high word first),
+ * +4 usable, +5 factory calibrated, +6..7 reserved.
+ */
+#define PRODUCT_MODBUS_FACTORY_CAL_DATA_BASE_ADDRESS          (0x4C00U)
+#define PRODUCT_MODBUS_FACTORY_CAL_DATA_CHANNEL_STRIDE        (0x0080U)
+#define PRODUCT_MODBUS_FACTORY_CAL_DATA_PROFILE_STRIDE        (8U)
+#define PRODUCT_MODBUS_FACTORY_CAL_DATA_PROFILE_COUNT         (10U)
+#define PRODUCT_MODBUS_FACTORY_CAL_DATA_LAST_ADDRESS          (0x4DFFU)
+
 #define PRODUCT_FACTORY_CAL_COMMAND_SELECT                    (1U)
 #define PRODUCT_FACTORY_CAL_COMMAND_CAPTURE_ZERO              (2U)
 #define PRODUCT_FACTORY_CAL_COMMAND_CAPTURE_SPAN              (3U)

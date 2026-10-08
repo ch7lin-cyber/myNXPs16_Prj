@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "ProductConfig.h"
+#include "FactoryCalibrationService.h"
 #include "EventService.h"
 #include "FaultService.h"
 #include "ModbusRegisterAdapter.h"
@@ -601,6 +602,66 @@ static void TestProductDiagnosticsFaultRegisters(void)
                2U, &values[11]) == MODBUS_EXCEPTION_NONE);
     assert(values[11] == PRODUCT_DIAGNOSTICS_RESET_RESULT_SUCCESS);
     assert(values[12] == FAULT_CODE_NVM_ERASE_FAILED);
+}
+
+static void TestFactoryCalibrationSlots(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t values[8U], boundary[2U];
+    HalAdcFactoryCalibration_t calibration;
+    FactoryCalibrationService_Initialize();
+    FactoryCalibrationService_SetUnlockKey1(FACTORY_CALIBRATION_UNLOCK_KEY);
+    FactoryCalibrationService_SetUnlockKey2(FACTORY_CALIBRATION_UNLOCK_KEY);
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(!FactoryCalibrationService_GetCalibration(0U,
+        (FactoryCalibrationProfile_t)-1, &calibration));
+    assert(!FactoryCalibrationService_Select(0U,
+        (FactoryCalibrationProfile_t)FACTORY_CALIBRATION_PROFILE_COUNT));
+    assert(interface.write_single_register(interface.context,
+        PRODUCT_MODBUS_FACTORY_CAL_INPUT_ADDRESS, 256U) ==
+        MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    for (uint8_t ch = 0U; ch < 4U; ch++)
+    for (uint8_t p = 0U; p < 10U; p++)
+    {
+        uint16_t base = (uint16_t)(0x4C00U + ch * 0x80U + p * 8U);
+        int32_t zero = -100L - ch * 10L - p;
+        int32_t span = 30000L + ch * 10L + p;
+        assert(interface.read_holding_registers(interface.context,
+            base, 8U, values) == MODBUS_EXCEPTION_NONE);
+        assert(values[0] == 0U && values[1] == 0U);
+        assert(values[2] == 0U && values[3] == 30000U);
+        assert(values[4] == 1U && values[5] == 0U);
+        assert(FactoryCalibrationService_Select(ch, (FactoryCalibrationProfile_t)p));
+        FactoryCalibrationService_UpdateLiveMicrovolts(ch, zero);
+        assert(FactoryCalibrationService_CaptureZero());
+        FactoryCalibrationService_UpdateLiveMicrovolts(ch, span);
+        assert(FactoryCalibrationService_CaptureSpan());
+        assert(FactoryCalibrationService_Apply());
+        assert(interface.read_holding_registers(interface.context,
+            base, 8U, values) == MODBUS_EXCEPTION_NONE);
+        assert(values[0] == 0xFFFFU && values[1] == (uint16_t)zero);
+        assert(values[2] == 0U && values[3] == (uint16_t)span);
+        assert(values[4] == 1U && values[5] == 1U);
+        assert(values[6] == 0U && values[7] == 0U);
+        assert(interface.write_single_register(interface.context, base, 0U) ==
+            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    }
+    /* Confirm every slot is independent after all 40 have been applied. */
+    for (uint8_t ch = 0U; ch < 4U; ch++)
+    for (uint8_t p = 0U; p < 10U; p++)
+    {
+        assert(FactoryCalibrationService_GetCalibration(ch,
+            (FactoryCalibrationProfile_t)p, &calibration));
+        assert(calibration.measured_zero_uv == -100L - ch * 10L - p);
+        assert(calibration.measured_span_uv == 30000L + ch * 10L + p);
+    }
+    assert(interface.read_holding_registers(interface.context,
+        0x4C7FU, 2U, boundary) == MODBUS_EXCEPTION_NONE);
+    assert(boundary[0] == 0U && boundary[1] == 0xFFFFU);
+    assert(interface.read_holding_registers(interface.context,
+        0x4DFFU, 2U, boundary) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    FactoryCalibrationService_Initialize();
+    assert(!FactoryCalibrationService_IsCalibrated(0U, FACTORY_CAL_PROFILE_TC_GAIN32));
 }
 
 static void TestAdcDiagnosticRegisters(void)
@@ -1311,6 +1372,7 @@ int main(void)
     TestInvalidRanges();
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
+    TestFactoryCalibrationSlots();
     TestAdcDiagnosticRegisters();
 #if PRODUCT_ADC_DEBUG_ENABLE
     TestAdcConversionRegisters();

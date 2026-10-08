@@ -88,7 +88,7 @@ static void SetCommonConfiguration(
         return true
 
 #define SET_RTD_CONFIG(product_type, conversion_type, macro_prefix,         \
-                       function_prefix, current)                            \
+                       function_prefix, current, profile)                   \
     case product_type:                                                      \
         if (!function_prefix##Table_IsReady())                              \
         {                                                                   \
@@ -100,7 +100,7 @@ static void SetCommonConfiguration(
             macro_prefix##_EXTENDED_MARGIN_MC,                              \
             function_prefix##Table_GetMeasurementTable(), NULL);            \
         configuration->excitation_current_ua = current;                     \
-        *calibration_profile = FACTORY_CAL_PROFILE_RTD;                     \
+        *calibration_profile = profile;                     \
         return true
 
 bool ProductSensorMeasurementService_ResolveConfiguration(
@@ -117,48 +117,48 @@ bool ProductSensorMeasurementService_ResolveConfiguration(
     switch (sensor_type)
     {
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_B, SENSOR_TYPE_TC_B, TC_B, TcB,
-                      FACTORY_CAL_PROFILE_TC_GAIN2);
+                      FACTORY_CAL_PROFILE_TC_GAIN128);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_C, SENSOR_TYPE_TC_C, TC_C, TcC,
-                      FACTORY_CAL_PROFILE_TC_GAIN2);
+                      FACTORY_CAL_PROFILE_TC_GAIN64);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_D, SENSOR_TYPE_TC_D, TC_D, TcD,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_E, SENSOR_TYPE_TC_E, TC_E, TcE,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_J, SENSOR_TYPE_TC_J, TC_J, TcJ,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN16);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_K, SENSOR_TYPE_TC_K, TC_K, TcK,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_N, SENSOR_TYPE_TC_N, TC_N, TcN,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_R, SENSOR_TYPE_TC_R, TC_R, TcR,
-                      FACTORY_CAL_PROFILE_TC_GAIN2);
+                      FACTORY_CAL_PROFILE_TC_GAIN64);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_S, SENSOR_TYPE_TC_S, TC_S, TcS,
-                      FACTORY_CAL_PROFILE_TC_GAIN2);
+                      FACTORY_CAL_PROFILE_TC_GAIN128);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_T, SENSOR_TYPE_TC_T, TC_T, TcT,
-                      FACTORY_CAL_PROFILE_TC_GAIN2);
+                      FACTORY_CAL_PROFILE_TC_GAIN64);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_L, SENSOR_TYPE_TC_L, TC_L, TcL,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_U, SENSOR_TYPE_TC_U, TC_U, TcU,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
         SET_TC_CONFIG(PRODUCT_SENSOR_TYPE_TC_TXK, SENSOR_TYPE_TC_TXK, TC_TXK,
                       TcTxk,
-                      FACTORY_CAL_PROFILE_TC_GAIN1);
+                      FACTORY_CAL_PROFILE_TC_GAIN32);
 
         SET_RTD_CONFIG(PRODUCT_SENSOR_TYPE_RTD_100_OHM,
                        SENSOR_TYPE_RTD_PT100, RTD_PT100, RtdPt100,
-                       PRODUCT_ADC_IEX_UA_PT100);
+                       PRODUCT_ADC_IEX_UA_PT100, FACTORY_CAL_PROFILE_RTD_GAIN8);
         SET_RTD_CONFIG(PRODUCT_SENSOR_TYPE_RTD_1000_OHM,
                        SENSOR_TYPE_RTD_PT1000, RTD_PT1000, RtdPt1000,
-                       PRODUCT_ADC_IEX_UA_PT1000);
+                       PRODUCT_ADC_IEX_UA_PT1000, FACTORY_CAL_PROFILE_RTD_GAIN1);
         SET_RTD_CONFIG(PRODUCT_SENSOR_TYPE_RTD_JPT100,
                        SENSOR_TYPE_RTD_JPT100, RTD_JPT100, RtdJpt100,
-                       PRODUCT_ADC_IEX_UA_JPT100);
+                       PRODUCT_ADC_IEX_UA_JPT100, FACTORY_CAL_PROFILE_RTD_GAIN16);
         SET_RTD_CONFIG(PRODUCT_SENSOR_TYPE_RTD_NI120,
                        SENSOR_TYPE_RTD_NI120, RTD_NI120, RtdNi120,
-                       PRODUCT_ADC_IEX_UA_NI120);
+                       PRODUCT_ADC_IEX_UA_NI120, FACTORY_CAL_PROFILE_RTD_GAIN8);
         SET_RTD_CONFIG(PRODUCT_SENSOR_TYPE_RTD_CU50,
                        SENSOR_TYPE_RTD_CU50, RTD_CU50, RtdCu50,
-                       PRODUCT_ADC_IEX_UA_CU50);
+                       PRODUCT_ADC_IEX_UA_CU50, FACTORY_CAL_PROFILE_RTD_GAIN32);
 
         case PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V:
         case PRODUCT_SENSOR_TYPE_VOLTAGE_0_10V:
@@ -174,7 +174,7 @@ bool ProductSensorMeasurementService_ResolveConfiguration(
                 PRODUCT_ANALOG_ENGINEERING_MAX, 0L, NULL, NULL);
             if (sensor_type == PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV)
             {
-                *calibration_profile = FACTORY_CAL_PROFILE_MV50;
+                *calibration_profile = FACTORY_CAL_PROFILE_TC_GAIN32;
             }
             else
             {
@@ -182,9 +182,7 @@ bool ProductSensorMeasurementService_ResolveConfiguration(
                     PRODUCT_ADC_VOLTAGE_RATIO_NUMERATOR;
                 configuration->frontend_ratio_denominator =
                     PRODUCT_ADC_VOLTAGE_RATIO_DENOMINATOR;
-                *calibration_profile =
-                    (sensor_type == PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V) ?
-                        FACTORY_CAL_PROFILE_V5 : FACTORY_CAL_PROFILE_V10;
+                *calibration_profile = FACTORY_CAL_PROFILE_VOLTAGE_GAIN32;
             }
             return true;
 
@@ -203,7 +201,7 @@ bool ProductSensorMeasurementService_ResolveConfiguration(
                 PRODUCT_ADC_CURRENT_RATIO_DENOMINATOR;
             configuration->frontend_ratio_denominator =
                 PRODUCT_ADC_CURRENT_RATIO_NUMERATOR;
-            *calibration_profile = FACTORY_CAL_PROFILE_MA;
+            *calibration_profile = FACTORY_CAL_PROFILE_CURRENT_GAIN64;
             return true;
 
         default:

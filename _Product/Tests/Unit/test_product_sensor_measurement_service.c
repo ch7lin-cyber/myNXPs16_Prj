@@ -84,6 +84,39 @@ static void TestConfigurationMapping(void)
     SensorConversionConfig_t configuration;
     FactoryCalibrationProfile_t profile;
 
+    static const struct { uint16_t type; FactoryCalibrationProfile_t profile; }
+        mappings[] = {
+            {PRODUCT_SENSOR_TYPE_TC_B, FACTORY_CAL_PROFILE_TC_GAIN128},
+            {PRODUCT_SENSOR_TYPE_TC_S, FACTORY_CAL_PROFILE_TC_GAIN128},
+            {PRODUCT_SENSOR_TYPE_TC_T, FACTORY_CAL_PROFILE_TC_GAIN64},
+            {PRODUCT_SENSOR_TYPE_TC_R, FACTORY_CAL_PROFILE_TC_GAIN64},
+            {PRODUCT_SENSOR_TYPE_TC_C, FACTORY_CAL_PROFILE_TC_GAIN64},
+            {PRODUCT_SENSOR_TYPE_TC_J, FACTORY_CAL_PROFILE_TC_GAIN16},
+            {PRODUCT_SENSOR_TYPE_TC_K, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_D, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_E, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_N, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_L, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_U, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_TC_TXK, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV, FACTORY_CAL_PROFILE_TC_GAIN32},
+            {PRODUCT_SENSOR_TYPE_RTD_100_OHM, FACTORY_CAL_PROFILE_RTD_GAIN8},
+            {PRODUCT_SENSOR_TYPE_RTD_NI120, FACTORY_CAL_PROFILE_RTD_GAIN8},
+            {PRODUCT_SENSOR_TYPE_RTD_JPT100, FACTORY_CAL_PROFILE_RTD_GAIN16},
+            {PRODUCT_SENSOR_TYPE_RTD_1000_OHM, FACTORY_CAL_PROFILE_RTD_GAIN1},
+            {PRODUCT_SENSOR_TYPE_RTD_CU50, FACTORY_CAL_PROFILE_RTD_GAIN32},
+            {PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V, FACTORY_CAL_PROFILE_VOLTAGE_GAIN32},
+            {PRODUCT_SENSOR_TYPE_VOLTAGE_0_10V, FACTORY_CAL_PROFILE_VOLTAGE_GAIN32},
+            {PRODUCT_SENSOR_TYPE_CURRENT_0_20MA, FACTORY_CAL_PROFILE_CURRENT_GAIN64},
+            {PRODUCT_SENSOR_TYPE_CURRENT_4_20MA, FACTORY_CAL_PROFILE_CURRENT_GAIN64}
+        };
+    for (size_t i = 0U; i < sizeof(mappings) / sizeof(mappings[0]); i++)
+    {
+        assert(ProductSensorMeasurementService_ResolveConfiguration(
+            mappings[i].type, &configuration, &profile));
+        assert(profile == mappings[i].profile);
+    }
+
     assert(ProductSensorMeasurementService_ResolveConfiguration(
         PRODUCT_SENSOR_TYPE_TC_K, &configuration, &profile));
     assert(configuration.type == SENSOR_TYPE_TC_K);
@@ -96,7 +129,7 @@ static void TestConfigurationMapping(void)
     assert(configuration.type == SENSOR_TYPE_TC_B);
     assert(configuration.measurement_table != NULL);
     assert(configuration.cjc_table != NULL);
-    assert(profile == FACTORY_CAL_PROFILE_TC_GAIN2);
+    assert(profile == FACTORY_CAL_PROFILE_TC_GAIN128);
 
     assert(ProductSensorMeasurementService_ResolveConfiguration(
         PRODUCT_SENSOR_TYPE_RTD_100_OHM, &configuration, &profile));
