@@ -111,6 +111,20 @@ TC 預設 `--cjc INT`（CALYS 內部冷端）；應使用對應熱電偶線。
 電流輸出供電可用 `--current-supply ON|OFF`，預設 ON，依實際迴路接法選擇。
 CALYS 的使用者管理若啟用，無參數 REM 可能被拒絕；目前工具不保存或提供登入密碼。
 串列等待可用 `--calys-timeout` 調整（預設 5 秒）。
+每筆指令後預設等待 150 ms，避免儀器尚未完成解析就接到下一筆；
+可用 `--calys-write-delay` 修改。開啟 port 後至少等待 300 ms。
+身分查詢逾時最多嘗試三次，輸出值設定不會自動重送。
+接收會累積分段回應直到 LF，忽略前導空白行，整體仍受 timeout 限制。
+
+若遇到 `*IDN?` 逾時，先使用 0.1.1 確認 CALYS 的 port，
+再執行 0.1.0。可以用以下參數查看指令及回應：
+
+```sh
+python _Product/Tools/calys1500_loop_test.py --calys-port COM12 --dut-port COM8 --calys-write-delay 0.3 --calys-timeout 10 --calys-trace
+```
+
+逾時訊息包含實際 port、格式、timeout 及收到的原始 bytes；
+`RX=b''` 代表該次等待完全沒有收到回應，需確認 port、USB 連線及儀器通訊設定。
 
 **中止／結束只送 LOC，CALYS 可能繼續保持最後輸出值，不會自動歸零。**
 需要取消輸出時，使用 CALYS 面板控制。
@@ -136,5 +150,6 @@ python -m unittest discover -s _Product/Tests -p test_calys1500_loop.py
 ```
 
 測試包含十點端點／小數、單位換算、非法值、_X 阻擋、SCPI 錯誤與關閉、
+指令等待、分段／空白回應、身分查詢重試與逾時診斷、
 模擬 DUT 設定及讀回、CSV 中斷保存、新樣本逾時、校正入口無寫入。
 尚未在實體 CALYS 1500／DUT 上驗證；首次以選單 0.1.0、0.2、0.3 打通，再跑 1.1.0。

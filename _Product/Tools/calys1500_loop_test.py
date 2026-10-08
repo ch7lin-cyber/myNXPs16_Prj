@@ -117,6 +117,13 @@ def positive(text):
     return value
 
 
+def nonnegative(text):
+    value = float(text)
+    if not math.isfinite(value) or value < 0:
+        raise argparse.ArgumentTypeError("必須是有限的非負數")
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--calys-port")
@@ -127,6 +134,10 @@ def main(argv=None):
     parser.add_argument("--dwell", type=positive, default=2.0)
     parser.add_argument("--fresh-timeout", type=positive, default=10.0)
     parser.add_argument("--calys-timeout", type=positive, default=5.0)
+    parser.add_argument("--calys-write-delay", type=nonnegative, default=0.15,
+                        help="CALYS 每筆指令後的等待秒數（預設 0.15）")
+    parser.add_argument("--calys-trace", action="store_true",
+                        help="顯示 CALYS TX/RX，協助檢查 port 與回應")
     parser.add_argument("--cjc", choices=["INT", "DIS", "FIX"], default="INT")
     parser.add_argument("--fixed-cjc", default="0")
     parser.add_argument("--current-supply", choices=["ON", "OFF"], default="ON")
@@ -154,7 +165,10 @@ def main(argv=None):
         if calys is None:
             if not calys_port:
                 calys_port = input("CALYS 1500 port：").strip()
-            calys = Calys1500(calys_port, args.calys_timeout)
+            print(f"正在連線 CALYS：{calys_port}，115200/8N1")
+            calys = Calys1500(calys_port, args.calys_timeout,
+                              write_delay=args.calys_write_delay,
+                              trace=args.calys_trace)
             print(calys.identity)
         return calys
 

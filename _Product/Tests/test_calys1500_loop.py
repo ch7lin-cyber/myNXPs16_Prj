@@ -29,12 +29,13 @@ class Transport:
         self.replies = iter(replies)
         self.writes = []
         self.closed = False
+        self.timeout = 5
     def write(self, data):
         self.writes.append(data)
     def flush(self):
         pass
     def readline(self):
-        return next(self.replies)
+        return next(self.replies, b"")
     def reset_input_buffer(self):
         pass
     def close(self):
@@ -96,7 +97,8 @@ class Tests(unittest.TestCase):
         self.assertIn("SOUR:TC:RJUN 23.4", commands)
         self.assertEqual(commands[-1], "SOUR:FUNC TC")
 
-    def test_protocol_and_errors(self):
+    @patch.object(protocol.time, "sleep")
+    def test_protocol_and_errors(self, sleep):
         transport = Transport([b'AOIP SAS,CALYS1500,SN,A11\r\n', b'0,"No error"\r\n',
                                b'5,"range error"\r\n'])
         calys = protocol.Calys1500("fake", transport=transport)
@@ -106,9 +108,41 @@ class Tests(unittest.TestCase):
         self.assertEqual(transport.writes, [b'REM\n', b'*CLS\n', b'*IDN?\n',
                                           b'ERR?\n', b'SOUR:VOLT 1\n', b'ERR?\n', b'LOC\n'])
         self.assertTrue(transport.closed)
+        self.assertIn(unittest.mock.call(0.15), sleep.call_args_list)
         transport = Transport([b'OTHER DEVICE\r\n'])
         with self.assertRaises(protocol.CalysError):
             protocol.Calys1500("fake", transport=transport)
+        self.assertTrue(transport.closed)
+
+    @patch.object(protocol.time, "sleep")
+    def test_fragmented_idn_and_blank_line(self, sleep):
+        transport = Transport([b'\r\n', b'AOIP SAS,CALYS', b'1500,SN,A11\r\n',
+                               b'0,"No error"\r\n'])
+        calys = protocol.Calys1500("COM12", transport=transport)
+        self.assertEqual(calys.identity, "AOIP SAS,CALYS1500,SN,A11")
+        self.assertEqual(transport.timeout, 5)
+        calys.close()
+
+    @patch.object(protocol.time, "sleep")
+    def test_identification_retry_and_diagnostics(self, sleep):
+        transport = Transport([b'AOIP SAS,CALYS1500,SN,A11\r\n', b'0,"No error"\r\n'])
+        original = protocol.Calys1500.query
+        attempts = []
+        def query(client, command):
+            if command == "*IDN?":
+                attempts.append(command)
+                if len(attempts) == 1:
+                    raise protocol.CalysError("temporary timeout")
+            return original(client, command)
+        with patch.object(protocol.Calys1500, "query", query):
+            calys = protocol.Calys1500("COM12", transport=transport)
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(transport.writes.count(b'REM\n'), 2)
+        calys.close()
+        transport = Transport([])
+        with self.assertRaisesRegex(protocol.CalysError, "port=COM12.*RX=b''"):
+            protocol.Calys1500("COM12", timeout=0.001, transport=transport)
+        self.assertEqual(transport.writes.count(b'*IDN?\n'), 3)
         self.assertTrue(transport.closed)
 
     @patch.object(loop, "modbus_helpers", helpers)

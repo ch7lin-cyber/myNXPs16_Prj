@@ -5,6 +5,8 @@ not assert that the physical calibrator lacks that sensor function.
 """
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+import math
+import time
 
 
 @dataclass(frozen=True)
@@ -110,7 +112,12 @@ class CalysError(RuntimeError):
 
 
 class Calys1500:
-    def __init__(self, port, timeout=5, transport=None):
+    def __init__(self, port, timeout=5, transport=None, write_delay=0.15,
+                 trace=False):
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("通訊 timeout 必須是有限正數")
+        if not math.isfinite(write_delay) or write_delay < 0:
+            raise ValueError("指令間隔必須是有限非負數")
         if transport is None:
             import serial
             transport = serial.Serial(port, 115200, timeout=timeout,
@@ -118,13 +125,19 @@ class Calys1500:
                                       parity="N", stopbits=1, xonxoff=False,
                                       rtscts=False, dsrdtr=False)
         self.serial = transport
+        self.port = port
+        self.timeout = timeout
+        self.write_delay = write_delay
+        self.trace = trace
         self.remote = False
         try:
+            # Allow USB/serial opening and the calibrator command parser to settle.
+            time.sleep(max(0.3, write_delay))
             self.serial.reset_input_buffer()
             self.send("REM")
             self.remote = True
             self.send("*CLS")
-            self.identity = self.query("*IDN?")
+            self.identity = self.identify()
             if "CALYS1500" not in self.identity.upper().replace("_", "").replace(" ", ""):
                 raise CalysError(f"不是 CALYS 1500：{self.identity}")
             self.check_error("連線")
@@ -133,15 +146,48 @@ class Calys1500:
             raise
 
     def send(self, command):
+        if self.trace:
+            print(f"CALYS TX [{self.port}]: {command}")
         self.serial.write((command + "\n").encode("ascii"))
         self.serial.flush()
+        # flush() only drains the host buffer; it does not mean CALYS has
+        # parsed the command. Pace REM, *CLS, queries and source settings alike.
+        time.sleep(self.write_delay)
+
+    def identify(self):
+        for attempt in range(3):
+            try:
+                return self.query("*IDN?")
+            except CalysError:
+                if attempt == 2:
+                    raise
+                if self.trace:
+                    print(f"CALYS 身分查詢重試 {attempt + 2}/3")
+                self.serial.reset_input_buffer()
+                self.send("REM")
+        raise AssertionError("unreachable")
 
     def query(self, command):
         self.send(command)
-        raw = self.serial.readline()
-        if not raw.endswith(b"\n"):
-            raise CalysError(f"{command} 回應逾時或不完整")
-        return raw.decode("ascii").strip()
+        deadline = time.monotonic() + self.timeout
+        raw = bytearray()
+        old_timeout = getattr(self.serial, "timeout", self.timeout)
+        try:
+            while time.monotonic() < deadline:
+                self.serial.timeout = max(0.001, min(0.25, deadline - time.monotonic()))
+                raw.extend(self.serial.readline())
+                if raw.endswith(b"\n"):
+                    response = raw.decode("ascii").strip()
+                    if response:
+                        if self.trace:
+                            print(f"CALYS RX [{self.port}]: {response}")
+                        return response
+                    raw.clear()  # Ignore a leading empty CRLF, not an IDN reply.
+        finally:
+            self.serial.timeout = old_timeout
+        raise CalysError(f"{command} 回應逾時或不完整 "
+                         f"(port={self.port}, 115200/8N1, timeout={self.timeout}s, "
+                         f"RX={bytes(raw)!r})")
 
     def check_error(self, command):
         response = self.query("ERR?")
