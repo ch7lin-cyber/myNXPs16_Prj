@@ -31,7 +31,8 @@ adi_ad7124_status_t ADI_AD7124_Configure(adi_ad7124_device_t *device,
     const adi_ad7124_io_config_t *io)
 {
     (void)device; (void)setups; (void)setup_count; (void)channels;
-    (void)channel_count; (void)io;
+    (void)channel_count;
+    assert(io->referenceOutputRequired);
     return kAdiAd7124_Ok;
 }
 adi_ad7124_status_t ADI_AD7124_WriteRegister(adi_ad7124_device_t *device,
@@ -161,5 +162,9 @@ int main(void)
 #if PRODUCT_ADC_DEBUG_ENABLE
     assert(diagnostics.read_failures == 5U);
 #endif
+    /* Product board must request REFOUT even for an external-reference RTD. */
+    setup.reference = HAL_ADC_REFERENCE_EXTERNAL_1;
+    setup.gain = HAL_ADC_GAIN_8;
+    assert(ProductAdcConfigure(context, &config) == HAL_ADC_STATUS_OK);
     return 0;
 }

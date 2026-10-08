@@ -549,6 +549,7 @@ adi_ad7124_status_t ADI_AD7124_Configure(
     }
 
     /* Burnout currents and voltage bias remain disabled. */
+    internalReferenceRequired = ioConfig->referenceOutputRequired;
     value = ((uint32_t)excitationCode << 11U) |
             ((uint32_t)excitationCode << 8U) |
             ((uint32_t)MapExcitationOutput(ioConfig->excitationOutput1)

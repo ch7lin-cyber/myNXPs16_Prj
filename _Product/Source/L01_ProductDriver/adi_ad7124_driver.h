@@ -121,6 +121,8 @@ typedef struct _adi_ad7124_io_config
     uint16_t excitationCurrentUa;
     uint8_t excitationOutput0;
     uint8_t excitationOutput1;
+    /* REFOUT may supply board bias even when ADC uses an external reference. */
+    bool referenceOutputRequired;
 } adi_ad7124_io_config_t;
 
 /* Full-duplex, in-place SPI transfer. Return true on success. */

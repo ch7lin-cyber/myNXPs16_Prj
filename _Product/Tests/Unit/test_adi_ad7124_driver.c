@@ -197,7 +197,7 @@ static void TestConfigure(void)
         {0U, 0U, 0U, 1U, true},
         {2U, 1U, 4U, 5U, true}
     };
-    static const adi_ad7124_io_config_t io = {500U, 0U, 7U};
+    static const adi_ad7124_io_config_t io = {500U, 0U, 7U, false};
 
     device.transfer = MockTransfer;
     device.transportContext = &mock;
@@ -214,6 +214,31 @@ static void TestConfigure(void)
     assert(mock.registers[ADI_AD7124_IO_CONTROL2_REG] == 0U);
 }
 
+static void TestExternalReferencePreservesBoardBias(void)
+{
+    mock_transport_t mock = {0U};
+    adi_ad7124_device_t device = {0U};
+    const adi_ad7124_setup_config_t setup =
+        {0U, 0U, 3U, 0U, 384U, true, true, false, true};
+    const adi_ad7124_channel_config_t channel = {0U, 0U, 6U, 5U, true};
+    adi_ad7124_io_config_t io = {500U, 0U, 7U, true};
+
+    device.transfer = MockTransfer;
+    device.transportContext = &mock;
+    device.initialized = true;
+    assert(ADI_AD7124_Configure(&device, &setup, 1U, &channel, 1U, &io) ==
+           kAdiAd7124_Ok);
+    assert(mock.registers[ADI_AD7124_CONFIG0_REG] == 0x0863U);
+    assert(mock.registers[ADI_AD7124_CHANNEL0_REG] == 0x80C5U);
+    assert(mock.registers[ADI_AD7124_IO_CONTROL1_REG] == 0x0024F0U);
+    assert((mock.registers[ADI_AD7124_ADC_CONTROL_REG] & 0x0100U) != 0U);
+    /* Returning to a board with no REFOUT load must still allow power saving. */
+    io.referenceOutputRequired = false;
+    assert(ADI_AD7124_Configure(&device, &setup, 1U, &channel, 1U, &io) ==
+           kAdiAd7124_Ok);
+    assert((mock.registers[ADI_AD7124_ADC_CONTROL_REG] & 0x0100U) == 0U);
+}
+
 int main(void)
 {
     TestRegisterSizes();
@@ -222,5 +247,6 @@ int main(void)
     TestNonBlockingRead();
     TestStatusErrorCapturesErrorRegister();
     TestConfigure();
+    TestExternalReferencePreservesBoardBias();
     return 0;
 }

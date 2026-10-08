@@ -453,6 +453,8 @@ static HalAdcStatus_t ProductAdcConfigure(
     ioConfig.excitationCurrentUa = config->excitation_current_ua;
     ioConfig.excitationOutput0 = config->excitation_output0;
     ioConfig.excitationOutput1 = config->excitation_output1;
+    ioConfig.referenceOutputRequired =
+        (PRODUCT_ADC_REFERENCE_OUTPUT_REQUIRED != 0U);
     {
         PRODUCT_ADC_DEBUG_ONLY(context->diagnostics.last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_REGISTERS);
         adi_ad7124_status_t driverStatus = ADI_AD7124_Configure(

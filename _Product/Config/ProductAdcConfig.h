@@ -25,6 +25,8 @@
 #define PRODUCT_ADC_CURRENT_AIN_NEGATIVE      (2U)
 #define PRODUCT_ADC_IEX1_AIN                  (0U)
 #define PRODUCT_ADC_IEX2_AIN                  (7U)
+/* REFOUT -> U14/U20/U25/U31 -> CHx_VS bias is required in RTD mode too. */
+#define PRODUCT_ADC_REFERENCE_OUTPUT_REQUIRED (1U)
 
 /* CV_SEL0..3 are initialized low: voltage/TC/RTD mode; high selects current. */
 #define PRODUCT_ADC_CV_SELECT_VOLTAGE         (0U)
