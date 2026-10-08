@@ -73,53 +73,93 @@ int main(void)
     ProductAdcDriver_SetConfigureSource(0U, PRODUCT_ADC_CONFIG_SOURCE_SENSOR_EVENT);
     assert(ProductAdcConfigure(context, &config) == HAL_ADC_STATUS_OK);
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_READY);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.first_sample_discards == 1U);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.read_failures == 0U);
+#endif
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
     assert(sample.microvolts > 17000 && sample.microvolts < 17200);
     assert(context->diagnostics.successful_samples == 1U);
 
     g_channel = 3U;
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_DEVICE_ERROR);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_CHANNEL);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_channel == 3U);
+#endif
     g_channel = 0U;
     channel.setup = 1U;
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_DEVICE_ERROR);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_SETUP);
+#endif
     channel.setup = 0U;
     setup.gain = (HalAdcGain_t)0;
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_DEVICE_ERROR);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_CONVERT);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_gain == 0U);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.conversion_diagnostics.result == HAL_ADC_CONVERSION_GAIN_ZERO);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_reference_uv == 2500000UL);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_raw_code == g_raw);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_driver_status == 0);
+#endif
     setup.gain = HAL_ADC_GAIN_32;
 
     /* A successful audit and recovery must not replace the failure snapshot. */
     assert(ProductAdcDriver_AuditNextDevice());
     assert(ProductAdcInitialize(context) == HAL_ADC_STATUS_OK);
     assert(ProductAdcConfigure(context, &config) == HAL_ADC_STATUS_OK);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_CONVERT);
+#endif
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_READY);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.read_failures == 3U);
+#endif
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
 
     context->active_config = NULL;
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_INITIALIZED);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_CONFIG);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(!context->diagnostics.failure_config_valid);
+#endif
     context->active_config = &config;
     g_read_status = kAdiAd7124_TransportError;
     (void)memset(&sample, 0xFF, sizeof(sample));
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_IO_ERROR);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_TRANSFER);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_driver_status == kAdiAd7124_TransportError);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_raw_code == 0U);
+#endif
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.failure_channel == UINT8_MAX);
+#endif
     assert(ProductAdcDriver_GetDiagnostics(0U, &diagnostics));
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(diagnostics.read_failures == 5U);
+#endif
     return 0;
 }

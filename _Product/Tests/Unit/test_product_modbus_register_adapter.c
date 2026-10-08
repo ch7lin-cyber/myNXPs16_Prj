@@ -627,12 +627,14 @@ static void TestAdcDiagnosticRegisters(void)
     g_adcDiagnostics[0].last_microvolts = -12345;
     g_adcDiagnostics[0].consecutive_transaction_errors = 2U;
     g_adcDiagnostics[0].consecutive_clean_samples = 6U;
+#if PRODUCT_ADC_DEBUG_ENABLE
     g_adcDiagnostics[0].configure_attempts = 0x00010002UL;
     g_adcDiagnostics[0].configured_io_control1 = 0x000000F0UL;
     g_adcDiagnostics[0].configured_channel0 = 0x00008061UL;
     g_adcDiagnostics[0].configured_config0 = 0x00000875UL;
     g_adcDiagnostics[0].configured_filter0 = 0x00100180UL;
     g_adcDiagnostics[0].configuration_registers_valid = true;
+#endif
     g_adcDiagnostics[1].initialized = true;
     g_adcDiagnostics[1].device_id = 0x06U;
 
@@ -667,6 +669,7 @@ static void TestAdcDiagnosticRegisters(void)
     assert(values[50] == 0x0206U);
     assert(values[51] == 0xFFFFU);
     assert(values[52] == 0xCFC7U);
+#if PRODUCT_ADC_DEBUG_ENABLE
     assert(values[53] == 0x0001U);
     assert(values[54] == 0x0002U);
     assert(values[55] == 0x0000U);
@@ -678,12 +681,15 @@ static void TestAdcDiagnosticRegisters(void)
     assert(values[61] == 0x0010U);
     assert(values[62] == 0x0180U);
     assert(values[63] == 1U);
+#else
+    for (uint16_t i = 53U; i < 64U; i++) assert(values[i] == 0U);
+#endif
 
     assert(interface.read_holding_registers(
                interface.context,
                (uint16_t)(PRODUCT_MODBUS_ADC1_DIAGNOSTICS_BASE_ADDRESS - 1U),
                2U, boundary) == MODBUS_EXCEPTION_NONE);
-    assert(boundary[0] == 1U);
+    assert(boundary[0] == (PRODUCT_ADC_DEBUG_ENABLE ? 1U : 0U));
     assert(boundary[1] == 1U);
     assert(interface.write_single_register(
                interface.context,
@@ -691,6 +697,7 @@ static void TestAdcDiagnosticRegisters(void)
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+#if PRODUCT_ADC_DEBUG_ENABLE
 static void TestAdcConversionRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -784,6 +791,21 @@ static void TestAdcTraceRegisters(void)
     assert(interface.read_holding_registers(interface.context,
         PRODUCT_MODBUS_ADC_TRACE_LAST_ADDRESS, 2U, boundary) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
+
+#else
+static void TestAdcDebugDisabled(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t value;
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS, 1U, &value) ==
+        MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.read_holding_registers(interface.context,
+        PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS, 1U, &value) ==
+        MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+#endif
 
 static void TestSystemRoutineDiagnosticRegisters(void)
 {
@@ -1290,8 +1312,12 @@ int main(void)
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestAdcDiagnosticRegisters();
+#if PRODUCT_ADC_DEBUG_ENABLE
     TestAdcConversionRegisters();
     TestAdcTraceRegisters();
+#else
+    TestAdcDebugDisabled();
+#endif
     TestSystemRoutineDiagnosticRegisters();
     TestProductVersionRegisters();
     TestPwmPendingAndApply();

@@ -134,11 +134,13 @@ int main(int argc, char **argv)
             assert(!ProductSensorConfigurationConsumer_Process(2U, 0U));
             assert(g_adc[2].configure_count == configure_count);
         }
+#if PRODUCT_ADC_DEBUG_ENABLE
         ProductSensorConfigurationDiagnostics_t diagnostics;
         assert(ProductSensorConfigurationConsumer_GetDiagnostics(2U, &diagnostics));
         assert(diagnostics.stage == 1U);
         assert(diagnostics.apply_failures == 10U);
         assert(diagnostics.configure_attempts == 0U);
+#endif
         assert(g_source_marks[2] == 0U);
         assert(EventService_IsTemperatureInputConfigurationChangedPending(2U));
         return 0;
@@ -196,11 +198,15 @@ int main(int argc, char **argv)
     {
         EventTemperatureInputConfiguration_t old_config = {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
         EventTemperatureInputConfiguration_t new_config = {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V};
+#if PRODUCT_ADC_DEBUG_ENABLE
         ProductSensorConfigurationDiagnostics_t before, after;
+#endif
         uint32_t event_id;
         uint16_t configure_count = g_adc[0].configure_count;
         uint32_t marks = g_source_marks[0];
+#if PRODUCT_ADC_DEBUG_ENABLE
         assert(ProductSensorConfigurationConsumer_GetDiagnostics(0U, &before));
+#endif
         assert(EventService_RaiseTemperatureInputConfigurationChanged(0U, 9U,
             EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE, &old_config, &new_config, &event_id));
         for (input = 0U; input < 10U; input++)
@@ -209,6 +215,7 @@ int main(int argc, char **argv)
         }
         assert(g_adc[0].configure_count == configure_count + 1U);
         assert(g_source_marks[0] == marks + 1U);
+#if PRODUCT_ADC_DEBUG_ENABLE
         assert(ProductSensorConfigurationConsumer_GetDiagnostics(0U, &after));
         assert(after.event_id == event_id && after.revision == 9U);
         assert(after.configure_attempts == before.configure_attempts + 1U);
@@ -216,6 +223,7 @@ int main(int argc, char **argv)
         assert(after.ack_attempts == before.ack_attempts + 10U);
         assert(after.ack_failures == before.ack_failures + 10U);
         assert(after.stage == 4U);
+#endif
     }
     return 0;
 }

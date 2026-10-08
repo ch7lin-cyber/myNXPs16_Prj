@@ -783,6 +783,7 @@ static uint16_t ReadAdcDiagnosticValue(
         case 52U:
             Int32ToRegisters(diagnostics->last_microvolts, &high, &low);
             return (offset == 51U) ? high : low;
+#if PRODUCT_ADC_DEBUG_ENABLE
         case 53U:
         case 54U:
             Uint32ToRegisters(diagnostics->configure_attempts, &high, &low);
@@ -806,11 +807,13 @@ static uint16_t ReadAdcDiagnosticValue(
             return (offset == 61U) ? high : low;
         case 63U:
             return diagnostics->configuration_registers_valid ? 1U : 0U;
+#endif
         default:
             return 0U;
     }
 }
 
+#if PRODUCT_ADC_DEBUG_ENABLE
 static void Int64ToRegisters(int64_t value, uint16_t *registers)
 {
     uint64_t bits = (uint64_t)value;
@@ -926,6 +929,8 @@ static ModbusExceptionCode_t ReadAdcTrace(
     }
     return MODBUS_EXCEPTION_NONE;
 }
+
+#endif
 
 static ModbusExceptionCode_t ReadAdcDiagnostics(
     uint16_t startingAddress, uint16_t quantity, uint16_t *values)
@@ -1243,6 +1248,7 @@ static ModbusExceptionCode_t ReadRegisters(
                      (size_t)quantity * sizeof(values[0]));
         return MODBUS_EXCEPTION_NONE;
     }
+#if PRODUCT_ADC_DEBUG_ENABLE
     if ((quantity > 0U) &&
         (starting_address >= PRODUCT_MODBUS_ADC_CONVERSION_BASE_ADDRESS) &&
         (((uint32_t)starting_address + quantity - 1UL) <=
@@ -1257,6 +1263,7 @@ static ModbusExceptionCode_t ReadRegisters(
     {
         return ReadAdcTrace(starting_address, quantity, values);
     }
+#endif
     if (IsAdcDiagnosticsRangeValid(starting_address, quantity))
     {
         return ReadAdcDiagnostics(starting_address, quantity, values);

@@ -24,6 +24,7 @@ static ProductSensorRuntimeConfiguration_t
     g_runtime_configuration[PRODUCT_SENSOR_INPUT_COUNT];
 static uint32_t g_applied_event_id[PRODUCT_SENSOR_INPUT_COUNT];
 static uint16_t g_applied_revision[PRODUCT_SENSOR_INPUT_COUNT];
+#if PRODUCT_ADC_DEBUG_ENABLE
 static ProductSensorConfigurationDiagnostics_t g_diagnostics[PRODUCT_SENSOR_INPUT_COUNT];
 
 bool ProductSensorConfigurationConsumer_GetDiagnostics(
@@ -37,17 +38,31 @@ bool ProductSensorConfigurationConsumer_GetDiagnostics(
     return true;
 }
 
+#else
+bool ProductSensorConfigurationConsumer_GetDiagnostics(
+    uint8_t channel, ProductSensorConfigurationDiagnostics_t *diagnostics)
+{
+    (void)channel;
+    (void)diagnostics;
+    return false;
+}
+#endif
+
 static bool AcknowledgeConfiguration(uint8_t channel, uint32_t event_id)
 {
+#if PRODUCT_ADC_DEBUG_ENABLE
     ProductSensorConfigurationDiagnostics_t *diagnostics = &g_diagnostics[channel];
-    diagnostics->stage = 4U;
-    diagnostics->ack_attempts++;
+#else
+    (void)channel;
+#endif
+    PRODUCT_ADC_DEBUG_ONLY(diagnostics->stage = 4U);
+    PRODUCT_ADC_DEBUG_ONLY(diagnostics->ack_attempts++);
     if (!EventService_Acknowledge(event_id, EVENT_ACK_ANALOG_INPUT))
     {
-        diagnostics->ack_failures++;
+        PRODUCT_ADC_DEBUG_ONLY(diagnostics->ack_failures++);
         return false;
     }
-    diagnostics->stage = 5U;
+    PRODUCT_ADC_DEBUG_ONLY(diagnostics->stage = 5U);
     return true;
 }
 
@@ -217,7 +232,7 @@ void ProductSensorConfigurationConsumer_Initialize(void)
                  sizeof(g_runtime_configuration));
     (void)memset(g_applied_event_id, 0, sizeof(g_applied_event_id));
     (void)memset(g_applied_revision, 0, sizeof(g_applied_revision));
-    (void)memset(g_diagnostics, 0, sizeof(g_diagnostics));
+    PRODUCT_ADC_DEBUG_ONLY((void)memset(g_diagnostics, 0, sizeof(g_diagnostics)));
 }
 
 bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
@@ -236,8 +251,8 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     {
         return true;
     }
-    g_diagnostics[channel].event_id = event.event_id;
-    g_diagnostics[channel].revision = event.configuration_revision;
+    PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].event_id = event.event_id);
+    PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].revision = event.configuration_revision);
     if ((event.completed_ack_mask & EVENT_ACK_ANALOG_INPUT) != 0U)
     {
         return true;
@@ -260,33 +275,33 @@ bool ProductSensorConfigurationConsumer_Process(uint8_t channel,
     }
 
     /* Validate routing before touching hardware on every event retry. */
-    g_diagnostics[channel].stage = 1U;
+    PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].stage = 1U);
     status = ANALOG_INPUT_STATUS_INVALID_ARGUMENT;
     if (AnalogInputService_GetRoute(channel, &route) &&
         (route.device == channel) &&
         (route.channel == PRODUCT_ADC_ACTIVE_CHANNEL))
     {
         BuildConfiguration(channel, &event.new_configuration);
-        g_diagnostics[channel].stage = 2U;
-        g_diagnostics[channel].configure_attempts++;
+        PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].stage = 2U);
+        PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].configure_attempts++);
         ProductAdcDriver_SetConfigureSource(channel, PRODUCT_ADC_CONFIG_SOURCE_SENSOR_EVENT);
         status = AnalogInputService_ReconfigureDevice(
             channel, &g_runtime_configuration[channel].device);
     }
-    g_diagnostics[channel].last_status = (uint16_t)status;
+    PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].last_status = (uint16_t)status);
     if (status == ANALOG_INPUT_STATUS_OK)
     {
-        g_diagnostics[channel].stage = 3U;
+        PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].stage = 3U);
         if (!AnalogInputService_SetInputSensorClass(
                 channel, SensorClass(event.new_configuration.sensor_type)))
         {
             status = ANALOG_INPUT_STATUS_INVALID_ARGUMENT;
-            g_diagnostics[channel].last_status = (uint16_t)status;
+            PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].last_status = (uint16_t)status);
         }
     }
     if (status != ANALOG_INPUT_STATUS_OK)
     {
-        g_diagnostics[channel].apply_failures++;
+        PRODUCT_ADC_DEBUG_ONLY(g_diagnostics[channel].apply_failures++);
         int32_t values[SNAPSHOT_SERVICE_VALUE_COUNT] = {0};
 
         values[0] = channel;

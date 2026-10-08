@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "ProductFeatureConfig.h"
 #include "AnalogInputService.h"
 #include "HalAdc.h"
 #include "HalAdcMeasurement.h"
@@ -69,6 +70,8 @@ typedef struct
     uint32_t last_raw_code;
     int32_t last_microvolts;
     int32_t last_driver_status;
+#if PRODUCT_ADC_DEBUG_ENABLE
+    /* DEBUG only: excluded from RAM when disabled. */
     uint32_t configure_attempts;
     uint32_t configure_source_counts[4];
     uint32_t configure_successes;
@@ -95,6 +98,7 @@ typedef struct
     uint32_t configured_channel0;
     uint32_t configured_config0;
     uint32_t configured_filter0;
+#endif
     uint16_t active_fault_categories;
     uint16_t last_fault_categories;
     uint8_t last_status_register;
@@ -103,8 +107,10 @@ typedef struct
     uint8_t consecutive_clean_samples;
     uint8_t device_id;
     bool initialized;
+#if PRODUCT_ADC_DEBUG_ENABLE
     bool configuration_registers_valid;
     bool discard_pending;
+#endif
 } ProductAdcDriverDiagnostics_t;
 
 typedef enum
