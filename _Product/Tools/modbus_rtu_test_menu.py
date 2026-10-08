@@ -354,7 +354,7 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
 
     trace_address = 0x4A00 + channel * ADC_DIAGNOSTIC_DEVICE_STRIDE
     print(f"\n[CH{channel} ADC configuration trace]")
-    trace = client.read_holding_registers(trace_address, 35)
+    trace = client.read_holding_registers(trace_address, 52)
     sources = {0: "unknown", 1: "startup", 2: "sensor event", 3: "recovery"}
     stages = {0: "none", 1: "validate", 2: "ADC registers",
               3: "ERROR_ENABLE write", 4: "ERROR_ENABLE verify",
@@ -378,6 +378,24 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
     print(f"  Online            = {trace[26]}")
     print(f"  Consecutive errors= {trace[27]}")
     print(f"  Event stage       = {event_stages.get(trace[34], trace[34])}")
+    read_stages = {0: "none", 1: "validate", 2: "device", 3: "SPI transfer",
+                   4: "fault check", 5: "first discard", 6: "active config",
+                   7: "channel lookup", 8: "setup lookup", 9: "microvolt conversion",
+                   10: "complete"}
+    hal_results = {0: "OK", 1: "invalid argument", 2: "not registered",
+                   3: "not initialized", 4: "not ready", 5: "I/O error", 6: "device error"}
+    print(f"  Last read stage   = {read_stages.get(trace[35], trace[35])}")
+    print(f"  Last read result  = {hal_results.get(trace[36], trace[36])}")
+    print(f"  Failure stage     = {read_stages.get(trace[37], trace[37])}")
+    print(f"  Failure HAL result= {hal_results.get(trace[38], trace[38])}")
+    print(f"  Failure gain      = {trace[39]}")
+    print(f"  Failure reference = {uint32_from_registers(trace[40:42])} uV")
+    print(f"  Failure channel   = {trace[42]} (255 = unavailable)")
+    print(f"  Config ch/setups  = {trace[43]}/{trace[44]}")
+    print(f"  Failure raw code  = 0x{uint32_from_registers(trace[45:47]):08X}")
+    print(f"  Read failures     = {uint32_from_registers(trace[47:49])}")
+    print(f"  Config valid      = {trace[49]}")
+    print(f"  Failure ADI status= {int32_from_registers(trace[50:52])}")
 
 
 def read_arbitrary_registers(client: ModbusRtuClient) -> None:

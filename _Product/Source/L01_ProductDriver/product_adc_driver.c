@@ -514,7 +514,7 @@ static HalAdcStatus_t ProductAdcConfigure(
     }
 }
 
-static HalAdcStatus_t ProductAdcTryRead(
+static HalAdcStatus_t ProductAdcTryReadInternal(
     void *driver_context,
     HalAdcSample_t *sample)
 {
@@ -536,12 +536,17 @@ static HalAdcStatus_t ProductAdcTryRead(
         return HAL_ADC_STATUS_INVALID_ARGUMENT;
     }
 
+    sample->raw_code = 0U;
+    sample->microvolts = 0;
+    sample->channel = UINT8_MAX;
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_DEVICE;
     device = ProductAd7124_GetDevice(context->device_index);
     if ((device == NULL) || !device->initialized)
     {
         return HAL_ADC_STATUS_NOT_INITIALIZED;
     }
 
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_TRANSFER;
     status = ADI_AD7124_TryReadDataDiagnostic(
         device, &sample->raw_code, &sample->channel, &status_register,
         &error_register, &error_register_read);
@@ -580,6 +585,7 @@ static HalAdcStatus_t ProductAdcTryRead(
             context->diagnostics.error_register_read_failures++;
         }
     }
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_FAULT;
     if (error_categories != PRODUCT_ADC_FAULT_NONE)
     {
         context->diagnostics.consecutive_clean_samples = 0U;
@@ -589,15 +595,24 @@ static HalAdcStatus_t ProductAdcTryRead(
     }
     if (context->discard_next_sample)
     {
+        context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_FIRST_DISCARD;
         context->discard_next_sample = false;
         context->diagnostics.discarded_samples++;
         context->diagnostics.first_sample_discards++;
         return HAL_ADC_STATUS_NOT_READY;
     }
-    if (context->active_config == NULL)
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_CONFIG;
+    if ((context->active_config == NULL) ||
+        (context->active_config->channels == NULL) ||
+        (context->active_config->setups == NULL) ||
+        (context->active_config->channel_count == 0U) ||
+        (context->active_config->channel_count > HAL_ADC_CHANNELS_PER_DEVICE) ||
+        (context->active_config->setup_count == 0U) ||
+        (context->active_config->setup_count > HAL_ADC_SETUP_COUNT))
     {
         return HAL_ADC_STATUS_NOT_INITIALIZED;
     }
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_CHANNEL;
     for (index = 0U;
          index < context->active_config->channel_count;
          index++)
@@ -614,6 +629,11 @@ static HalAdcStatus_t ProductAdcTryRead(
     {
         return HAL_ADC_STATUS_DEVICE_ERROR;
     }
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_SETUP;
+    if (channel_config->setup >= context->active_config->setup_count)
+    {
+        return HAL_ADC_STATUS_DEVICE_ERROR;
+    }
     setup = &context->active_config->setups[channel_config->setup];
     reference_uv =
         (setup->reference == HAL_ADC_REFERENCE_INTERNAL) ?
@@ -623,6 +643,7 @@ static HalAdcStatus_t ProductAdcTryRead(
         (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_2) ?
             PRODUCT_ADC_EXTERNAL_REFERENCE2_UV :
             PRODUCT_ADC_SUPPLY_REFERENCE_UV;
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_CONVERT;
     if (!HalAdcMeasurement_CodeToMicrovolts(
             sample->raw_code, reference_uv, (uint16_t)setup->gain,
             setup->bipolar, &sample->microvolts))
@@ -632,7 +653,65 @@ static HalAdcStatus_t ProductAdcTryRead(
     context->diagnostics.last_microvolts = sample->microvolts;
     context->diagnostics.successful_samples++;
     RecordCleanSample(context);
+    context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_COMPLETE;
     return HAL_ADC_STATUS_OK;
+}
+
+/* Retain HAL failures across periodic register audits and recovery cycles. */
+static HalAdcStatus_t ProductAdcTryRead(void *driver_context, HalAdcSample_t *sample)
+{
+    ProductAdcDriverContext_t *context = (ProductAdcDriverContext_t *)driver_context;
+    HalAdcStatus_t result;
+    if (context != NULL)
+    {
+        context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_VALIDATE;
+    }
+    result = ProductAdcTryReadInternal(driver_context, sample);
+    if (context != NULL)
+    {
+        ProductAdcDriverDiagnostics_t *diagnostics = &context->diagnostics;
+        diagnostics->last_read_result = result;
+        if ((result != HAL_ADC_STATUS_OK) && (result != HAL_ADC_STATUS_NOT_READY))
+        {
+            const HalAdcDeviceConfig_t *config = context->active_config;
+            uint8_t index;
+            diagnostics->read_failures++;
+            diagnostics->last_read_failure_stage = diagnostics->last_read_stage;
+            diagnostics->last_read_failure_result = result;
+            diagnostics->failure_driver_status = diagnostics->last_driver_status;
+            diagnostics->failure_raw_code = (sample != NULL) ? sample->raw_code : 0U;
+            diagnostics->failure_channel = (sample != NULL) ? sample->channel : UINT8_MAX;
+            diagnostics->failure_config_valid = (config != NULL) &&
+                (config->channels != NULL) && (config->setups != NULL) &&
+                (config->channel_count > 0U) &&
+                (config->channel_count <= HAL_ADC_CHANNELS_PER_DEVICE) &&
+                (config->setup_count > 0U) && (config->setup_count <= HAL_ADC_SETUP_COUNT);
+            diagnostics->failure_channel_count = (config != NULL) ? config->channel_count : 0U;
+            diagnostics->failure_setup_count = (config != NULL) ? config->setup_count : 0U;
+            diagnostics->failure_gain = 0U;
+            diagnostics->failure_reference_uv = 0U;
+            if (diagnostics->failure_config_valid && (sample != NULL))
+            {
+                for (index = 0U; index < config->channel_count; index++)
+                {
+                    const HalAdcChannelConfig_t *channel = &config->channels[index];
+                    if ((channel->channel == sample->channel) &&
+                        (channel->setup < config->setup_count))
+                    {
+                        const HalAdcSetupConfig_t *setup = &config->setups[channel->setup];
+                        diagnostics->failure_gain = (uint16_t)setup->gain;
+                        diagnostics->failure_reference_uv =
+                            (setup->reference == HAL_ADC_REFERENCE_INTERNAL) ? PRODUCT_ADC_INTERNAL_REFERENCE_UV :
+                            (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_1) ? PRODUCT_ADC_EXTERNAL_REFERENCE1_UV :
+                            (setup->reference == HAL_ADC_REFERENCE_EXTERNAL_2) ? PRODUCT_ADC_EXTERNAL_REFERENCE2_UV :
+                            PRODUCT_ADC_SUPPLY_REFERENCE_UV;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 bool ProductAdcDriver_Init(void)

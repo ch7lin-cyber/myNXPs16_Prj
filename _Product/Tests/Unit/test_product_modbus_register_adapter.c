@@ -694,7 +694,7 @@ static void TestAdcDiagnosticRegisters(void)
 static void TestAdcTraceRegisters(void)
 {
     ModbusSlaveRegisterInterface_t interface;
-    uint16_t values[35U];
+    uint16_t values[52U];
     uint16_t boundary[2U];
     g_adcDiagnostics[0].last_configure_source = PRODUCT_ADC_CONFIG_SOURCE_RECOVERY;
     g_adcDiagnostics[0].last_configure_stage = PRODUCT_ADC_CONFIG_STAGE_READBACK;
@@ -706,9 +706,18 @@ static void TestAdcTraceRegisters(void)
     g_configDiagnostics[0].revision = 7U;
     g_configDiagnostics[0].ack_failures = 10UL;
     g_configDiagnostics[0].stage = 4U;
+    g_adcDiagnostics[0].last_read_stage = PRODUCT_ADC_READ_STAGE_CONVERT;
+    g_adcDiagnostics[0].last_read_result = HAL_ADC_STATUS_DEVICE_ERROR;
+    g_adcDiagnostics[0].last_read_failure_stage = PRODUCT_ADC_READ_STAGE_CONVERT;
+    g_adcDiagnostics[0].last_read_failure_result = HAL_ADC_STATUS_DEVICE_ERROR;
+    g_adcDiagnostics[0].failure_reference_uv = 2500000UL;
+    g_adcDiagnostics[0].failure_raw_code = 0x9C0DD9UL;
+    g_adcDiagnostics[0].read_failures = 357UL;
+    g_adcDiagnostics[0].failure_config_valid = true;
+    g_adcDiagnostics[0].failure_driver_status = -3;
     ProductModbusRegisterAdapter_GetInterface(&interface);
     assert(interface.read_holding_registers(interface.context,
-        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS, 35U, values) == MODBUS_EXCEPTION_NONE);
+        PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS, 52U, values) == MODBUS_EXCEPTION_NONE);
     assert(values[0] == 3U && values[1] == 5U);
     assert(values[2] == HAL_ADC_STATUS_IO_ERROR);
     assert(values[8] == 1U && values[9] == 2U);
@@ -718,6 +727,14 @@ static void TestAdcTraceRegisters(void)
     assert(values[26] == 1U);
     assert(values[28] == 0x1234U && values[29] == 0x5678U);
     assert(values[33] == 10U && values[34] == 4U);
+    assert(values[35] == PRODUCT_ADC_READ_STAGE_CONVERT);
+    assert(values[36] == HAL_ADC_STATUS_DEVICE_ERROR);
+    assert(values[37] == PRODUCT_ADC_READ_STAGE_CONVERT);
+    assert(values[38] == HAL_ADC_STATUS_DEVICE_ERROR);
+    assert(values[40] == 0x26U && values[41] == 0x25A0U);
+    assert(values[45] == 0x9CU && values[46] == 0x0DD9U);
+    assert(values[48] == 357U && values[49] == 1U);
+    assert(values[50] == 0xFFFFU && values[51] == 0xFFFDU);
     assert(interface.read_holding_registers(interface.context,
         PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS + 63U, 2U, boundary) == MODBUS_EXCEPTION_NONE);
     assert(boundary[0] == 0U && boundary[1] == 0U);

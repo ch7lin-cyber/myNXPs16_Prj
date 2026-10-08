@@ -232,7 +232,11 @@ typedef struct _product_low_voltage_monitor
  * 18..19 apply failures, 20..21 ACK attempts, 22..23 first discards,
  * 24..25 fault discards, 26 online, 27 consecutive driver errors,
  * 28..29 driver errors, 30..31 configure successes, 32..33 ACK failures,
- * 34 event stage. Remaining offsets reserved (zero). uint32 is high/low.
+ * 34 event stage; 35 read stage, 36 HAL read result, 37 retained failure stage,
+ * 38 failure HAL result, 39 failure gain, 40..41 failure reference uV,
+ * 42 failure channel, 43 channel count, 44 setup count, 45..46 failure raw,
+ * 47..48 read failures, 49 config valid, 50..51 failure ADI status (int32).
+ * Remaining offsets reserved (zero). uint32 is high/low.
  */
 #define PRODUCT_MODBUS_ADC_TRACE_BASE_ADDRESS                 (0x4A00U)
 #define PRODUCT_MODBUS_ADC_TRACE_DEVICE_STRIDE                (0x0040U)

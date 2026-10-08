@@ -857,6 +857,19 @@ static ModbusExceptionCode_t ReadAdcTrace(
             Uint32ToRegisters(adc.configure_successes, &image[30], &image[31]);
             Uint32ToRegisters(event.ack_failures, &image[32], &image[33]);
             image[34] = event.stage;
+            image[35] = (uint16_t)adc.last_read_stage;
+            image[36] = (uint16_t)adc.last_read_result;
+            image[37] = (uint16_t)adc.last_read_failure_stage;
+            image[38] = (uint16_t)adc.last_read_failure_result;
+            image[39] = adc.failure_gain;
+            Uint32ToRegisters(adc.failure_reference_uv, &image[40], &image[41]);
+            image[42] = adc.failure_channel;
+            image[43] = adc.failure_channel_count;
+            image[44] = adc.failure_setup_count;
+            Uint32ToRegisters(adc.failure_raw_code, &image[45], &image[46]);
+            Uint32ToRegisters(adc.read_failures, &image[47], &image[48]);
+            image[49] = adc.failure_config_valid ? 1U : 0U;
+            Int32ToRegisters(adc.failure_driver_status, &image[50], &image[51]);
             cached_device = device;
         }
         values[index] = image[offset];

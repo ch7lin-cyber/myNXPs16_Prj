@@ -27,6 +27,21 @@ typedef enum
     PRODUCT_ADC_CONFIG_STAGE_COMPLETE
 } ProductAdcConfigureStage_t;
 
+typedef enum
+{
+    PRODUCT_ADC_READ_STAGE_NONE = 0,
+    PRODUCT_ADC_READ_STAGE_VALIDATE,
+    PRODUCT_ADC_READ_STAGE_DEVICE,
+    PRODUCT_ADC_READ_STAGE_TRANSFER,
+    PRODUCT_ADC_READ_STAGE_FAULT,
+    PRODUCT_ADC_READ_STAGE_FIRST_DISCARD,
+    PRODUCT_ADC_READ_STAGE_CONFIG,
+    PRODUCT_ADC_READ_STAGE_CHANNEL,
+    PRODUCT_ADC_READ_STAGE_SETUP,
+    PRODUCT_ADC_READ_STAGE_CONVERT,
+    PRODUCT_ADC_READ_STAGE_COMPLETE
+} ProductAdcReadStage_t;
+
 /* Register all product ADC devices with the shared generic HAL. */
 typedef struct
 {
@@ -56,6 +71,19 @@ typedef struct
     uint32_t configure_attempts;
     uint32_t configure_source_counts[4];
     uint32_t configure_successes;
+    ProductAdcReadStage_t last_read_stage;
+    HalAdcStatus_t last_read_result;
+    ProductAdcReadStage_t last_read_failure_stage;
+    HalAdcStatus_t last_read_failure_result;
+    uint32_t read_failures;
+    uint32_t failure_raw_code;
+    uint32_t failure_reference_uv;
+    int32_t failure_driver_status;
+    uint16_t failure_gain;
+    uint8_t failure_channel;
+    uint8_t failure_channel_count;
+    uint8_t failure_setup_count;
+    bool failure_config_valid;
     uint32_t first_sample_discards;
     uint32_t fault_sample_discards;
     ProductAdcConfigureSource_t last_configure_source;
