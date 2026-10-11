@@ -42,6 +42,7 @@
 #include "fsl_debug_console.h"
 #include "ProductFeatureConfig.h"
 #include "l03_product_modbus.h"
+#include "product_usb_modbus.h"
 #include "l03_product_modbus_master.h"
 #include "product_application.h"
 #include "product_pwm_driver.h"
@@ -82,7 +83,8 @@ typedef enum
     kProductBootErrorApplication = 5U,
     kProductBootErrorRs485 = 6U,
     kProductBootErrorModbus = 7U,
-    kProductBootErrorSysTick = 8U
+    kProductBootErrorSysTick = 8U,
+    kProductBootErrorUsb = 9U
 } ProductBootError_t;
 
 /* Keep these visible in the debugger even when boot cannot print a message. */
@@ -176,6 +178,7 @@ void SysTick_Handler(void)
  */
 int main(void) {
     uint32_t processedTick100us = 0U;
+    uint32_t usbTimeMs = 0U;
 
     /* Init board hardware. */
     BOARD_InitBootPins();
@@ -230,6 +233,10 @@ int main(void) {
         ProductBootHalt(kProductBootErrorModbus);
     }
     g_productBootStage = (uint32_t)kProductBootStageModbusInitialized;
+    if (!ProductUsbModbus_Init())
+    {
+        ProductBootHalt(kProductBootErrorUsb);
+    }
 
     // use 0.1ms as base tick
     if (SysTick_Config(SystemCoreClock / 10000))
@@ -250,10 +257,12 @@ int main(void) {
         while ((uint32_t)(g_systemTick100us - processedTick100us) >= 10U)
         {
             processedTick100us += 10U;
+            usbTimeMs++;
             L03_ProductModbus_Tick1ms();
             L03_ProductModbusMaster_Tick1ms();
             ProductApplication_Tick1ms();
         }
+        ProductUsbModbus_Process(usbTimeMs);
         L03_ProductModbus_Process();
         L03_ProductModbusMaster_Process();
         ProductApplication_Process();
