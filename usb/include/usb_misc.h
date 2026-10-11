@@ -357,8 +357,9 @@ _Pragma("diag_suppress=Pm120")
 #define USB_WEAK_FUN                 __attribute__((weak))
 #define USB_RAM_ADDRESS_ALIGNMENT(n) __attribute__((aligned(n)))
 #define USB_LINK_DMA_INIT_DATA(sec)  __attribute__((section(#sec)))
-#define USB_LINK_USB_GLOBAL          __attribute__((section("m_usb_global, \"aw\", %nobits @")))
-#define USB_LINK_USB_BDT             __attribute__((section("m_usb_bdt, \"aw\", %nobits @")))
+/* MCUXpresso managed linker/startup initializes this USB_RAM BSS. */
+#define USB_LINK_USB_GLOBAL __attribute__((section(".bss.$USB_RAM.usb_global")))
+#define USB_LINK_USB_BDT __attribute__((section(".bss.$USB_RAM.usb_bdt")))
 #define USB_LINK_USB_GLOBAL_BSS
 #define USB_LINK_USB_BDT_BSS
 #define USB_LINK_DMA_NONINIT_DATA      __attribute__((section("m_usb_dma_noninit_data, \"aw\", %nobits @")))

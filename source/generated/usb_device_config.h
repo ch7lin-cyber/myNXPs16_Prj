@@ -104,6 +104,9 @@
 /*! @brief Whether the device task is enabled. */
 #define USB_DEVICE_CONFIG_USE_TASK (0U)
 
+/* Place SDK globals and endpoint buffers in MCUXpresso USB_RAM. */
+#define USB_STACK_USE_DEDICATED_RAM (1U)
+
 /*! @brief How many the notification message are supported when the device task is enabled. */
 #define USB_DEVICE_CONFIG_MAX_MESSAGES (8U)
 

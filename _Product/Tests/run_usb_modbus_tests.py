@@ -29,6 +29,7 @@ for config in project.findall(".//cconfiguration"):
             if v.get("value") != "__REDLIB__"]
     sdk = list((ROOT / "usb/device").rglob("*.c")) + [
         ROOT / "_Product/Source/L01_ProductDriver/product_usb_cdc.c",
+        ROOT / "_Product/Source/L01_ProductDriver/product_usb_osa.c",
         ROOT / "_Product/Source/L01_ProductDriver/usb_device_descriptor.c",
         ROOT / "_Product/Source/L03_System/product_usb_modbus.c",
         ROOT / "source/myNXPs16_Prj.c"]
@@ -55,3 +56,37 @@ for config in project.findall(".//cconfiguration"):
         capture_output=True, text=True, check=True).stdout
     # Declaration is harmless; USB class must emit no debug printf calls.
     assert 'DbgConsole_Printf("' not in preprocessed
+    with tempfile.TemporaryDirectory() as temp:
+        temp = Path(temp)
+        lifecycle = temp / "osa_test.c"
+        lifecycle.write_text('''#include "fsl_os_abstraction.h"
+#include <assert.h>
+#include <string.h>
+int main(void) {
+    OSA_MUTEX_HANDLE_DEFINE(handle);
+    memset(handle, 0xff, sizeof handle);
+    assert(OSA_MutexCreate(handle) == KOSA_StatusSuccess);
+    for (unsigned i=0; i<sizeof handle; ++i) assert(((unsigned char*)handle)[i]==0);
+    memset(handle, 0xff, sizeof handle);
+    assert(OSA_MutexDestroy(handle) == KOSA_StatusSuccess);
+    for (unsigned i=0; i<sizeof handle; ++i) assert(((unsigned char*)handle)[i]==0);
+    assert(OSA_MutexCreate(0) == KOSA_StatusError);
+    assert(OSA_MutexDestroy(0) == KOSA_StatusError);
+}
+''')
+        binary = str(temp / "osa_test")
+        subprocess.run(["gcc", "-std=gnu99"] + paths + defs + ["-UNDEBUG",
+            str(lifecycle), str(ROOT / "_Product/Source/L01_ProductDriver/product_usb_osa.c"),
+            "-o", binary], check=True, capture_output=True)
+        subprocess.run([binary], check=True)
+        asm = temp / "usb_controller.s"
+        subprocess.run(["gcc", "-S", "-std=gnu99", "-w"] + paths + defs + [
+            str(ROOT / "usb/device/source/lpcip3511/usb_device_lpcip3511.c"),
+            "-o", str(asm)], check=True, capture_output=True)
+        # Verify actual controller copy buffer and endpoint table use managed USB_RAM BSS.
+        code = asm.read_text()
+        assert '.bss.$USB_RAM.usb_global' in code
+        for name in ("s_SetupAndEpReservedData", "s_EpCommandStatusList1"):
+            before = code[:code.index(name + ":")]
+            assert '.bss.$USB_RAM.usb_global' in before[before.rfind('.section'):]
+        print("USB OSA lifecycle and controller USB_RAM placement PASS")

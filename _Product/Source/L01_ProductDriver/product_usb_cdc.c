@@ -23,7 +23,7 @@ USB_DMA_NONINIT_DATA_ALIGN(USB_DATA_ALIGN_SIZE) static uint8_t tx[256];
 static const uint8_t fixed_coding[7]={0,0xC2,1,0,0,0,8};
 USB_DMA_INIT_DATA_ALIGN(USB_DATA_ALIGN_SIZE) static uint8_t coding[7]={0,0xC2,1,0,0,0,8};
 
-/* Bare-metal USB stack only needs these critical-section hooks; it owns no tick. */
+/* Bare-metal critical sections; mutex lifecycle hooks are in product_usb_osa.c. */
 void OSA_EnterCritical(uint32_t *sr) { *sr=__get_PRIMASK(); __disable_irq(); }
 void OSA_ExitCritical(uint32_t sr) { __set_PRIMASK(sr); }
 
