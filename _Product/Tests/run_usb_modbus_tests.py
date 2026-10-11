@@ -86,7 +86,23 @@ int main(void) {
         # Verify actual controller copy buffer and endpoint table use managed USB_RAM BSS.
         code = asm.read_text()
         assert '.bss.$USB_RAM.usb_global' in code
+        # SETUP pointer is encoded as address >> 6 by the actual IP3511 driver.
+        # It must never be rounded down into a preceding class/device handle.
+        align_check = temp / "align_check.c"
+        align_check.write_text('''#include "usb_device_config.h"
+#include "usb.h"
+#if USB_DATA_ALIGN_SIZE < 64
+#error IP3511 SETUP buffers must be aligned to 64 bytes
+#endif
+typedef char control_offset_aligned[(USB_DATA_ALIGN_SIZE_MULTIPLE(8U)%64U)==0U?1:-1];
+typedef char zero_offset_aligned[((USB_DATA_ALIGN_SIZE_MULTIPLE(8U)+USB_DATA_ALIGN_SIZE_MULTIPLE(64U))%64U)==0U?1:-1];
+typedef char reserve_offset_aligned[((USB_DATA_ALIGN_SIZE_MULTIPLE(8U)+USB_DATA_ALIGN_SIZE_MULTIPLE(64U)+USB_DATA_ALIGN_SIZE_MULTIPLE(4U))%64U)==0U?1:-1];
+''')
+        subprocess.run(["gcc", "-fsyntax-only"] + paths + defs + [str(align_check)],
+                       check=True, capture_output=True)
         for name in ("s_SetupAndEpReservedData", "s_EpCommandStatusList1"):
             before = code[:code.index(name + ":")]
             assert '.bss.$USB_RAM.usb_global' in before[before.rfind('.section'):]
+        before = code[:code.index("s_SetupAndEpReservedData:")]
+        assert '.align 64' in before[before.rfind('.section'):]
         print("USB OSA lifecycle and controller USB_RAM placement PASS")

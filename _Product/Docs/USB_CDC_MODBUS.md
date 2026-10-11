@@ -67,3 +67,9 @@ CDC 的 `OSA_MutexCreate/Destroy` 由 `product_usb_osa.c` 提供，僅初始化�
 啟用 `USB_STACK_USE_DEDICATED_RAM=1`。GCC 的 USB_GLOBAL 與端點表配置到 `.bss.$USB_RAM.*`，由 MCUXpresso managed linker 放入 USB_RAM，並由既有 startup BSS table 清零。包含 SDK 的 5120-byte 複製緩衝區；保留緩衝區容量與 heap/stack 設定。
 
 主機驗證增加 mutex lifecycle 與實際 controller assembly section 檢查，Debug/Release 均需通過。ARM 連結後仍應確認 map 中 `s_SetupAndEpReservedData` 與 `s_EpCommandStatusList1` 位於 0x20010000～0x20013FFF，並檢查最終 SRAM 使用量。
+
+## IP3511 SETUP／DMA 對齊
+
+USB 資料對齊設定與已驗證的 bootloader 一致，採 64 bytes。這份 IP3511 driver 以 `address >> 6` 編碼 SETUP buffer 地址，SETUP 直接使用 reserved pool；僅 4-byte 對齊可能讓 DMA 地址向下取整，寫入 pool 前方資料。control／zero／copy buffer 的起點也必須保持 64-byte 對齊。
+
+回歸檢查驗證 Debug/Release 的對齊巨集、各 offset 與 controller assembly 的 pool alignment。此修正仍需實機確認插入 USB 後 LED 持續更新、Windows 枚舉與 RTU 收發；不能以主機測試宣告硬體問題已解決。
