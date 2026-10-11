@@ -32,7 +32,8 @@
  ******************************************************************************/
 /* CDC ACM device instance */
 
-USB_GLOBAL USB_RAM_ADDRESS_ALIGNMENT(USB_DATA_ALIGN_SIZE) static usb_device_cdc_acm_struct_t
+/* Software handles must be zeroed in ordinary SRAM before USB RAM is powered. */
+USB_RAM_ADDRESS_ALIGNMENT(USB_DATA_ALIGN_SIZE) static usb_device_cdc_acm_struct_t
     g_cdcAcmHandle[USB_DEVICE_CONFIG_CDC_ACM];
 
 /*******************************************************************************

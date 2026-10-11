@@ -111,7 +111,8 @@ static const usb_device_class_map_t s_UsbDeviceClassInterfaceMap[] = {
      (usb_device_class_type_t)0},
 };
 
-USB_GLOBAL USB_RAM_ADDRESS_ALIGNMENT(USB_DATA_ALIGN_SIZE) static usb_device_common_class_struct_t
+/* Software handles must be zeroed in ordinary SRAM before USB RAM is powered. */
+USB_RAM_ADDRESS_ALIGNMENT(USB_DATA_ALIGN_SIZE) static usb_device_common_class_struct_t
     s_UsbDeviceCommonClassStruct[USB_DEVICE_CONFIG_NUM];
 USB_GLOBAL USB_RAM_ADDRESS_ALIGNMENT(USB_DATA_ALIGN_SIZE) static uint8_t
     s_UsbDeviceSetupBuffer[USB_DEVICE_CONFIG_NUM][USB_DATA_ALIGN_SIZE_MULTIPLE(USB_SETUP_PACKET_SIZE)];

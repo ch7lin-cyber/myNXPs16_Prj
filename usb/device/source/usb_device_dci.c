@@ -89,7 +89,8 @@ static usb_status_t USB_DeviceNotification(usb_device_struct_t *handle, usb_devi
  * Variables
  ******************************************************************************/
 
-USB_GLOBAL static usb_device_struct_t s_UsbDevice[USB_DEVICE_CONFIG_NUM];
+/* Software handles must be zeroed in ordinary SRAM before USB RAM is powered. */
+static usb_device_struct_t s_UsbDevice[USB_DEVICE_CONFIG_NUM];
 
 /*******************************************************************************
  * Code

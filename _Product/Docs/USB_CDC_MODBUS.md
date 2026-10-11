@@ -64,7 +64,7 @@ LPCIP3511FS=1、LPCIP3511HS=0、CDC_ACM=1。
 
 CDC 的 `OSA_MutexCreate/Destroy` 由 `product_usb_osa.c` 提供，僅初始化與清除 SDK 的靜態 handle。SDK 目前沒有呼叫 mutex lock/unlock；傳輸同步使用 driver 的 critical section，不新增 SysTick。
 
-啟用 `USB_STACK_USE_DEDICATED_RAM=1`。GCC 的 USB_GLOBAL 與端點表配置到 `.bss.$USB_RAM.*`，由 MCUXpresso managed linker 放入 USB_RAM，並由既有 startup BSS table 清零。包含 SDK 的 5120-byte 複製緩衝區；保留緩衝區容量與 heap/stack 設定。
+啟用 `USB_STACK_USE_DEDICATED_RAM=1`。GCC 的 USB_GLOBAL 與端點表配置到 `.bss.$USB_RAM.*`，由 MCUXpresso managed linker 放入 USB_RAM，並由既有 startup BSS table 清零。class、CDC 與 device 軟體 handle 配置表使用一般 SRAM，避免 USB_RAM 尚未供電／啟用時開機清零不可靠，造成首次 ClassAllocateHandle 回傳 Busy。包含 SDK 的 5120-byte 複製緩衝區；保留緩衝區容量與 heap/stack 設定。
 
 主機驗證增加 mutex lifecycle 與實際 controller assembly section 檢查，Debug/Release 均需通過。ARM 連結後仍應確認 map 中 `s_SetupAndEpReservedData` 與 `s_EpCommandStatusList1` 位於 0x20010000～0x20013FFF，並檢查最終 SRAM 使用量。
 
