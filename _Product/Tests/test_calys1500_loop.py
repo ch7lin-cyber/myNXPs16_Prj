@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Tools"))
 import calys1500_protocol as protocol
 import calys1500_loop_test as loop
+from calys1500_expected import pv_comparison
 
 
 def helpers():
@@ -98,6 +99,15 @@ class Tests(unittest.TestCase):
         commands = protocol.setup_commands(protocol.SENSORS[48], cjc="FIX", fixed_cjc="23.4")
         self.assertIn("SOUR:TC:RJUN 23.4", commands)
         self.assertEqual(commands[-1], "SOUR:FUNC TC")
+
+    def test_analog_pv_scaling_endpoints(self):
+        sensor = protocol.SENSORS[124]  # 4-20 mA
+        physical, expected = pv_comparison(sensor, sensor.low, -32000.0)
+        self.assertEqual((physical, expected), (4.0, -32000.0))
+        physical, expected = pv_comparison(sensor, sensor.high, 32000.0)
+        self.assertEqual((physical, expected), (20.0, 32000.0))
+        physical, expected = pv_comparison(sensor, 12.0, 0.0)
+        self.assertEqual((physical, expected), (12.0, 0.0))
 
     @patch.object(protocol.time, "sleep")
     def test_protocol_and_errors(self, sleep):
