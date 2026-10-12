@@ -186,14 +186,94 @@ class Tests(unittest.TestCase):
             with path.open(encoding="utf-8-sig") as stream:
                 self.assertEqual(list(csv.DictReader(stream))[0]["status"], "error")
 
-    def test_calibration_placeholders(self):
-        with patch("builtins.input", side_effect=[*loop.CALIBRATION_MENU, "q"]), \
-             patch("builtins.print"), patch.object(loop, "Calys1500") as calys, \
-             patch.object(loop, "modbus_helpers") as dut:
-            with tempfile.TemporaryDirectory() as directory:
-                loop.main(["--config", str(Path(directory) / "ports.json")])
-            calys.assert_not_called()
-            dut.assert_not_called()
+    def test_wiring_groups_and_unique_profiles(self):
+        from calys1500_calibration import WIRING_GROUPS
+        self.assertEqual(set(WIRING_GROUPS), {"1", "2", "3", "4"})
+        self.assertIn(0, WIRING_GROUPS["1"].profiles)
+        self.assertIn(0, WIRING_GROUPS["3"].profiles)  # shared firmware profile
+        for group in WIRING_GROUPS.values():
+            self.assertEqual(len(group.profiles), len(set(group.profiles)))
+            for profile, codes in group.profiles.items():
+                self.assertTrue(all(code in protocol.SENSORS for code in codes))
+
+    def test_calibration_preview_aborts_without_apply(self):
+        from calys1500_calibration import WIRING_GROUPS, guided_profile_run
+
+        def i32_regs(value):
+            value &= 0xFFFFFFFF
+            return [value >> 16, value & 0xFFFF]
+
+        class Calys:
+            def __init__(self, dut):
+                self.dut = dut
+                self.value = 0
+            def configure(self, sensor, **settings):
+                self.sensor = sensor
+            def output(self, sensor, value):
+                self.value = 1000 if value == 0 else 51000
+                self.dut.microvolts = self.value
+
+        class Dut:
+            def __init__(self):
+                self.writes = []
+                self.count = 0
+                self.microvolts = 0
+                self.pending = [0, 0, 0, 0]
+                self.record = [0, 0, 0, 60417, 1, 0, 0, 0]
+            def read_holding_registers(self, address, quantity):
+                if address == 0x4724:
+                    return [1]
+                if address == 0x4726:
+                    return [0]
+                if address == 0x4706:
+                    return [0]
+                if address == 0x4720:
+                    return [0, 0, 0, 60417]
+                if address == 0x4C20:
+                    return self.record
+                if address == 0x4709:
+                    return self.pending
+                if address == 0x4831:
+                    self.count += 1
+                    return [0, self.count]
+                if address in (0x1000, 0x1010):
+                    return [0x3F80, 0, 61]
+                if address in (0x484F, 0x488F):
+                    return [0x80, 1, 0, 255, *i32_regs(self.microvolts)]
+                if address == 0x4823:
+                    return [0]
+                raise AssertionError((hex(address), quantity))
+            def write_multiple_registers(self, address, values):
+                self.writes.append((address, values[0]))
+                if address == 0x4702 and values[0] == 2:
+                    self.pending[0:2] = i32_regs(self.microvolts)
+                if address == 0x4702 and values[0] == 3:
+                    self.pending[2:4] = i32_regs(self.microvolts)
+                if address == 0x4702 and values[0] == 4:
+                    self.record = [*self.pending, 1, 1, 0, 0]
+
+        dut = Dut()
+        calys = Calys(dut)
+        inputs = iter(["0", "5"])
+        report = guided_profile_run(
+            calys, dut, 0, WIRING_GROUPS["3"], 4, protocol.SENSORS[120],
+            allow_apply=False, dwell=0, stable_timeout=1, spread_limit_uv=20,
+            input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
+        self.assertFalse(report["applied"])
+        self.assertEqual((report["measured_zero_uv"], report["measured_span_uv"]),
+                         (1000, 51000))
+        self.assertIn((0x4702, 5), dut.writes)  # abort
+        self.assertNotIn((0x4702, 4), dut.writes)  # no NVM Apply
+
+        dut = Dut()
+        calys = Calys(dut)
+        inputs = iter(["0", "5", "APPLY CH0 PROFILE 4"])
+        report = guided_profile_run(
+            calys, dut, 0, WIRING_GROUPS["3"], 4, protocol.SENSORS[120],
+            allow_apply=True, dwell=0, stable_timeout=1, spread_limit_uv=20,
+            input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
+        self.assertTrue(report["applied"])
+        self.assertIn((0x4702, 4), dut.writes)
 
     @patch.object(loop.time, "sleep")
     def test_dut_read_retry_only(self, sleep):
