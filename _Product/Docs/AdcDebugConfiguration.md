@@ -31,3 +31,18 @@ HAL 的一般換算入口不再引用除錯明細入口。本專案 Debug / Rele
 單元測試已驗證開啟／關閉兩種設定下的 ADC 讀取、錯誤處理、Sensor type
 事件與 Modbus 存取。MCU 的實際 Flash／RAM 節省量以重新編譯的 map 與
 MCUXpresso memory usage 為準。
+
+## Python 診斷工具與連續請求
+
+`modbus_rtu_test_menu.py` 每筆請求送出前固定等待 50 ms，以便 RS-485 slave 完成回覆與恢復接收。預設 timeout=1 秒，可用 `--timeout 3` 做對照。加入間隔不代表 MCU 通訊問題已完成定位。
+
+```powershell
+python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\modbus_rtu_test_menu.py --port COM8 --slave 2 --baud 115200 --timeout 3
+```
+
+CALYS 工具的 DUT wrapper 另預設等待 50 ms，搭配共用 client 合計約 100 ms，並對可重試的讀取錯誤重試。請避免兩支工具同時開啟 COM8。
+
+`STATUS=0x80` 表示當下尚未有新 ADC 資料；需搭配成功計數、目前故障及最近讀取結果判斷，不能單獨當成故障。
+`Latched ERROR OR` 是歷史累積值；目前故障以 Active fault／Last ERROR 與持續取樣狀態核對。PV 與 microvolts 在故障時可能保留先前有效值。
+
+完整啟動方法見 [useMethod.md](../Tools/useMethod.md)，十點差值與結果摘要見 [Calys1500LoopTest.md](Calys1500LoopTest.md)。
