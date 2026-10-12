@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from calys1500_protocol import Calys1500, SENSORS, numeric, ten_points, validate
+from calys1500_expected import add_comparison, format_summary
 
 # No serial dependency is required to import the catalog or run --list-sensors.
 def modbus_helpers():
@@ -28,7 +29,9 @@ CALIBRATION_MENU = {
 FIELDS = ["utc", "point", "channel", "sensor_code", "sensor", "gain", "setpoint",
           "unit", "pv", "input_error", "raw_code", "microvolts", "successful_samples",
           "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds",
-          "dut_read_retries", "status", "error"]
+          "dut_read_retries", "status", "error", "pv_signal", "pv_signal_unit",
+          "expected_pv", "pv_delta", "pv_native_delta", "expected_adc_uv",
+          "adc_delta_uv", "adc_reference_basis", "calys_cjc_temperature"]
 
 
 class DutLink:
@@ -102,6 +105,23 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
     _, f32, i32, u32 = modbus_helpers()
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    rows = []
+    completed = False
+    try:
+        _run_sweep_points(calys, dut, channel, sensor, path, dwell, fresh_timeout, settings, rows)
+        completed = True
+    finally:
+        summary = format_summary(rows, sensor, completed)
+        summary_path = path.with_name(path.stem + "_summary.txt")
+        summary_path.write_text(summary, encoding="utf-8-sig")
+        print("\n" + summary)
+        print("CSV：", path.resolve())
+        print("結果摘要：", summary_path.resolve())
+    return path
+
+
+def _run_sweep_points(calys, dut, channel, sensor, path, dwell, fresh_timeout, settings, rows):
+    _, f32, i32, u32 = modbus_helpers()
     with path.open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
@@ -114,6 +134,7 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
                        calys_idn=calys.identity, cjc=settings.get("cjc", "INT"),
                        fixed_cjc=settings.get("fixed_cjc", "0"),
                        current_supply=settings.get("current_supply", "ON"),
+                       calys_cjc_temperature=settings.get("calys_cjc_temperature", ""),
                        dwell_seconds=dwell, status="recorded", error="")
             try:
                 calys.output(sensor, point)
@@ -132,19 +153,23 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
                            successful_samples=current_count)
                 raw = dut.read_holding_registers(0x484F + channel * 0x40, 6)
                 row.update(raw_code=f"0x{u32(raw[:2]):08X}", microvolts=i32(raw[4:6]))
+                add_comparison(row, sensor, point, settings)
+                if row["input_error"] != 61:
+                    row.update(status="input_error", error=f"DUT input_error={row['input_error']}")
                 print(f"[{index}/10] 輸出 {point} {sensor.unit} → PV={row['pv']}, "
                       f"error={row['input_error']}, ADC={row['microvolts']} uV")
             except BaseException as exc:
                 row.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "error",
                            error=str(exc) or type(exc).__name__,
                            dut_read_retries=getattr(dut, "read_retries", 0) - retries_before)
+                rows.append(row)
                 writer.writerow(row)
                 stream.flush()
                 raise
             row["dut_read_retries"] = getattr(dut, "read_retries", 0) - retries_before
+            rows.append(row)
             writer.writerow(row)
             stream.flush()
-    return path
 
 
 def positive(text):
@@ -187,12 +212,16 @@ def main(argv=None):
                         help="顯示 CALYS TX/RX，協助檢查 port 與回應")
     parser.add_argument("--cjc", choices=["INT", "DIS", "FIX"], default="INT")
     parser.add_argument("--fixed-cjc", default="0")
+    parser.add_argument("--calys-cjc-temperature", type=float,
+                        help="INT模式時CALYS面板顯示的冷端溫度(degC)，供理論ADC比較；不改儀器設定")
     parser.add_argument("--current-supply", choices=["ON", "OFF"], default="ON")
     parser.add_argument("--results", type=Path, default=Path("calys_results"))
     parser.add_argument("--config", type=Path, default=Path("calys1500_ports.json"))
     parser.add_argument("--list-sensors", action="store_true")
     args = parser.parse_args(argv)
     numeric(args.fixed_cjc)
+    if args.calys_cjc_temperature is not None and not math.isfinite(args.calys_cjc_temperature):
+        parser.error("--calys-cjc-temperature 必須是有限數值")
     if args.list_sensors:
         list_sensors()
         return
@@ -200,7 +229,8 @@ def main(argv=None):
     calys_port = args.calys_port or saved.get("calys_port", "")
     dut_port = args.dut_port or saved.get("dut_port", "")
     selected, channel, calys = None, None, None
-    settings = dict(cjc=args.cjc, fixed_cjc=args.fixed_cjc, current_supply=args.current_supply)
+    settings = dict(cjc=args.cjc, fixed_cjc=args.fixed_cjc, current_supply=args.current_supply,
+                    calys_cjc_temperature=args.calys_cjc_temperature)
 
     def save_ports():
         args.config.parent.mkdir(parents=True, exist_ok=True)
@@ -258,13 +288,13 @@ def main(argv=None):
                     save_ports()
                 elif action == "0.2":
                     sensor = select_sensor()
-                    connect().configure(sensor, **settings)
+                    connect().configure(sensor, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     selected = sensor
                 elif action == "0.3":
                     if selected is None:
                         raise ValueError("請先選擇 Sensor")
                     value = validate(selected, input(f"輸出值 ({selected.unit})："))
-                    connect().configure(selected, **settings)
+                    connect().configure(selected, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     connect().output(selected, value)
                 elif action == "1":
                     candidate = int(input("通道 0／1／2／3："))
@@ -298,7 +328,7 @@ def main(argv=None):
                     if dut_port.casefold() == calys_port.casefold() and calys_port:
                         raise ValueError("CALYS 與 DUT 必須使用不同 port")
                     device = connect()
-                    device.configure(selected, **settings)
+                    device.configure(selected, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     cls, *_ = modbus_helpers()
                     dut = DutLink(cls(dut_port, args.slave, args.dut_baud, args.dut_timeout),
                                   args.dut_read_retries, args.dut_request_delay)
