@@ -61,10 +61,16 @@ DUT Sensor type 讀回不代表 ADC 已套用完成，請查看 ADC configuratio
 --0.3 設輸出值
 1 選通道／Sensor（直接寫 DUT）
 ----1.1.0 十點自動測試
-2 自動校正（預留）
+2 自動校正（依接線類別；預設只預覽）
+----2.1 熱電偶 TC
+----2.2 RTD 三線
+----2.3 電壓／mV
+----2.4 電流
 q 結束
 ```
-校正選項不開串列 port、不送校正指令，不碰 0x4700／0x4720／0x4C00 等 Factory registers。
+校正先選 CH 與接線類別，再選該類別的一個代表 Sensor／Profile。每個 Profile 本次只處理一次；TC 與電壓／mV 共用的 Profile 0 不可重複 Apply。工具從韌體讀目標 µV 和校正槽，不複製另一份目標常數。
+
+預設是預覽模式：送 CALYS 低／高點、檢查 5 筆新鮮穩定 ADC 樣本、由韌體擷取 pending 點、檢查跨度並輸出 JSON 記錄，最後 Abort，不寫 NVM。低／高 CALYS 設定值由操作人輸入，必須依校正標準和產品接線核對；本工具尚未替各型式推導或認證標準刺激值。若產品板上的端子對映、來源值及參考標準已驗證，啟動時加 `--allow-calibration-apply`，並於預覽後輸入 `APPLY CHn PROFILE p` 才會讓韌體寫入。`0x4C00` 校正槽僅讀回，不直接寫入。詳見 [Calys1500AutoCalibrationDesign.md](Calys1500AutoCalibrationDesign.md)。
 
 ## 對映與範圍
 
