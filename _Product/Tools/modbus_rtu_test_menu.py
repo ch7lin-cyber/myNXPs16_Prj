@@ -5,6 +5,7 @@ Default communication settings:
     Slave address: 2
     Baud rate:     115200
     Data format:   8N1
+    Request delay: 50 ms before each request
 
 Dependency:
     python -m pip install pyserial
@@ -15,6 +16,7 @@ from __future__ import annotations
 import argparse
 import struct
 import sys
+import time
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
@@ -30,6 +32,7 @@ except ImportError as exc:
 DEFAULT_SLAVE_ID = 2
 DEFAULT_BAUD_RATE = 115200
 DEFAULT_TIMEOUT_SECONDS = 1.0
+DEFAULT_REQUEST_DELAY_SECONDS = 0.05
 
 PV_BASE_ADDRESS = 0x1000
 PV_CHANNEL_STRIDE = 0x0010
@@ -165,6 +168,8 @@ class ModbusRtuClient:
 
     def _exchange(self, request_pdu: bytes, expected_function: int) -> bytes:
         request = append_crc(bytes([self.slave_id]) + request_pdu)
+        # Allow the RS-485 slave to release TX and re-arm reception.
+        time.sleep(DEFAULT_REQUEST_DELAY_SECONDS)
         self.serial.reset_input_buffer()
         print(f"  TX: {request.hex().upper()}")
         self.serial.write(request)
