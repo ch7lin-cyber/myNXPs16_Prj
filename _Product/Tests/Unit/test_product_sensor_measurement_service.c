@@ -202,8 +202,8 @@ static void TestCurrentShuntConversion(void)
         &configuration, 34746L, 0L, &result));
     assert(result.physical_input >= 19990L);
     assert(result.physical_input <= 20010L);
-    assert(result.engineering_value >= 19980L);
-    assert(result.engineering_value <= 20010L);
+    assert(result.engineering_value >= 31950L);
+    assert(result.engineering_value <= 32010L);
 }
 
 static void TestBTypeConversionWithCjc(void)
@@ -290,7 +290,7 @@ static void TestCjcSourceSelection(void)
 static void TestAnalogPvEngineeringRange(void)
 {
     const int32_t microvolts[] = {0L, 25000L, 50000L};
-    const float expected[] = {-1999.0F, 9000.0F, 19999.0F};
+    const float expected[] = {-32000.0F, 0.0F, 32000.0F};
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
