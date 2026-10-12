@@ -68,9 +68,9 @@ def pv_comparison(sensor, point, pv):
     p=float(point)
     if sensor.unit == "degC":
         return float(pv), p
-    # Analogue Float32 PV uses engineering_value directly: -1999..19999.
-    native_expected=-1999+(p-sensor.low)/(sensor.high-sensor.low)*21998
-    physical=sensor.low+(float(pv)+1999)/21998*(sensor.high-sensor.low)
+    # Analogue Float32 PV uses engineering_value directly: -32000..32000.
+    native_expected=-32000+(p-sensor.low)/(sensor.high-sensor.low)*64000
+    physical=sensor.low+(float(pv)+32000)/64000*(sensor.high-sensor.low)
     return physical,native_expected
 
 
