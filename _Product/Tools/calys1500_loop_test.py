@@ -221,9 +221,16 @@ def main(argv=None):
 
     try:
         while True:
-            print("\n0 CALYS 1500 相關　1 選通道／Sensor（直接寫 DUT）　2 自動校正（預留）　q 結束")
-            print("0.1.0 自動通訊測試　0.1.1 改 CALYS port　0.1.2 改 DUT port")
-            print("0.2 改 CALYS Sensor　0.3 設輸出值　1.1.0 十點自動測試")
+            print("\n0 CALYS 1500 相關")
+            print("----0.1.0 自動通訊測試")
+            print("----0.1.1 改 CALYS port")
+            print("----0.1.2 改 DUT port")
+            print("--0.2 改 CALYS Sensor")
+            print("--0.3 設輸出值")
+            print("1 選通道／Sensor（直接寫 DUT）")
+            print("----1.1.0 十點自動測試")
+            print("2 自動校正（預留）")
+            print("q 結束")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "
                   f"CH={channel} Sensor={selected.label if selected else '未選'}")
             action = input("選項：").strip()
