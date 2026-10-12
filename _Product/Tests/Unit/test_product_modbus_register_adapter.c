@@ -215,7 +215,7 @@ static void TestDefaultRegisterImage(void)
     assert(values[5] == 0x0000U);
     assert(values[6] == 0x0000U);
     assert(values[7] == 48U);
-    assert(values[8] == 0U);
+    assert(values[8] == EVENT_CJC_SOURCE_INTERNAL_TMP20);
     assert(values[9] == 0U);
 }
 
@@ -299,7 +299,7 @@ static void TestWritableConfiguration(void)
     assert(activeRegisters[0] == 0x3F00U);
     assert(activeRegisters[1] == 0x0000U);
     assert(activeRegisters[4] == 48U);
-    assert(activeRegisters[5] == 0U);
+    assert(activeRegisters[5] == EVENT_CJC_SOURCE_INTERNAL_TMP20);
 
     assert(interface.write_single_register(
                interface.context, 0x1007U, 96U) ==
@@ -324,7 +324,7 @@ static void TestWritableConfiguration(void)
            1U);
     assert(EventService_GetTemperatureInputConfigurationChanged(0U, &event));
     assert(event.configuration_revision == 1U);
-    assert(event.changed_mask == EVENT_TEMPERATURE_INPUT_CHANGE_ALL);
+    assert(event.changed_mask == (EVENT_TEMPERATURE_INPUT_CHANGE_FILTER_TIME_CONSTANT | EVENT_TEMPERATURE_INPUT_CHANGE_SENSOR_TYPE));
     assert(event.old_configuration.filter_time_constant_seconds == 0.5F);
     assert(event.old_configuration.sensor_type == 48U);
     assert(event.new_configuration.filter_time_constant_seconds == 2.0F);
@@ -482,11 +482,11 @@ static void TestInvalidRanges(void)
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS, 95U) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    /* The former TC Type register is retained as read-only Reserved. */
+    /* Invalid CJC source must be rejected without staging. */
     assert(interface.write_single_register(
                interface.context, PRODUCT_MODBUS_SENSOR_RESERVED_ADDRESS,
                PRODUCT_SENSOR_TYPE_TC_K) ==
-           MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
 }
 
 static void TestProductSerialPolicy(void)
@@ -1349,6 +1349,33 @@ static void TestLowVoltageRegisters(void)
                0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 }
 
+
+static void TestCjcSourcePendingApply(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_temperature_input_config_t active;
+    TemperatureInputConfigurationChangedEvent_t event;
+    uint16_t readback;
+    const uint16_t externalAndApply[2] = {3U, PRODUCT_MODBUS_APPLY_KEY_VALUE};
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.write_single_register(interface.context, 0x1028U, 4U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(interface.context, 0x1028U, 0U) == MODBUS_EXCEPTION_NONE);
+    assert(interface.read_holding_registers(interface.context, 0x1028U, 1U, &readback) == MODBUS_EXCEPTION_NONE);
+    assert(readback == 1U); /* Read Active, not Pending. */
+    assert(interface.write_single_register(interface.context, 0x1029U, PRODUCT_MODBUS_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(2U, &active));
+    assert(active.cjcSource == 0U);
+    assert(EventService_GetTemperatureInputConfigurationChanged(2U, &event));
+    assert(event.changed_mask == EVENT_TEMPERATURE_INPUT_CHANGE_CJC_SOURCE);
+    assert(event.new_configuration.cjc_source == 0U);
+    assert(EventService_Acknowledge(event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+    assert(interface.write_multiple_registers(interface.context, 0x1028U, externalAndApply, 2U) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(2U, &active));
+    assert(active.cjcSource == 3U);
+    assert(EventService_GetTemperatureInputConfigurationChanged(2U, &event));
+    assert(EventService_Acknowledge(event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
@@ -1403,6 +1430,7 @@ int main(void)
     TestApplyWithoutEffectiveChangeDoesNotRaiseEvent();
     TestFourIndependentTemperatureInputs();
     TestInvalidRanges();
+    TestCjcSourcePendingApply();
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestFactoryCalibrationSlots();
@@ -1423,3 +1451,4 @@ int main(void)
     TestLowVoltageRegisters();
     return 0;
 }
+

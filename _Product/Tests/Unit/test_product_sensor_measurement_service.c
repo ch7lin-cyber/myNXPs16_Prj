@@ -162,6 +162,7 @@ static void TestKTypePipelineAndCjcPairing(void)
     (void)memset(&g_monitor, 0, sizeof(g_monitor));
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_TC_K;
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_INTERNAL_TMP20;
     g_sample.raw_code = 0x00800000UL;
     g_sample.microvolts = 0L;
     g_sample.sequence = 1UL;
@@ -237,6 +238,55 @@ static void TestInvalidCjcIsReported(void)
     assert((snapshot.conversion_flags & SENSOR_FLAG_CJC_ERROR) != 0UL);
 }
 
+
+static void TestCjcSourceSelection(void)
+{
+    ProductSensorMeasurementSnapshot_t snapshot;
+    g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_TC_K;
+    g_product_configuration.filterTimeConstantSeconds = 0.0F;
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_sample.microvolts = 10153L;
+    g_sample.valid = true;
+    g_sample.sequence = 10U;
+    g_cjc_valid[0] = false;
+    g_cjc_valid[1] = false;
+    ProductSensorMeasurementService_Initialize();
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 61U);
+    assert(g_monitor.unfilteredProcessValue > 249.0F && g_monitor.unfilteredProcessValue < 251.0F);
+    assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
+    assert(snapshot.cjc_temperature_centi_c == 0L);
+    /* Source change must re-evaluate even when the sample sequence is unchanged. */
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_INTERNAL_TMP20;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 9U);
+    g_cjc_valid[0] = true;
+    g_cjc_temperature_centi_c[0] = 2500L;
+    g_cjc_valid[1] = true;
+    g_cjc_temperature_centi_c[1] = 4000L;
+    g_sample.sequence++;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 61U);
+    assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
+    assert(snapshot.cjc_temperature_centi_c == 2500L);
+    assert(ProductSensorMeasurementService_Process(3U));
+    assert(ProductSensorMeasurementService_GetSnapshot(3U, &snapshot));
+    assert(snapshot.cjc_temperature_centi_c == 4000L);
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_EXTERNAL_1;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 9U);
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_EXTERNAL_2;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 9U);
+    /* K 1300 C remains convertible in disabled mode. */
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_sample.microvolts = 52410L;
+    g_sample.sequence++;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == 61U);
+    assert(g_monitor.unfilteredProcessValue > 1299.0F && g_monitor.unfilteredProcessValue < 1301.0F);
+}
+
 int main(void)
 {
     TestConfigurationMapping();
@@ -244,5 +294,7 @@ int main(void)
     TestCurrentShuntConversion();
     TestBTypeConversionWithCjc();
     TestInvalidCjcIsReported();
+    TestCjcSourceSelection();
     return 0;
 }
+

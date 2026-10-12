@@ -65,9 +65,9 @@ static HalAdcStatus_t MockTryRead(void *context, HalAdcSample_t *sample)
 static void RaiseAndProcess(uint8_t input, uint16_t sensor_type)
 {
     EventTemperatureInputConfiguration_t old_config =
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20};
     EventTemperatureInputConfiguration_t new_config =
-        {0.5F, sensor_type};
+        {0.5F, sensor_type, EVENT_CJC_SOURCE_INTERNAL_TMP20};
     uint32_t event_id;
 
     assert(EventService_RaiseTemperatureInputConfigurationChanged(
@@ -120,9 +120,9 @@ int main(int argc, char **argv)
     if (argc > 1)
     {
         EventTemperatureInputConfiguration_t old_config =
-            {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
+            {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20};
         EventTemperatureInputConfiguration_t new_config =
-            {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V};
+            {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V, EVENT_CJC_SOURCE_INTERNAL_TMP20};
         uint32_t event_id;
         uint16_t configure_count = g_adc[2].configure_count;
 
@@ -198,8 +198,8 @@ int main(int argc, char **argv)
     /* Force ACK rejection: configuration must still happen exactly once. */
     assert(EventService_ConfigureTemperatureInputRequiredAckMask(EVENT_ACK_NVM));
     {
-        EventTemperatureInputConfiguration_t old_config = {0.5F, PRODUCT_SENSOR_TYPE_TC_K};
-        EventTemperatureInputConfiguration_t new_config = {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V};
+        EventTemperatureInputConfiguration_t old_config = {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20};
+        EventTemperatureInputConfiguration_t new_config = {0.5F, PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V, EVENT_CJC_SOURCE_INTERNAL_TMP20};
 #if PRODUCT_ADC_DEBUG_ENABLE
         ProductSensorConfigurationDiagnostics_t before, after;
 #endif

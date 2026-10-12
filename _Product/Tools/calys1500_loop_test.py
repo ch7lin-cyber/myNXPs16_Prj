@@ -31,7 +31,7 @@ FIELDS = ["utc", "point", "channel", "sensor_code", "sensor", "gain", "setpoint"
           "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds",
           "dut_read_retries", "status", "error", "pv_signal", "pv_signal_unit",
           "expected_pv", "pv_delta", "pv_native_delta", "expected_adc_uv",
-          "adc_delta_uv", "adc_reference_basis", "calys_cjc_temperature"]
+          "adc_delta_uv", "adc_reference_basis", "calys_cjc_temperature", "dut_cjc_source"]
 
 
 class DutLink:
@@ -90,8 +90,11 @@ def configure_dut(dut, channel, sensor, wait_seconds):
         raise ValueError("通道必須是 0～3")
     validate(sensor, sensor.low)
     base = 0x1000 + channel * 0x10
-    # A single FC10 stages type/reserved/apply, preserving the existing filter.
-    dut.write_multiple_registers(base + 7, [sensor.code, 0, 0xA5A5])
+    # Preserve the DUT CJC source when switching Sensor type.
+    cjc_source = dut.read_holding_registers(base + 8, 1)[0]
+    if cjc_source not in range(4):
+        raise RuntimeError("DUT CJC source 讀回無效")
+    dut.write_multiple_registers(base + 7, [sensor.code, cjc_source, 0xA5A5])
     time.sleep(wait_seconds)
     if dut.read_holding_registers(base + 7, 1)[0] != sensor.code:
         raise RuntimeError("DUT Sensor type 讀回不符")
@@ -122,6 +125,7 @@ def run_sweep(calys, dut, channel, sensor, path, dwell=2.0,
 
 def _run_sweep_points(calys, dut, channel, sensor, path, dwell, fresh_timeout, settings, rows):
     _, f32, i32, u32 = modbus_helpers()
+    dut_cjc_source = dut.read_holding_registers(0x1008 + channel * 0x10, 1)[0]
     with path.open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
@@ -135,6 +139,7 @@ def _run_sweep_points(calys, dut, channel, sensor, path, dwell, fresh_timeout, s
                        fixed_cjc=settings.get("fixed_cjc", "0"),
                        current_supply=settings.get("current_supply", "ON"),
                        calys_cjc_temperature=settings.get("calys_cjc_temperature", ""),
+                       dut_cjc_source=dut_cjc_source,
                        dwell_seconds=dwell, status="recorded", error="")
             try:
                 calys.output(sensor, point)
@@ -368,3 +373,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
+

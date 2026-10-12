@@ -30,7 +30,7 @@ codes, and hardware input states remain runtime-only.
 
 Each AD7124 has an independent 10-register block. The offsets are identical:
 
-| Input | Register block | Sensor Type | Reserved | Apply Key |
+| Input | Register block | Sensor Type | CJC source | Apply Key |
 |---|---|---|---|---|
 | CH0 / AD7124 #0 | `0x1000..0x1009` | `0x1007` | `0x1008` | `0x1009` |
 | CH1 / AD7124 #1 | `0x1010..0x1019` | `0x1017` | `0x1018` | `0x1019` |
@@ -39,14 +39,14 @@ Each AD7124 has an independent 10-register block. The offsets are identical:
 
 Thermocouple types are part of the single Sensor Type enumeration; for example,
 K=`48`, J=`46`, and B=`11`. The factory default is K (`Sensor Type=48`). The
-former TC Type register at offset `+8` is read-only Reserved and reads zero.
+former TC Type register at offset `+8` is now R/W CJC source: 0=disabled, 1=internal TMP20 (default), 2/3=external placeholders.
 Writing Sensor Type or filter time with FC06/FC10 changes only that channel's
 RAM Pending copy. Reading the normal configuration registers continues to show
 Active values; there is no Modbus Pending readback block. Write `0xA5A5` to the
 same channel's Apply Key to request an atomic change.
 
 FC10 may combine Sensor Type and Apply as three registers beginning at offset
-`+7`: `[Sensor Type, 0x0000 Reserved, 0xA5A5]`.
+`+7`: `[Sensor Type, CJC source, 0xA5A5]`. CJC-only Apply uses offset `+8`: `[CJC source, 0xA5A5]`.
 
 Pending has no time-based expiry. A later write replaces the corresponding
 Pending field; an explicit discard restores Pending from Active. If Apply fails
@@ -339,3 +339,6 @@ detail value is the MCU temperature in 0.01 degree Celsius (`8500` = 85.00
 degrees Celsius). Cooling does not clear the latched fault. Reset it through
 `0x4809 = 0x0201`, `0x480A = 0xC1EA`; the command is rejected while the MCU
 remains overtemperature.
+
+
+CJC source semantics, NVM migration and copper-wire test steps: [CjcSourceSelection.md](../Docs/CjcSourceSelection.md).

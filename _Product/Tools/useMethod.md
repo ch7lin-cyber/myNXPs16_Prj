@@ -33,7 +33,7 @@ python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\calys1500_loop_test.
 
 **`--cjc DIS` 只設定 CALYS，不會關閉 DUT 的 CJC。** RTD、電壓與電流模式不使用此 TC 冷端設定。
 
-銅線測試且 CALYS CJC 停用時，K 型 0／250／1100°C 的標準輸出電勢約為 0／10.153／45.119 mV。先比較 ADC Microvolts；DUT PV 若仍加入 CJC，不會直接等於 CALYS 設定溫度。這是功能核對參考，精度偏差交由校正流程處理。
+銅線測試且 CALYS CJC 停用時，K 型 0／250／1100°C 的標準輸出電勢約為 0／10.153／45.119 mV。先比較 ADC Microvolts；DUT source=1 若仍加入 CJC，不會直接等於 CALYS 設定溫度。這是功能核對參考，精度偏差交由校正流程處理。
 
 ### 2.2 使用 CALYS 內部冷接點補償
 
@@ -82,7 +82,7 @@ python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\calys1500_loop_test.
 q 結束
 ```
 
-- `1`：選通道及 Sensor，立即對 DUT 用 FC10 寫入 Sensor type、保留欄位及 `0xA5A5` Apply Key；讀回正確才更新選擇。讀回不是 ADC 硬體套用完成的證明，請用診斷確認。
+- `1`：選通道及 Sensor，立即對 DUT 用 FC10 寫入 Sensor type、目前 CJC source 及 `0xA5A5` Apply Key；讀回正確才更新選擇。讀回不是 ADC 硬體套用完成的證明，請用診斷確認。
 - `0.2`：只改 CALYS Sensor；不寫 DUT。
 - `0.3`：設定 CALYS 輸出，並重新套用本次啟動的 CJC 模式；不寫 DUT。
 - `1.1.0`：重新設定 CALYS 及 DUT，執行十點測試，逐點等待新成功 ADC 樣本，結果寫入 CSV。
@@ -153,7 +153,7 @@ CSV 新欄位：`pv_signal`、`pv_signal_unit`、`expected_pv`、`pv_delta`、`p
 
 ### TC 的 CJC 對比較結果的影響
 
-`--cjc DIS`：預期 ADC 電壓為標準 E(設定溫度)。DUT 的 PV 仍含 DUT CJC，因此直接溫度差也包含該補償，ADC 比較可獨立觀察前端電壓偏差。
+`--cjc DIS`：預期 ADC 電壓為標準 E(設定溫度)。DUT 來源為 1 時，PV 仍含 DUT CJC，因此直接溫度差也包含該補償，ADC 比較可獨立觀察前端電壓偏差。
 
 `--cjc FIX --fixed-cjc 25`：預期 ADC 電壓為 E(設定溫度) − E(25°C)。
 
@@ -172,3 +172,12 @@ DUT `input_error != 61` 的測試點仍保留讀值，但標示為輸入異常�
 參考：
 - https://nvlpubs.nist.gov/nistpubs/Legacy/MONO/nistmonograph175.pdf
 - https://www.ti.com/lit/pdf/sbaa275
+
+
+## DUT CJC 來源選擇
+
+DUT 新增每通道來源：0 關閉、1 內部 TMP20（預設，CH0/1→CJC_0，CH2/3→CJC_1）、2/3 外部入口預留。位址為 0x1008＋CH×0x10，使用 Pending／Apply。Python 切 Sensor 時先讀來源並保留；不會因選 Sensor 而改變補償模式。
+
+銅線十點測試需同時設 CALYS `--cjc DIS` 與 DUT source=0；恢復感測器量測時設 DUT source=1。外部模式尚無資料來源，選到會回 CJC 無效 (9)，不使用 TMP20 替代。
+
+操作、NVM 相容性與驗證狀態見 [CjcSourceSelection.md](../Docs/CjcSourceSelection.md).

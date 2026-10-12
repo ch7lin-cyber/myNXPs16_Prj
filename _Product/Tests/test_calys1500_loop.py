@@ -60,13 +60,15 @@ class DutFake:
     def write_multiple_registers(self, address, values):
         self.writes.append((address, values))
     def read_holding_registers(self, address, quantity):
+        if address == 0x1018:
+            return [1]
         if address == 0x1017:
             return [48]
         if address == 0x4871:
             self.count += 1
             return [0, self.count]
         if address == 0x1010:
-            return [0x3F80, 0, 0]  # 1.0 PV, no input error
+            return [0x3F80, 0, 61]  # 1.0 PV, no input error
         if address == 0x488F:
             return [0x80, 1, 0, 255, 0xFFFF, 0xFFFF]  # -1 uV
         raise AssertionError((hex(address), quantity))
@@ -150,7 +152,7 @@ class Tests(unittest.TestCase):
     def test_loop_and_partial_csv(self):
         dut, calys = DutFake(), CalysFake()
         loop.configure_dut(dut, 1, protocol.SENSORS[48], 0)
-        self.assertEqual(dut.writes, [(0x1017, [48, 0, 0xA5A5])])
+        self.assertEqual(dut.writes, [(0x1017, [48, 1, 0xA5A5])])
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "results.csv"
             loop.run_sweep(calys, dut, 1, protocol.SENSORS[48], path, dwell=0)
@@ -167,7 +169,7 @@ class Tests(unittest.TestCase):
                 rows = list(csv.DictReader(stream))
             self.assertEqual(len(rows), 3)
             self.assertEqual(rows[-1]["status"], "interrupted")
-            self.assertEqual(dut.writes, [(0x1017, [48, 0, 0xA5A5])])
+            self.assertEqual(dut.writes, [(0x1017, [48, 1, 0xA5A5])])
 
     @patch.object(loop, "modbus_helpers", helpers)
     @patch.object(loop.time, "sleep", lambda seconds: None)
@@ -221,7 +223,7 @@ class Tests(unittest.TestCase):
         addresses = []
         def read(address, quantity):
             addresses.append(address)
-            if len(addresses) == 1:
+            if address == 0x4871 and addresses.count(0x4871) == 1:
                 raise RuntimeError("response timeout: expected 3-byte header, received 0")
             return original(address, quantity)
         client.read_holding_registers = read
@@ -250,3 +252,4 @@ class Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

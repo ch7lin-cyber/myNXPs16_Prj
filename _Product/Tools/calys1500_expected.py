@@ -142,9 +142,12 @@ def format_summary(rows, sensor, completed):
     if sensor.unit!='degC':
         lines.append("實讀值由原始工程PV依韌體比例換回物理單位；原始PV與其預期值另存CSV。")
     if sensor.kind=='TC':
-        lines.append("溫度PV包含DUT CJC；ADC uV比較不包含DUT CJC。")
+        sources = sorted({r["dut_cjc_source"] for r in rows if "dut_cjc_source" in r})
+        lines.append(f"DUT CJC source={sources}；0=關閉，1=內部TMP20，2/3=外部預留。")
+        lines.append("ADC uV比較不包含DUT CJC；溫度差的解讀須依DUT來源與接線。")
     if sensor.kind=='RTD':
         lines.append("RTD ADC uV是韌體R*I等效值，不是外部參考電壓實測。")
     lines += ["ADC參考依據："]+list(dict.fromkeys(r.get('adc_reference_basis','') for r in rows if r.get('adc_reference_basis')))
     lines.append("未設定合格公差，不自動判定精度PASS/FAIL；此流程不寫入校正值。")
     return "\n".join(lines)+"\n"
+

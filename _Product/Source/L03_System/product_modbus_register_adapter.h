@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "ModbusSlave.h"
+#include "EventService.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +25,9 @@ extern "C" {
 #define PRODUCT_MODBUS_FILTER_TIME_CONSTANT_ADDRESS          (0x1003U)
 #define PRODUCT_MODBUS_FILTERED_PV_ADDRESS                   (0x1005U)
 #define PRODUCT_MODBUS_SENSOR_TYPE_ADDRESS                   (0x1007U)
-#define PRODUCT_MODBUS_SENSOR_RESERVED_ADDRESS               (0x1008U)
+#define PRODUCT_MODBUS_CJC_SOURCE_ADDRESS                    (0x1008U)
+/* Compatibility name; offset +8 is now a writable CJC source. */
+#define PRODUCT_MODBUS_SENSOR_RESERVED_ADDRESS PRODUCT_MODBUS_CJC_SOURCE_ADDRESS
 #define PRODUCT_MODBUS_APPLY_KEY_ADDRESS                     (0x1009U)
 #define PRODUCT_MODBUS_APPLY_KEY_VALUE                       (0xA5A5U)
 #define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1039U)
@@ -331,6 +334,7 @@ typedef struct _product_temperature_input_config
 {
     float filterTimeConstantSeconds;
     uint16_t sensorType;
+    uint16_t cjcSource;
 } product_temperature_input_config_t;
 
 /* Build the product register callback table used by ModbusSlave. */
@@ -417,3 +421,4 @@ void ProductModbusRegisterAdapter_SetLowVoltageMonitor(
 #endif
 
 #endif /* PRODUCT_MODBUS_REGISTER_ADAPTER_H_ */
+

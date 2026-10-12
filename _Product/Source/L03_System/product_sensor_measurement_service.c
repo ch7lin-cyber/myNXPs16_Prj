@@ -46,6 +46,7 @@ typedef struct
     float filtered_value;
     uint32_t last_sample_sequence;
     uint16_t last_sensor_type;
+    uint16_t last_cjc_source;
     bool filter_initialized;
 } ProductSensorMeasurementState_t;
 
@@ -284,9 +285,11 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
         return false;
     }
     state = &g_measurement_state[channel];
-    if (state->last_sensor_type != product_configuration.sensorType)
+    if (state->last_sensor_type != product_configuration.sensorType ||
+        state->last_cjc_source != product_configuration.cjcSource)
     {
         state->last_sensor_type = product_configuration.sensorType;
+        state->last_cjc_source = product_configuration.cjcSource;
         state->last_sample_sequence = 0U;
         state->filter_initialized = false;
         state->snapshot.valid = false;
@@ -336,9 +339,12 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
             conversion_configuration.type))
     {
         uint8_t cjc_index = (channel < 2U) ? 0U : 1U;
-        int32_t cjc_temperature_centi_c;
-        if (!BspInternalAdc_GetCjcTemperature(
-                cjc_index, &cjc_temperature_centi_c))
+        int32_t cjc_temperature_centi_c = 0L;
+        /* External providers are reserved: never silently use TMP20 for them. */
+        if ((product_configuration.cjcSource > EVENT_CJC_SOURCE_INTERNAL_TMP20) ||
+            ((product_configuration.cjcSource == EVENT_CJC_SOURCE_INTERNAL_TMP20) &&
+             !BspInternalAdc_GetCjcTemperature(
+                 cjc_index, &cjc_temperature_centi_c)))
         {
             state->snapshot.conversion_flags = SENSOR_FLAG_CJC_ERROR;
             return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_AMBIENT);
@@ -347,6 +353,8 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
             cjc_temperature_centi_c;
         cjc_millicelsius = cjc_temperature_centi_c * 10L;
     }
+    conversion_configuration.cold_junction_compensation_disabled =
+        (product_configuration.cjcSource == EVENT_CJC_SOURCE_DISABLED);
     if (!SensorConversionService_Convert(
             &conversion_configuration, calibrated_uv,
             cjc_millicelsius, &result))
@@ -402,3 +410,4 @@ bool ProductSensorMeasurementService_GetSnapshot(
     *snapshot = g_measurement_state[channel].snapshot;
     return true;
 }
+
