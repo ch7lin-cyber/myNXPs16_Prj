@@ -93,8 +93,9 @@ bool ProductUsbCdc_Init(void)
     RESET_PeripheralReset(kUSB0D_RST_SHIFT_RSTn);
     RESET_PeripheralReset(kUSB0HSL_RST_SHIFT_RSTn);
     RESET_PeripheralReset(kUSB0HMR_RST_SHIFT_RSTn);
-    /* Same 16 MHz crystal/PLL1 USB clock as the validated S16 bootloader. */
-    if(!CLOCK_EnableUsbfs0DeviceClock(kCLOCK_UsbfsSrcPll1,48000000U)) return false;
+    /* Product board has no crystal: FRO 96 MHz / 2 supplies USB FS 48 MHz.
+     * The SDK enables USBCLKADJ for USB clock recovery in this mode. */
+    if(!CLOCK_EnableUsbfs0DeviceClock(kCLOCK_UsbfsSrcFro,96000000U)) return false;
     CLOCK_EnableClock(kCLOCK_Usbhsl0);
     USBFSH->PORTMODE |= USBFSH_PORTMODE_DEV_ENABLE_MASK;
     CLOCK_DisableClock(kCLOCK_Usbhsl0);
