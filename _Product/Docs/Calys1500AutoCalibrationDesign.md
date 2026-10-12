@@ -19,6 +19,8 @@
 
 組內各 Sensor 可以改變 CALYS 輸出模式與 DUT Sensor type，但不得要求移動測試線。每個輸出點仍使用所選 Sensor 的校正刺激與對應 Profile target。若實際儀器端子／DUT 端子在組內不相同，必須拆成不同接線類別；不要為了方便在選單中共組。
 
+目前已實作選單 2 的引導式兩點擷取與預覽，依本文件的接線類別和韌體 Profile 運作；完成的預覽／Apply 記錄為 JSON。低／高 CALYS 設定值由操作人輸入，程式不假設不同 Profile 的刺激轉換曲線。Apply 預設關閉，只有加 `--allow-calibration-apply` 並輸入逐次確認字串才會送出。現場線路、端子標示及標準源對應仍待產品板核實，這項人工確認不能代替實際校驗。
+
 自動校正應依韌體 Profile ID 選取，不以一組泛用 Gain 清單推測 Profile。以 `_Product/Docs/FactoryCalibrationSlots.md` 的映射為準：
 
 | Profile | 路徑與 Gain | Sensor 對映 | 校正目標低／高（ADC µV） |
@@ -76,7 +78,7 @@
 3. 單一代表 Profile：先用 0–50mV 或電流 Profile，在硬體與參考源都確認後明確 Apply；以低／中／高點驗證。
 4. 逐 Profile 放行：每種接線、輸出模式及韌體映射單獨驗證後，才解除該 Profile 的 Apply 禁止。
 
-交付時更新選單 2、`useMethod.md`、`FactoryCalibrationSlots.md`，CSV 增加校正階段、Profile target、measured zero/span、修正比例、穩定統計、Apply 結果及驗證點欄位。選單原有 TC／mV Gain 子選項需改成「接線類別 → 組內 Sensor type → 唯一韌體 Profile」階層，避免把 mV Gain 16 或沒有對應 Profile 的假設放進工具。
+選單 2、`useMethod.md`、`FactoryCalibrationSlots.md` 已更新為接線類別 → Sensor/Profile 流程。JSON 包含 Profile target、measured zero/span、修正比例、穩定統計、Apply 前後槽值。尚未加入 Apply 後的低／中／高驗證掃描；Apply 完成後應另跑 `1.1.0` 十點測試並審查 ADC µV 和 PV 差值。
 
 ## 尚待驗證項目
 
