@@ -128,7 +128,7 @@ CRC 回退、FRAM busy、讀取失敗、DEBUG 兩種設定與 Modbus 介面。
 
 目前 `calys1500_loop_test.py` 選單 `1` 直接寫 DUT Sensor type 與 Apply Key；`1.1.0` 執行十點驗證，輸出 PV／物理訊號差值及 ADC uV 差值。差值均為「實讀 − 預期」，保存 CSV 與同名 `_summary.txt`。
 
-選單 `2` 目前仍為預留，不會擷取／Apply Factory 校正或保存校正資料。自動校正設計（依 CALYS／DUT 接線類別分組，組內選 Sensor type 並只校正唯一 Profile，含穩定樣本條件、Apply 確認關卡與 Dry-run）見 [Calys1500AutoCalibrationDesign.md](Calys1500AutoCalibrationDesign.md)。小幅電壓偏差應以 ADC µV 的 Offset／Gain 兩點校正；不能直接將溫度 PV 差值當成 ADC µV 校正值。
+選單 `2` 已加入引導式兩點流程：按 TC、RTD 三線、電壓／mV、電流接線類別分組，組內依 Sensor type 選韌體 Profile。新鮮穩定 ADC 樣本用來擷取 pending 零點／跨度；工具檢查跨度方向、修正比例並輸出 JSON 預覽。預設最後送 Abort、不寫 NVM。只有用 `--allow-calibration-apply` 啟動，且操作人輸入 `APPLY CHn PROFILE p`，才送 Factory Apply；不會直接寫唯讀校正槽。端子對映與 CALYS 來源值尚未逐類別在產品板驗證，來源刺激值由操作人提供，須先對照校正標準。校正流程設計與邊界見 [Calys1500AutoCalibrationDesign.md](Calys1500AutoCalibrationDesign.md)。小幅電壓偏差應以 ADC µV 的 Offset／Gain 兩點校正；不能直接將溫度 PV 差值當成 ADC µV 校正值。
 
 TC 的 ADC 電壓校正位於加入 DUT CJC 之前，CJC 必須獨立驗證。CALYS `--cjc DIS` 只停用 CALYS 補償，DUT PV 仍包含 DUT CJC。其他分段近似參考曲線的誤差需與儀器／ADC 誤差分開，不能視為獨立高精度校正標準。
 
