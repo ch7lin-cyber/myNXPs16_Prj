@@ -1,6 +1,6 @@
 # CALYS 1500 與 DUT 十點迴路測試
 
-第一階段實作 CALYS 遠端輸出、DUT Sensor type 設定、十點讀回及 CSV。
+目前實作 CALYS 遠端輸出、DUT Sensor type 直接寫入、十點讀回、帶正負號的差值，以及 CSV／文字結果摘要。
 不執行合格判定，不修改零點／跨度或 Factory NVM。
 
 ## 執行
@@ -9,14 +9,17 @@ Python 3.10 以上，安裝串列通訊套件：
 
 ```sh
 python -m pip install pyserial
-python _Product/Tools/calys1500_loop_test.py --calys-port COM12 --dut-port COM8
+python _Product/Tools/calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --calys-write-delay 0.3 --calys-timeout 10 --calys-trace --cjc DIS
 ```
 
-COM12、COM8 是範例，請依 Windows 裝置管理員修改。
+目前測試使用 CALYS COM20、DUT COM8（RS-485 轉接器）；請依實際裝置修改。
+`--cjc DIS` 適用目前的銅線電勢測試，只關閉 CALYS TC 輸出端 CJC，不會關閉 DUT CJC。
+完整 Windows 啟動指令及兩支工具的參數見 [Tools/useMethod.md](../Tools/useMethod.md)。
+請將 `calys1500_loop_test.py`、`calys1500_protocol.py`、`calys1500_expected.py` 與 `modbus_rtu_test_menu.py` 放在同一個 Tools 目錄。
 CALYS 固定 115200、8N1、無流量控制；DUT 預設 Modbus RTU、115200、8N1、slave 2。
 DUT 可用 `--dut-baud`、`--slave` 修改。兩台設備必須使用不同 port。
-DUT 回應 timeout 預設 2 秒（`--dut-timeout`），每次請求前等待 50 ms
-（`--dut-request-delay`）。讀取若遇到 timeout、不完整封包或 CRC 錯誤，
+DUT 回應 timeout 預設 2 秒（`--dut-timeout`）；CALYS 工具每次 DUT 呼叫前預設等待 50 ms
+（`--dut-request-delay`），共用 RTU client 另固定等待 50 ms，因此預設合計約 100 ms。讀取若遇到 timeout、不完整封包或 CRC 錯誤，
 最多重試 2 次（`--dut-read-retries`），重試前至少等 150 ms。
 有效的 Modbus 例外回應不重試；Sensor／Apply 寫入不自動重送。
 選單修改 port 後保存至 `calys1500_ports.json`，下次啟動沿用；命令列參數優先。
@@ -36,7 +39,7 @@ python _Product/Tools/calys1500_loop_test.py --list-sensors
 | 0.1.2 | 修改 DUT port |
 | 0.2 | 選 CALYS Sensor type 並設定輸出模式 |
 | 0.3 | 設定輸出值，接受正負及小數；依 Sensor 規格檢查範圍 |
-| 1 | 先選 CH0～CH3，再選韌體 Sensor type |
+| 1 | 選 CH0～CH3／Sensor 後立即寫 DUT 與 Apply Key，讀回確認成功才更新選擇 |
 | 1.1.0 | 對選定通道／Sensor 設定 DUT，執行十點輸出／讀回 |
 | 2 | 列出所有校正預留入口 |
 | 2.1.0～2.1.3 | TC／mV Gain 16、32、64、128，僅提示未實作 |
@@ -45,7 +48,22 @@ python _Product/Tools/calys1500_loop_test.py --list-sensors
 | 2.4.0～2.4.3 | RTD Gain 1、8、16、32，僅提示未實作 |
 | q | 結束、送 LOC 解除 CALYS 遠端控制 |
 
-0.2 只設定 CALYS；1.1.0 才會寫 DUT Sensor type。
+`1` 現在直接寫 DUT；`0.2`／`0.3` 只設定 CALYS，不寫 DUT。
+`1.1.0` 開始前仍會重新設定 CALYS 與 DUT。寫入或讀回失敗不會將候選通道／Sensor 標示為成功。
+DUT Sensor type 讀回不代表 ADC 已套用完成，請查看 ADC configuration trace 與成功樣本。
+
+```text
+0 CALYS 1500 相關
+----0.1.0 自動通訊測試
+----0.1.1 改 CALYS port
+----0.1.2 改 DUT port
+--0.2 改 CALYS Sensor
+--0.3 設輸出值
+1 選通道／Sensor（直接寫 DUT）
+----1.1.0 十點自動測試
+2 自動校正（預留）
+q 結束
+```
 校正選項不開串列 port、不送校正指令，不碰 0x4700／0x4720／0x4C00 等 Factory registers。
 
 ## 對映與範圍
@@ -99,11 +117,76 @@ CSV 保存時間、通道、Sensor、Gain、輸出設定值及單位、PV、inpu
 ADC 微伏值、成功樣本數、儀器身分、冷端／供電設定、等待時間與流程狀態。
 成功樣本數使用該點新樣本輪詢取得的計數，不在 RAW 讀回後重複讀取；
 `dut_read_retries` 保存每點通訊重試次數。
-`recorded` 只表示讀回已完成，**不代表 OK**；不計算公差、不做 OK／NG。
-電壓／電流／mV 的 PV 是韌體工程量，不能直接將其與 V／mA／mV 設定值相減。
+`recorded` 表示取得讀值且 input_error=61，**不代表精度合格**；沒有設定合格公差，不做 OK／NG。
+`input_error != 61` 時改標示為 `input_error`，保留數值，但不納入有效點差值統計。
+電壓／電流／mV 的 PV 是韌體工程量；工具保留原始 PV，另換回物理單位後比較。
 各 Modbus 區塊分次讀取，並非同一瞬間的原子快照；RAW／微伏與 PV 可能差一個採樣週期。
-結果檔預設 `calys_results/`，每個測試點立即 flush。
+結果檔預設 `calys_results/`，每個測試點立即 flush；路徑相對於啟動時的工作目錄。
+完成或中止時另外顯示結果表，並保存同名 `_summary.txt`。
 Ctrl+C 或通訊錯誤停止流程，保存已完成點及失敗點，方便重測。
+
+## 結果比較與 ADC 理論值
+選單 `1.1.0` 執行完成後，會在終端顯示逐點結果表，並輸出：
+
+- 原本的 `.csv`：加入所有比較欄位，每個點立即保存。
+- 同名 `_summary.txt`：十點結果表、最小／最大差值、最大絕對差；失敗或中止時也保存已取得結果。
+
+差值一律定義為 **實讀 − 預期**：正號表示偏高，負號表示偏低。
+
+| 比較 | 輸出方式 |
+|---|---|
+| TC／RTD 溫度 | CALYS 設定 degC、DUT PV degC、帶正負號的溫度差 |
+| 電壓／電流 | V／mV／mA 各自標示單位；保留原始工程 PV，另依韌體的比例換回物理單位比較 |
+| ADC 電壓 | 預期 ADC uV、實讀 ADC uV、帶正負號的 ADC 差值 |
+
+CSV 新欄位：`pv_signal`、`pv_signal_unit`、`expected_pv`、`pv_delta`、`pv_native_delta`、`expected_adc_uv`、`adc_delta_uv`、`adc_reference_basis`、`calys_cjc_temperature`。
+
+`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。目前韌體的類比工程 PV 範圍為 −199.9～1999.9；換算依據為 `SensorConversionService.c` 的 −1999～19999 與產品服務的除以 10。後續韌體比例改變時須同步調整理論模型。
+
+### ADC 理論值依據
+
+- K 型：NIST ITS-90 正向電勢公式。
+- Pt100／Pt1000：IEC 60751 Callendar–Van Dusen 電阻公式。
+- 其他 TC／RTD：固定版本 PlatformCore 的分段曲線反算，報告明確標示為近似參考；不可當成獨立的高精度標準。來源：`platForm@5c8584ddead2320f727881cf96295cde51f1eb43`。
+- 0～50 mV：直接輸入，mV × 1000＝ADC uV。
+- 0～5／10 V：輸入電壓 × 6200／1026200，再轉 uV。
+- mA：輸入 mA × 1000 × 49.9 Ω × 36800／1056800＝ADC uV。
+- RTD：R × I，Pt1000 為 250 uA，其餘 RTD 為 500 uA。此值是目前韌體對外提供的等效微伏值，不是 REFIN 實測電壓。
+
+前端參數依 `ProductAdcConfig.h`，變更硬體分壓／shunt／激勵時須同步調整理論模型。
+
+### TC 的 CJC 對比較結果的影響
+
+`--cjc DIS`：預期 ADC 電壓為標準 E(設定溫度)。DUT 的 PV 仍含 DUT CJC，因此直接溫度差也包含該補償，ADC 比較可獨立觀察前端電壓偏差。
+
+`--cjc FIX --fixed-cjc 25`：預期 ADC 電壓為 E(設定溫度) − E(25°C)。
+
+`--cjc INT`：若未提供 CALYS 冷端溫度，預期 ADC 與 ADC 差值會顯示 `N/A`，附原因；不會假設 INT 是 0°C。可將 CALYS 面板顯示的冷端溫度作為本次測試的固定參考傳入，例如：
+
+```powershell
+python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --cjc INT --calys-cjc-temperature 26.5
+```
+
+此新參數只供結果計算，不修改 CALYS 或 DUT 的 CJC。若測試期間 CALYS 冷端溫度漂移，固定參考也會產生差異。
+
+DUT `input_error != 61` 的測試點仍保留讀值，但標示為輸入異常，不納入有效點差值統計。沒有設定合格公差，因此不自動判定精度 PASS／FAIL，亦不寫入校正值。PV 與 ADC 分別讀取，並非同一瞬間的原子快照，請讓輸出充分穩定。
+
+更新時請同時取得 `calys1500_loop_test.py` 與新增的 `calys1500_expected.py`，放在同一個 Tools 目錄。
+
+參考：
+- https://nvlpubs.nist.gov/nistpubs/Legacy/MONO/nistmonograph175.pdf
+- https://www.ti.com/lit/pdf/sbaa275
+
+## RTU 診斷工具
+
+```powershell
+python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\modbus_rtu_test_menu.py --port COM8 --slave 2 --baud 115200 --timeout 3
+```
+
+每筆請求送出前固定等待 50 ms；RTU 工具預設 timeout=1 秒，上例設為 3 秒。
+RTU 診斷工具不支援 `--cjc DIS`，不操作 CALYS，也不切換 DUT CJC。
+切換工具前先關閉原工具，避免同時使用 COM8。
+`response timeout` 是請求未在期限內取得回覆；「等待新成功樣本逾時」則是讀取有回覆但成功計數未增加，兩者需分開判讀。
 
 ## 接線與 CALYS 參數
 
@@ -159,4 +242,5 @@ python -m unittest discover -s _Product/Tests -p test_calys1500_loop.py
 指令等待、分段／空白回應、身分查詢重試與逾時診斷、
 Modbus 暫時性讀取失敗恢復、例外／寫入不重送、讀取重試上限、
 模擬 DUT 設定及讀回、CSV 中斷保存、新樣本逾時、校正入口無寫入。
-尚未在實體 CALYS 1500／DUT 上驗證；首次以選單 0.1.0、0.2、0.3 打通，再跑 1.1.0。
+新增報告功能已以模擬資料檢查溫度／V／mV／mA、差值正負、ADC 理論範圍、CJC 模式與中途失敗保存；完整十點新報告仍待實機驗證。
+2026-10-12 的 K 型 0／250／1100°C 單點紀錄已確認切換與有效取樣，微伏小幅差異留待校正；CJC 精度與 RTD 線路／CALYS 模擬仍未完成驗證。
