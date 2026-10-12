@@ -221,7 +221,7 @@ def main(argv=None):
 
     try:
         while True:
-            print("\n0 CALYS 1500 相關　1 選通道／Sensor　2 自動校正（預留）　q 結束")
+            print("\n0 CALYS 1500 相關　1 選通道／Sensor（直接寫 DUT）　2 自動校正（預留）　q 結束")
             print("0.1.0 自動通訊測試　0.1.1 改 CALYS port　0.1.2 改 DUT port")
             print("0.2 改 CALYS Sensor　0.3 設輸出值　1.1.0 十點自動測試")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "
@@ -264,7 +264,25 @@ def main(argv=None):
                     if candidate not in range(4):
                         raise ValueError("通道必須是 0～3")
                     sensor = select_sensor()
+                    if not dut_port:
+                        dut_port = input("DUT port：").strip()
+                    if not dut_port:
+                        raise ValueError("請指定 DUT port")
+                    if dut_port.casefold() == calys_port.casefold() and calys_port:
+                        raise ValueError("CALYS 與 DUT 必須使用不同 port")
+                    cls, *_ = modbus_helpers()
+                    dut = DutLink(cls(dut_port, args.slave, args.dut_baud, args.dut_timeout),
+                                  args.dut_read_retries, args.dut_request_delay)
+                    try:
+                        configure_dut(dut, candidate, sensor, args.dwell)
+                    finally:
+                        dut.close()
+                    # Commit the menu selection only after write/apply and readback.
                     channel, selected = candidate, sensor
+                    save_ports()
+                    print(f"DUT CH{channel} Sensor type 已寫入並讀回確認："
+                          f"{selected.label} ({selected.code}, 0x{selected.code:04X})；"
+                          "已送 Apply Key，ADC 套用／量測狀態請查看診斷。")
                 elif action == "1.1.0":
                     if selected is None or channel is None:
                         raise ValueError("請先用選單 1 選通道及 Sensor")
