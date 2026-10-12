@@ -56,8 +56,8 @@ bool ProductTemperatureRangeResolver_Resolve(
     if ((configuration->sensor_type >= PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V) &&
         (configuration->sensor_type <= PRODUCT_SENSOR_TYPE_CURRENT_4_20MA))
     {
-        *minimum = -1999.0F;
-        *maximum = 19999.0F;
+        *minimum = -32000.0F;
+        *maximum = 32000.0F;
         return true;
     }
 
@@ -116,3 +116,4 @@ bool ProductTemperatureRangeResolver_Resolve(
             return false;
     }
 }
+
