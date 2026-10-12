@@ -144,7 +144,7 @@ python calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --calys-write-d
 
 CSV 新欄位：`pv_signal`、`pv_signal_unit`、`expected_pv`、`pv_delta`、`pv_native_delta`、`expected_adc_uv`、`adc_delta_uv`、`adc_reference_basis`、`calys_cjc_temperature`。
 
-`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。類比電壓／電流的 PV 線性對映為 −1999～19999，直接使用 `SensorConversionService.c` 的工程值，不除以 10。各 Sensor 的下限對應 −1999、上限對應 19999，例如 4～20 mA 的 4 mA 對應 −1999、20 mA 對應 19999；`pv_signal` 再換算回 mV／mA／V，以比較實際訊號誤差。溫度 Sensor 的 PV 仍使用 °C。
+`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。類比電壓／電流的 PV 線性對映為 −32000～32000，直接使用 `SensorConversionService.c` 的工程值，不除以 10。各 Sensor 的下限對應 −32000、上限對應 32000，例如 4～20 mA 的 4 mA 對應 −32000、20 mA 對應 32000；`pv_signal` 再換算回 mV／mA／V，以比較實際訊號誤差。溫度 Sensor 的 PV 仍使用 °C。
 
 ### ADC 理論值依據
 
