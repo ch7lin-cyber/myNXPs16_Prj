@@ -86,7 +86,7 @@ q 結束
 - `0.2`：只改 CALYS Sensor；不寫 DUT。
 - `0.3`：設定 CALYS 輸出，並重新套用本次啟動的 CJC 模式；不寫 DUT。
 - `1.1.0`：重新設定 CALYS 及 DUT，執行十點測試，逐點等待新成功 ADC 樣本，結果寫入 CSV。
-- `2`：校正入口仍為預留，尚未寫入校正資料。
+- `2`：自動校正仍為設計／預留階段，目前不會擷取、Apply 或寫入 NVM。設計與 Profile 對映見 [Calys1500AutoCalibrationDesign.md](../Docs/Calys1500AutoCalibrationDesign.md)。
 - `q`：關閉連線，CALYS 以 LOC 解除遠端控制；輸出值不會自動歸零。
 
 手動在 CALYS 面板改 CSF 後，若工具再次設定 TC Sensor／輸出，會依啟動參數覆寫 CSF。因此要停用補償，請明確加 `--cjc DIS`。
