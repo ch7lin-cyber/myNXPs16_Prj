@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive CALYS1500 / S16 Modbus RTU loop test. No calibration writes."""
+"""Interactive CALYS1500 / S16 loop test and guided factory calibration."""
 import argparse
 import csv
 import json
@@ -10,6 +10,7 @@ from pathlib import Path
 
 from calys1500_protocol import Calys1500, SENSORS, numeric, ten_points, validate
 from calys1500_expected import add_comparison, format_summary
+from calys1500_calibration import WIRING_GROUPS, PROFILE_LABELS, guided_profile_run
 
 # No serial dependency is required to import the catalog or run --list-sensors.
 def modbus_helpers():
@@ -18,14 +19,6 @@ def modbus_helpers():
     return ModbusRtuClient, float32_from_registers, int32_from_registers, uint32_from_registers
 
 
-CALIBRATION_MENU = {
-    "2.1.0": "TC／mV Gain=16", "2.1.1": "TC／mV Gain=32",
-    "2.1.2": "TC／mV Gain=64", "2.1.3": "TC／mV Gain=128",
-    "2.2.0": "0～5V／0～10V 共用 Gain=32",
-    "2.3.0": "0～20mA／4～20mA 共用 Gain=64（依現有韌體）",
-    "2.4.0": "RTD Gain=1", "2.4.1": "RTD Gain=8",
-    "2.4.2": "RTD Gain=16", "2.4.3": "RTD Gain=32",
-}
 FIELDS = ["utc", "point", "channel", "sensor_code", "sensor", "gain", "setpoint",
           "unit", "pv", "input_error", "raw_code", "microvolts", "successful_samples",
           "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds",
@@ -210,6 +203,12 @@ def main(argv=None):
                         metavar="1..247")
     parser.add_argument("--dwell", type=positive, default=2.0)
     parser.add_argument("--fresh-timeout", type=positive, default=10.0)
+    parser.add_argument("--calibration-timeout", type=positive, default=30.0,
+                        help="自動校正每一點等待穩定樣本的逾時")
+    parser.add_argument("--calibration-stability-uv", type=positive, default=20.0,
+                        help="穩定視窗最大 µV 範圍")
+    parser.add_argument("--allow-calibration-apply", action="store_true",
+                        help="允許進入 NVM Apply；仍需逐筆輸入 APPLY CHn PROFILE p 確認")
     parser.add_argument("--calys-timeout", type=positive, default=5.0)
     parser.add_argument("--calys-write-delay", type=nonnegative, default=0.15,
                         help="CALYS 每筆指令後的等待秒數（預設 0.15）")
@@ -234,6 +233,7 @@ def main(argv=None):
     calys_port = args.calys_port or saved.get("calys_port", "")
     dut_port = args.dut_port or saved.get("dut_port", "")
     selected, channel, calys = None, None, None
+    processed_calibration_profiles = set()
     settings = dict(cjc=args.cjc, fixed_cjc=args.fixed_cjc, current_supply=args.current_supply,
                     calys_cjc_temperature=args.calys_cjc_temperature)
 
@@ -264,7 +264,11 @@ def main(argv=None):
             print("--0.3 設輸出值")
             print("1 選通道／Sensor（直接寫 DUT）")
             print("----1.1.0 十點自動測試")
-            print("2 自動校正（預留）")
+            print("2 自動校正（依接線類別；預設只預覽）")
+            print("----2.1 熱電偶 TC")
+            print("----2.2 RTD 三線")
+            print("----2.3 電壓／mV")
+            print("----2.4 電流")
             print("q 結束")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "
                   f"CH={channel} Sensor={selected.label if selected else '未選'}")
@@ -349,10 +353,77 @@ def main(argv=None):
                     finally:
                         dut.close()
                 elif action == "2":
-                    for key, label in CALIBRATION_MENU.items():
-                        print(key, label, "（預留，尚未實作）")
-                elif action in CALIBRATION_MENU:
-                    print(CALIBRATION_MENU[action], "：預留入口，尚未實作；未寫入校正資料。")
+                    candidate = int(input("校正通道 0／1／2／3："))
+                    if candidate not in range(4):
+                        raise ValueError("通道必須是 0～3")
+                    for key, group in WIRING_GROUPS.items():
+                        print(f"2.{key} {group.title}：{group.wiring}")
+                    group_key = input("接線類別 (1/2/3/4；q 返回)：").strip()
+                    if group_key.lower() == "q":
+                        continue
+                    if group_key not in WIRING_GROUPS:
+                        raise ValueError("接線類別必須是 1～4")
+                    group = WIRING_GROUPS[group_key]
+                    print(f"\n{group.title} 接線：{group.wiring}")
+                    if input("確認已依上方說明接線 (YES/q)：").strip() != "YES":
+                        print("未確認接線，取消校正。")
+                        continue
+                    if not dut_port:
+                        dut_port = input("DUT port：").strip()
+                    if not dut_port:
+                        raise ValueError("請指定 DUT port")
+                    if dut_port.casefold() == calys_port.casefold() and calys_port:
+                        raise ValueError("CALYS 與 DUT 必須使用不同 port")
+                    device = connect()
+                    cls, *_ = modbus_helpers()
+                    dut = DutLink(cls(dut_port, args.slave, args.dut_baud, args.dut_timeout),
+                                  args.dut_read_retries, args.dut_request_delay)
+                    try:
+                        print("本類別的唯一 Firmware Profiles：")
+                        for profile, sensor_codes in group.profiles.items():
+                            labels = ", ".join(SENSORS[code].label for code in sensor_codes)
+                            print(f"  P{profile} {PROFILE_LABELS[profile]}：{labels}")
+                        while True:
+                            profile_text = input("要校正的 Profile ID (q 返回)：").strip()
+                            if profile_text.lower() == "q":
+                                break
+                            profile = int(profile_text)
+                            if profile not in group.profiles:
+                                raise ValueError("此接線類別不包含該 Profile")
+                            profile_key = (candidate, profile)
+                            if profile_key in processed_calibration_profiles:
+                                print(f"CH{candidate} Profile {profile} 本次已處理，"
+                                      "此 Profile 與另一接線類別共用，略過以免重複校正。")
+                                continue
+                            choices = group.profiles[profile]
+                            print("此 Profile 的可選 Sensor：", ", ".join(
+                                f"{code}:{SENSORS[code].label}" for code in choices))
+                            code = int(input("選一個代表此共用 Profile 的 Sensor code："))
+                            if code not in choices:
+                                raise ValueError("Sensor 不屬於所選 Profile／接線類別")
+                            sensor = SENSORS[code]
+                            if sensor.token is None:
+                                raise ValueError(f"{sensor.label} 尚無已驗證 CALYS 輸出對映")
+                            configure_dut(dut, candidate, sensor, args.dwell)
+                            report = guided_profile_run(
+                                device, dut, candidate, group, profile, sensor,
+                                allow_apply=args.allow_calibration_apply,
+                                dwell=args.dwell, stable_timeout=args.calibration_timeout,
+                                spread_limit_uv=args.calibration_stability_uv,
+                                settings={key: settings[key] for key in
+                                          ("cjc", "fixed_cjc", "current_supply")})
+                            processed_calibration_profiles.add(profile_key)
+                            path = args.results / (
+                                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
+                                + f"_cal_CH{candidate}_P{profile}.json")
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            path.write_text(json.dumps(report, indent=2, ensure_ascii=False),
+                                            encoding="utf-8")
+                            print("校正預覽／結果：", path.resolve())
+                    finally:
+                        dut.close()
+                    channel = candidate
+                    save_ports()
                 else:
                     print("無效選項")
             except KeyboardInterrupt:
