@@ -118,3 +118,57 @@ python calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --calys-write-d
 ```
 
 使用 RTU 診斷工具前，先以 `q` 關閉 CALYS 測試工具，避免兩支工具同時存取 COM8。之後再啟動 CALYS 工具繼續測試。
+
+
+## 5. 十點測試結果與帶正負號的差值
+
+選單 `1.1.0` 執行完成後，會在終端顯示逐點結果表，並輸出：
+
+- 原本的 `.csv`：加入所有比較欄位，每個點立即保存。
+- 同名 `_summary.txt`：十點結果表、最小／最大差值、最大絕對差；失敗或中止時也保存已取得結果。
+
+差值一律定義為 **實讀 − 預期**：正號表示偏高，負號表示偏低。
+
+| 比較 | 輸出方式 |
+|---|---|
+| TC／RTD 溫度 | CALYS 設定 degC、DUT PV degC、帶正負號的溫度差 |
+| 電壓／電流 | V／mV／mA 各自標示單位；保留原始工程 PV，另依韌體的比例換回物理單位比較 |
+| ADC 電壓 | 預期 ADC uV、實讀 ADC uV、帶正負號的 ADC 差值 |
+
+CSV 新欄位：`pv_signal`、`pv_signal_unit`、`expected_pv`、`pv_delta`、`pv_native_delta`、`expected_adc_uv`、`adc_delta_uv`、`adc_reference_basis`、`calys_cjc_temperature`。
+
+`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。目前韌體的類比工程 PV 範圍為 −199.9～1999.9；換算依據為 `SensorConversionService.c` 的 −1999～19999 與產品服務的除以 10。後續韌體比例改變時須同步調整理論模型。
+
+### ADC 理論值依據
+
+- K 型：NIST ITS-90 正向電勢公式。
+- Pt100／Pt1000：IEC 60751 Callendar–Van Dusen 電阻公式。
+- 其他 TC／RTD：固定版本 PlatformCore 的分段曲線反算，報告明確標示為近似參考；不可當成獨立的高精度標準。來源：`platForm@5c8584ddead2320f727881cf96295cde51f1eb43`。
+- 0～50 mV：直接輸入，mV × 1000＝ADC uV。
+- 0～5／10 V：輸入電壓 × 6200／1026200，再轉 uV。
+- mA：輸入 mA × 1000 × 49.9 Ω × 36800／1056800＝ADC uV。
+- RTD：R × I，Pt1000 為 250 uA，其餘 RTD 為 500 uA。此值是目前韌體對外提供的等效微伏值，不是 REFIN 實測電壓。
+
+前端參數依 `ProductAdcConfig.h`，變更硬體分壓／shunt／激勵時須同步調整理論模型。
+
+### TC 的 CJC 對比較結果的影響
+
+`--cjc DIS`：預期 ADC 電壓為標準 E(設定溫度)。DUT 的 PV 仍含 DUT CJC，因此直接溫度差也包含該補償，ADC 比較可獨立觀察前端電壓偏差。
+
+`--cjc FIX --fixed-cjc 25`：預期 ADC 電壓為 E(設定溫度) − E(25°C)。
+
+`--cjc INT`：若未提供 CALYS 冷端溫度，預期 ADC 與 ADC 差值會顯示 `N/A`，附原因；不會假設 INT 是 0°C。可將 CALYS 面板顯示的冷端溫度作為本次測試的固定參考傳入，例如：
+
+```powershell
+python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --cjc INT --calys-cjc-temperature 26.5
+```
+
+此新參數只供結果計算，不修改 CALYS 或 DUT 的 CJC。若測試期間 CALYS 冷端溫度漂移，固定參考也會產生差異。
+
+DUT `input_error != 61` 的測試點仍保留讀值，但標示為輸入異常，不納入有效點差值統計。沒有設定合格公差，因此不自動判定精度 PASS／FAIL，亦不寫入校正值。PV 與 ADC 分別讀取，並非同一瞬間的原子快照，請讓輸出充分穩定。
+
+更新時請同時取得 `calys1500_loop_test.py` 與新增的 `calys1500_expected.py`，放在同一個 Tools 目錄。
+
+參考：
+- https://nvlpubs.nist.gov/nistpubs/Legacy/MONO/nistmonograph175.pdf
+- https://www.ti.com/lit/pdf/sbaa275
