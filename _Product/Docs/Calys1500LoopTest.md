@@ -141,7 +141,7 @@ Ctrl+C 或通訊錯誤停止流程，保存已完成點及失敗點，方便重�
 
 CSV 新欄位：`pv_signal`、`pv_signal_unit`、`expected_pv`、`pv_delta`、`pv_native_delta`、`expected_adc_uv`、`adc_delta_uv`、`adc_reference_basis`、`calys_cjc_temperature`。
 
-`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。目前韌體的類比工程 PV 範圍為 −199.9～1999.9；換算依據為 `SensorConversionService.c` 的 −1999～19999 與產品服務的除以 10。後續韌體比例改變時須同步調整理論模型。
+`pv` 保留原始 Modbus Float32，不改既有欄位意義；`pv_signal` 是用來與設定值比較的物理訊號。類比電壓／電流的 PV 線性對映為 −1999～19999，直接使用 `SensorConversionService.c` 的工程值，不除以 10。各 Sensor 的下限對應 −1999、上限對應 19999，例如 4～20 mA 的 4 mA 對應 −1999、20 mA 對應 19999；`pv_signal` 再換算回 mV／mA／V，以比較實際訊號誤差。溫度 Sensor 的 PV 仍使用 °C。
 
 ### ADC 理論值依據
 

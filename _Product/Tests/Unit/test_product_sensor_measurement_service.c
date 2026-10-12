@@ -287,6 +287,24 @@ static void TestCjcSourceSelection(void)
     assert(g_monitor.unfilteredProcessValue > 1299.0F && g_monitor.unfilteredProcessValue < 1301.0F);
 }
 
+static void TestAnalogPvEngineeringRange(void)
+{
+    const int32_t microvolts[] = {0L, 25000L, 50000L};
+    const float expected[] = {-1999.0F, 9000.0F, 19999.0F};
+    g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    g_product_configuration.filterTimeConstantSeconds = 0.0F;
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_sample.valid = true;
+    ProductSensorMeasurementService_Initialize();
+    for (unsigned int i = 0U; i < 3U; ++i)
+    {
+        g_sample.microvolts = microvolts[i];
+        g_sample.sequence++;
+        assert(ProductSensorMeasurementService_Process(0U));
+        assert(g_monitor.unfilteredProcessValue == expected[i]);
+    }
+}
+
 int main(void)
 {
     TestConfigurationMapping();
@@ -295,6 +313,7 @@ int main(void)
     TestBTypeConversionWithCjc();
     TestInvalidCjcIsReported();
     TestCjcSourceSelection();
+    TestAnalogPvEngineeringRange();
     return 0;
 }
 

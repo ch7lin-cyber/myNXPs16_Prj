@@ -68,9 +68,9 @@ def pv_comparison(sensor, point, pv):
     p=float(point)
     if sensor.unit == "degC":
         return float(pv), p
-    # Firmware engineering_value spans -1999..19999; Float32 PV divides by 10.
-    native_expected=(-1999+(p-sensor.low)/(sensor.high-sensor.low)*21998)/10
-    physical=sensor.low+(float(pv)*10+1999)/21998*(sensor.high-sensor.low)
+    # Analogue Float32 PV uses engineering_value directly: -1999..19999.
+    native_expected=-1999+(p-sensor.low)/(sensor.high-sensor.low)*21998
+    physical=sensor.low+(float(pv)+1999)/21998*(sensor.high-sensor.low)
     return physical,native_expected
 
 

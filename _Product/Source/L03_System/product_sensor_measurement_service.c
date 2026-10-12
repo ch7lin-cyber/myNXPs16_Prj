@@ -368,7 +368,7 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
 
     unfiltered = IsTemperatureType(conversion_configuration.type) ?
         ((float)result.engineering_value / 1000.0F) :
-        ((float)result.engineering_value / 10.0F);
+        ((float)result.engineering_value);
     state->unfiltered_value = unfiltered;
     time_constant = product_configuration.filterTimeConstantSeconds;
     sample_period = 1.0F / (float)PRODUCT_ADC_OUTPUT_DATA_RATE_HZ;
