@@ -476,10 +476,10 @@ def run_menu(client: ModbusRtuClient) -> None:
             "1. Read channel PV and ADC diagnostics\n"
             "3. Read arbitrary holding registers\n"
             "6. Write holding register(s)\n"
-            "0. Exit\n"
+            "q. Exit\n"
             "=========================================="
         )
-        selection = input("Select: ").strip()
+        selection = input("Select: ").strip().lower()
         try:
             if selection == "1":
                 read_channel_diagnostics(client)
@@ -487,10 +487,10 @@ def run_menu(client: ModbusRtuClient) -> None:
                 read_arbitrary_registers(client)
             elif selection == "6":
                 write_registers(client)
-            elif selection == "0":
+            elif selection == "q":
                 return
             else:
-                print("Unknown selection. Use 1, 3, 6, or 0.")
+                print("Unknown selection. Use 1, 3, 6, or q.")
         except (ValueError, ModbusError, serial.SerialException) as exc:
             print(f"ERROR: {exc}")
 
