@@ -25,16 +25,16 @@
 
 | Profile | 路徑與 Gain | Sensor 對映 | 校正目標低／高（ADC µV） |
 |---:|---|---|---:|
-| 0 | TC／mV，Gain 32 | K、D、E、N、L、U、TXK、0–50 mV | 0 / 50000 |
-| 1 | TC，Gain 64 | T、R、C | 0 / 30000 |
-| 2 | RTD，Gain 8、500 µA | Pt100、Ni120 | 50000 / 150000 |
-| 3 | TC，Gain 16 | J | 0 / 100000 |
-| 4 | 電壓，Gain 32 | 0–5 V、0–10 V | 0 / 60417 |
-| 5 | RTD，Gain 16、500 µA | JPt100 | 50000 / 150000 |
-| 6 | 電流，Gain 64 | 0–20 mA、4–20 mA | 0 / 34752 |
-| 7 | TC，Gain 128 | B、S | 0 / 15000 |
-| 8 | RTD，Gain 1、250 µA | Pt1000 | 250000 / 750000 |
-| 9 | RTD，Gain 32、500 µA | Cu50 | 25000 / 75000 |
+| 0 | TC／mV，Gain 32 | K、D、E、N、L、U、TXK、0–50 mV | 5000 / 45000 |
+| 1 | TC，Gain 64 | T、R、C | 3000 / 27000 |
+| 2 | RTD，Gain 8、500 µA | Pt100（代表）、Ni120（驗證） | 27858 / 176643 |
+| 3 | TC，Gain 16 | J | 10000 / 90000 |
+| 4 | 電壓，Gain 32 | 0–10 V（代表） | 6042 / 54375 |
+| 5 | RTD，Gain 16、500 µA | JPt100 | 53891 / 116903 |
+| 6 | 電流，Gain 64 | 0–20 mA（代表） | 3475 / 31277 |
+| 7 | TC，Gain 128 | B、S | 1500 / 13500 |
+| 8 | RTD，Gain 1、250 µA | Pt1000；CALYS -220～740 °C 的 10%／90% | 126176 / 819359 |
+| 9 | RTD，Gain 32、500 µA | Cu50 | 21790 / 38910 |
 
 每個接線類別中的 Sensor/Profile 均須檢查韌體 Profile 對映；同一 Profile 僅 Apply 一次。工具啟動後讀 `0x4703`、`0x4704`、`0x4705`、`0x4706`、`0x4707`、`0x4720–0x4727`，並以唯讀校正槽 `0x4C00 + CH*0x80 + Profile*8` 保存 Apply 前的校正狀態。目標點以韌體 `0x4720–0x4723` 為準，不在 Python 另複製一套常數。韌體 `ProductApplication` 將 AD7124 原始 `sample.microvolts` 更新到 FactoryCalibrationService；校正 PV 時使用的 calibrated µV 是另一條路徑。因此再次校正擷取的是未校正 ADC µV，不會把舊的校正結果疊加進新係數。
 

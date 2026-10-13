@@ -65,9 +65,30 @@ int main(void)
                                   target.span_uv - 200L - ch - p));
     }
     assert(FactoryCalibrationService_GetTargets(FACTORY_CAL_PROFILE_VOLTAGE_GAIN32, &target));
-    assert(target.zero_uv == 0L && target.span_uv == 60417L);
+    assert(target.zero_uv == 6042L && target.span_uv == 54375L);
     assert(FactoryCalibrationService_GetTargets(FACTORY_CAL_PROFILE_CURRENT_GAIN64, &target));
-    assert(target.span_uv == 34752L);
+    assert(target.zero_uv == 3475L && target.span_uv == 31277L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_TC_GAIN32, &target));
+    assert(target.zero_uv == 5000L && target.span_uv == 45000L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_TC_GAIN64, &target));
+    assert(target.zero_uv == 3000L && target.span_uv == 27000L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_TC_GAIN16, &target));
+    assert(target.zero_uv == 10000L && target.span_uv == 90000L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_TC_GAIN128, &target));
+    assert(target.zero_uv == 1500L && target.span_uv == 13500L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_RTD_GAIN8, &target));
+    assert(target.zero_uv == 27858L && target.span_uv == 176643L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_RTD_GAIN1, &target));
+    assert(target.zero_uv == 126176L && target.span_uv == 819359L);
+    assert(FactoryCalibrationService_GetTargets(
+        FACTORY_CAL_PROFILE_RTD_GAIN32, &target));
+    assert(target.zero_uv == 21790L && target.span_uv == 38910L);
     Boot();
     ProductFactoryCalibrationStorage_GetStatus(&status);
     assert(status.ready && status.loaded_records == 40U);
@@ -89,11 +110,11 @@ int main(void)
         g_write_count = 0U; g_fail_write = stage;
         assert(!Capture(0U, 0U, 10L, 49000L));
         assert(FactoryCalibrationService_GetCalibration(0U, FACTORY_CAL_PROFILE_TC_GAIN32, &record));
-        assert(record.measured_zero_uv == -100L);
+        assert(record.measured_zero_uv == 4900L);
         g_fail_write = 0U;
         Boot();
         assert(FactoryCalibrationService_GetCalibration(0U, FACTORY_CAL_PROFILE_TC_GAIN32, &record));
-        assert(record.measured_zero_uv == -100L);
+        assert(record.measured_zero_uv == 4900L);
     }
     assert(Capture(0U, 0U, 10L, 49000L));
     Boot();
@@ -103,7 +124,7 @@ int main(void)
     g_memory[PRODUCT_NVM_CALIBRATION_BASE_ADDRESS + 64U + 12U] ^= 1U;
     Boot();
     assert(FactoryCalibrationService_GetCalibration(0U, FACTORY_CAL_PROFILE_TC_GAIN32, &record));
-    assert(record.measured_zero_uv == -100L);
+    assert(record.measured_zero_uv == 4900L);
     ProductFactoryCalibrationStorage_GetStatus(&status);
     assert(status.corrupt_records == 1U && status.loaded_records == 40U);
     /* Unsupported format with no valid alternative uses identity defaults. */

@@ -163,6 +163,7 @@ static void TestKTypePipelineAndCjcPairing(void)
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_TC_K;
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_INTERNAL_TMP20;
+    g_product_configuration.cjcOffsetCentiC = -529;
     g_sample.raw_code = 0x00800000UL;
     g_sample.microvolts = 0L;
     g_sample.sequence = 1UL;
@@ -176,17 +177,17 @@ static void TestKTypePipelineAndCjcPairing(void)
     ProductSensorMeasurementService_Initialize();
     assert(ProductSensorMeasurementService_Process(2U));
     assert(g_monitor.inputError == 61U);
-    assert(g_monitor.unfilteredProcessValue > 24.0F);
-    assert(g_monitor.unfilteredProcessValue < 26.0F);
+    assert(g_monitor.unfilteredProcessValue > 19.0F);
+    assert(g_monitor.unfilteredProcessValue < 21.0F);
     assert(g_monitor.filteredProcessValue == g_monitor.unfilteredProcessValue);
     assert(ProductSensorMeasurementService_GetSnapshot(2U, &snapshot));
     assert(snapshot.valid);
     assert(snapshot.raw_code == 0x00800000UL);
     assert(snapshot.uncalibrated_uv == 0L);
     assert(snapshot.calibrated_uv == 0L);
-    assert(snapshot.cjc_temperature_centi_c == 2500L);
-    assert(snapshot.engineering_value > 24000L);
-    assert(snapshot.engineering_value < 26000L);
+    assert(snapshot.cjc_temperature_centi_c == 1971L);
+    assert(snapshot.engineering_value > 19000L);
+    assert(snapshot.engineering_value < 21000L);
 }
 
 static void TestCurrentShuntConversion(void)
@@ -245,6 +246,7 @@ static void TestCjcSourceSelection(void)
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_TC_K;
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_product_configuration.cjcOffsetCentiC = 0;
     g_sample.microvolts = 10153L;
     g_sample.valid = true;
     g_sample.sequence = 10U;

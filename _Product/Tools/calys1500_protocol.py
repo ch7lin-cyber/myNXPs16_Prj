@@ -41,7 +41,7 @@ SENSORS = {s.code: s for s in [
     Sensor(101, "U", "TC", "U", -200, 500, "degC", 32),
     Sensor(102, "TXK", "TC", None, -150, 800, "degC", 32),
     Sensor(113, "Pt100", "RTD", "PT100", -200, 850, "degC", 8),
-    Sensor(114, "Pt1000", "RTD", "PT1000", -200, 850, "degC", 1),
+    Sensor(114, "Pt1000", "RTD", "PT1000", -220, 740, "degC", 1),
     Sensor(115, "JPt100", "RTD", None, -20, 400, "degC", 16),
     Sensor(116, "Ni120", "RTD", "NI120", -80, 300, "degC", 8),
     Sensor(117, "Cu50", "RTD", "CU50", -50, 150, "degC", 32),

@@ -84,17 +84,17 @@ static product_modbus_register_context_t s_registerContext =
     },
     .activeConfig =
     {
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20}
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0}
     },
     .pendingConfig =
     {
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20},
-        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20}
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
+        {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0}
     },
     .activePwmConfig =
     {
@@ -219,8 +219,8 @@ static bool ResolveTemperatureRegisterRange(
     localOffset = (uint16_t)(relative %
                              PRODUCT_MODBUS_TEMPERATURE_INPUT_INSTANCE_STRIDE);
     if ((input >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
-        (localOffset > 9U) ||
-        (((uint32_t)localOffset + quantity) > 10UL))
+        (localOffset > 10U) ||
+        (((uint32_t)localOffset + quantity) > 11UL))
     {
         return false;
     }
@@ -1093,6 +1093,8 @@ static void BuildRegisterImage(
     registers[8] = registerContext->activeConfig[channel].cjcSource;
     /* The command key is never echoed back through the register image. */
     registers[9] = 0U;
+    registers[10] =
+        (uint16_t)registerContext->activeConfig[channel].cjcOffsetCentiC;
 }
 
 static void BuildPwmRegisterImage(
@@ -1236,7 +1238,7 @@ static ModbusExceptionCode_t ReadRegisters(
 {
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
-    uint16_t registerImage[10];
+    uint16_t registerImage[11];
     uint16_t versionImage[9];
     uint16_t factoryImage[14];
     uint16_t diagnosticsImage[15];
@@ -1568,6 +1570,11 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
     {
         changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_CJC_SOURCE;
     }
+    if (registerContext->activeConfig[channel].cjcOffsetCentiC !=
+        registerContext->pendingConfig[channel].cjcOffsetCentiC)
+    {
+        changedMask |= EVENT_TEMPERATURE_INPUT_CHANGE_CJC_OFFSET;
+    }
     if (changedMask == 0U)
     {
         registerContext->pendingDirty[channel] = false;
@@ -1586,12 +1593,15 @@ static ModbusExceptionCode_t ApplyPendingConfiguration(
         oldConfig.filterTimeConstantSeconds;
     oldEventConfig.sensor_type = oldConfig.sensorType;
     oldEventConfig.cjc_source = oldConfig.cjcSource;
+    oldEventConfig.cjc_offset_centi_c = oldConfig.cjcOffsetCentiC;
     newEventConfig.filter_time_constant_seconds =
         registerContext->pendingConfig[channel].filterTimeConstantSeconds;
     newEventConfig.sensor_type =
         registerContext->pendingConfig[channel].sensorType;
     newEventConfig.cjc_source =
         registerContext->pendingConfig[channel].cjcSource;
+    newEventConfig.cjc_offset_centi_c =
+        registerContext->pendingConfig[channel].cjcOffsetCentiC;
 
     {
         float minimum;
@@ -2098,6 +2108,20 @@ static ModbusExceptionCode_t WriteSingleRegister(
                                          value);
     }
 
+    if (temperatureOffset == 10U)
+    {
+        int16_t cjcOffset = (int16_t)value;
+        if ((cjcOffset < EVENT_CJC_OFFSET_MIN_CENTI_C) ||
+            (cjcOffset > EVENT_CJC_OFFSET_MAX_CENTI_C))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        registerContext->pendingConfig[temperatureChannel].cjcOffsetCentiC =
+            cjcOffset;
+        registerContext->pendingDirty[temperatureChannel] = true;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
     return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
 }
 
@@ -2455,6 +2479,16 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
         return ApplyPendingConfiguration(registerContext, temperatureChannel,
                                          values[0]);
     }
+    else if ((temperatureOffset == 10U) && (quantity == 1U))
+    {
+        int16_t cjcOffset = (int16_t)values[0];
+        if ((cjcOffset < EVENT_CJC_OFFSET_MIN_CENTI_C) ||
+            (cjcOffset > EVENT_CJC_OFFSET_MAX_CENTI_C))
+        {
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        pendingConfig.cjcOffsetCentiC = cjcOffset;
+    }
     else
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
@@ -2559,7 +2593,9 @@ bool ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
         (config == NULL) || (configuration_revision == 0U) ||
         !IsFilterTimeConstantValid(config->filterTimeConstantSeconds) ||
         !IsSensorTypeValid(config->sensorType) ||
-        (config->cjcSource > EVENT_CJC_SOURCE_EXTERNAL_2))
+        (config->cjcSource > EVENT_CJC_SOURCE_EXTERNAL_2) ||
+        (config->cjcOffsetCentiC < EVENT_CJC_OFFSET_MIN_CENTI_C) ||
+        (config->cjcOffsetCentiC > EVENT_CJC_OFFSET_MAX_CENTI_C))
     {
         return false;
     }

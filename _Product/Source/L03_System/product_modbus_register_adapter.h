@@ -29,8 +29,9 @@ extern "C" {
 /* Compatibility name; offset +8 is now a writable CJC source. */
 #define PRODUCT_MODBUS_SENSOR_RESERVED_ADDRESS PRODUCT_MODBUS_CJC_SOURCE_ADDRESS
 #define PRODUCT_MODBUS_APPLY_KEY_ADDRESS                     (0x1009U)
+#define PRODUCT_MODBUS_CJC_OFFSET_ADDRESS                    (0x100AU)
 #define PRODUCT_MODBUS_APPLY_KEY_VALUE                       (0xA5A5U)
-#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x1039U)
+#define PRODUCT_MODBUS_TEMPERATURE_INPUT_LAST_ADDRESS        (0x103AU)
 
 /* Four independent PWM outputs. FC06/FC10 writes stage Pending values. */
 #define PRODUCT_MODBUS_PWM_BASE_ADDRESS                       (0x1300U)
@@ -335,6 +336,7 @@ typedef struct _product_temperature_input_config
     float filterTimeConstantSeconds;
     uint16_t sensorType;
     uint16_t cjcSource;
+    int16_t cjcOffsetCentiC;
 } product_temperature_input_config_t;
 
 /* Build the product register callback table used by ModbusSlave. */

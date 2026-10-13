@@ -292,6 +292,23 @@ def read_channel_diagnostics(client: ModbusRtuClient) -> None:
     print_registers(pv_address, pv_registers)
     print(f"  Float32 = {float32_from_registers(pv_registers):.6f}")
 
+    configuration_address = pv_address + 7
+    print(f"\n[CH{channel} sensor/CJC configuration]")
+    sensor_configuration = client.read_holding_registers(
+        configuration_address, 4
+    )
+    print_registers(configuration_address, sensor_configuration)
+    cjc_offset_raw = sensor_configuration[3]
+    cjc_offset = (
+        cjc_offset_raw - 0x10000
+        if cjc_offset_raw & 0x8000
+        else cjc_offset_raw
+    )
+    print(f"  Sensor type = {sensor_configuration[0]}")
+    print(f"  CJC source  = {sensor_configuration[1]}")
+    print(f"  Apply key   = write-only")
+    print(f"  CJC offset  = {cjc_offset} (0.01 degC) = {cjc_offset / 100:.2f} degC")
+
     print(f"\n[CH{channel} ADC diagnostics]")
     diagnostics = client.read_holding_registers(diagnostic_base, 16)
     print_registers(
@@ -441,7 +458,12 @@ def read_arbitrary_registers(client: ModbusRtuClient) -> None:
 
 def parse_write_values(text: str) -> list[int]:
     tokens: Iterable[str] = text.replace(",", " ").split()
-    values = [parse_integer(token) for token in tokens]
+    values = []
+    for token in tokens:
+        value = int(token.strip(), 0)
+        if not -32768 <= value <= 0xFFFF:
+            raise ValueError("write value must be in range -32768..65535")
+        values.append(value & 0xFFFF)
     if not values:
         raise ValueError("at least one value is required")
     return values

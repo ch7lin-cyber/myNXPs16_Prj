@@ -470,12 +470,14 @@ bool ProductApplication_Init(void)
                 stored.filter_time_constant_seconds = 0.5F;
                 stored.sensor_type = PRODUCT_SENSOR_TYPE_TC_K;
                 stored.cjc_source = EVENT_CJC_SOURCE_INTERNAL_TMP20;
+                stored.cjc_offset_centi_c = 0;
                 stored_revision = 1U;
             }
             product_config.filterTimeConstantSeconds =
                 stored.filter_time_constant_seconds;
             product_config.sensorType = stored.sensor_type;
             product_config.cjcSource = stored.cjc_source;
+            product_config.cjcOffsetCentiC = stored.cjc_offset_centi_c;
             if (!ProductModbusRegisterAdapter_RestoreTemperatureInputConfigForChannel(
                         channel, &product_config, stored_revision) ||
                 !EventService_RaiseTemperatureInputConfigurationChanged(

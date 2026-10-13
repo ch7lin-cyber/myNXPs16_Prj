@@ -222,7 +222,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(sample["spread_uv"], 0)
 
     def test_wiring_groups_and_unique_profiles(self):
-        from calys1500_calibration import WIRING_GROUPS, calibration_source_points
+        from calys1500_calibration import (
+            WIRING_GROUPS, calibration_source_points, calibration_stimulus)
         self.assertEqual(set(WIRING_GROUPS), {"1", "2", "3", "4"})
         self.assertEqual(WIRING_GROUPS["1"].key, "voltage")
         self.assertEqual(WIRING_GROUPS["3"].key, "tc")
@@ -233,9 +234,29 @@ class Tests(unittest.TestCase):
             for profile, codes in group.profiles.items():
                 self.assertTrue(all(code in protocol.SENSORS for code in codes))
         self.assertEqual(calibration_source_points(0, protocol.SENSORS[122]),
-                         (Decimal("0"), Decimal("50")))
-        with self.assertRaisesRegex(ValueError, "電壓／mV"):
-            calibration_source_points(0, protocol.SENSORS[48])
+                         (Decimal("5"), Decimal("45")))
+        self.assertEqual(calibration_source_points(1, protocol.SENSORS[15]),
+                         (Decimal("3"), Decimal("27")))
+        self.assertEqual(calibration_source_points(3, protocol.SENSORS[46]),
+                         (Decimal("10"), Decimal("90")))
+        self.assertEqual(calibration_source_points(4, protocol.SENSORS[121]),
+                         (Decimal("1"), Decimal("9")))
+        self.assertEqual(calibration_source_points(6, protocol.SENSORS[123]),
+                         (Decimal("2"), Decimal("18")))
+        self.assertEqual(calibration_source_points(7, protocol.SENSORS[84]),
+                         (Decimal("1.5"), Decimal("13.5")))
+        self.assertEqual(calibration_source_points(2, protocol.SENSORS[113]),
+                         (Decimal("-111.170"), Decimal("725.938")))
+        self.assertEqual(calibration_source_points(8, protocol.SENSORS[114]),
+                         (Decimal("-124.000"), Decimal("644.000")))
+        self.assertEqual(calibration_source_points(9, protocol.SENSORS[117]),
+                         (Decimal("-30.000"), Decimal("130.000")))
+        self.assertEqual(calibration_source_points(0, protocol.SENSORS[48]),
+                         (Decimal("5"), Decimal("45")))
+        tc_stimulus = calibration_stimulus(
+            WIRING_GROUPS["3"], 0, protocol.SENSORS[48])
+        self.assertEqual((tc_stimulus.kind, tc_stimulus.token, tc_stimulus.unit),
+                         ("VOLT", "100MV", "mV"))
 
     def test_calibration_menu_selection_parsing(self):
         self.assertEqual(loop.parse_wiring_group_selection("2.1"), "1")
@@ -266,7 +287,7 @@ class Tests(unittest.TestCase):
             def configure(self, sensor, **settings):
                 self.sensor = sensor
             def output(self, sensor, value):
-                self.value = 1000 if value == 0 else 51000
+                self.value = 6000 if value == 1 else 54000
                 self.dut.microvolts = self.value
 
         class Dut:
@@ -275,7 +296,7 @@ class Tests(unittest.TestCase):
                 self.count = 0
                 self.microvolts = 0
                 self.pending = [0, 0, 0, 0]
-                self.record = [0, 0, 0, 60417, 1, 0, 0, 0]
+                self.record = [0, 0, 0, 54375, 1, 0, 0, 0]
             def read_holding_registers(self, address, quantity):
                 if address == 0x4724:
                     return [1]
@@ -284,7 +305,7 @@ class Tests(unittest.TestCase):
                 if address == 0x4706:
                     return [0]
                 if address == 0x4720:
-                    return [0, 0, 0, 60417]
+                    return [0, 6042, 0, 54375]
                 if address == 0x4C20:
                     return self.record
                 if address == 0x4709:
@@ -312,23 +333,23 @@ class Tests(unittest.TestCase):
 
         dut = Dut()
         calys = Calys(dut)
-        inputs = iter(["0", "5"])
+        inputs = iter([])
         report = guided_profile_run(
-            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[120],
+            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[121],
             allow_apply=False, dwell=0, stable_timeout=1, spread_limit_uv=20,
             input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
         self.assertFalse(report["applied"])
         self.assertEqual((report["measured_zero_uv"], report["measured_span_uv"]),
-                         (1000, 51000))
+                         (6000, 54000))
         self.assertIn((0x4702, 5), dut.writes)  # abort
         self.assertNotIn((0x4702, 4), dut.writes)  # no NVM Apply
         self.assertIn((0x4700, [0x1234, 0x1234]), dut.writes)
 
         dut = Dut()
         calys = Calys(dut)
-        inputs = iter(["0", "5", "  apply_ch0_profile_4  "])
+        inputs = iter(["  apply_ch0_profile_4  "])
         report = guided_profile_run(
-            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[120],
+            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[121],
             allow_apply=True, dwell=0, stable_timeout=1, spread_limit_uv=20,
             input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
         self.assertTrue(report["applied"])

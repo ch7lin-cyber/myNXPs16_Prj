@@ -10,7 +10,12 @@ from dataclasses import dataclass
 import statistics
 import time
 
-from calys1500_protocol import SENSORS, validate
+from calys1500_protocol import SENSORS, Sensor, numeric, validate
+
+
+CALIBRATION_MV_100 = Sensor(
+    -1, "100mV electrical calibration", "VOLT", "100MV",
+    0, 100, "mV", 0)
 
 
 @dataclass(frozen=True)
@@ -23,17 +28,21 @@ class WiringGroup:
 
 WIRING_GROUPS = {
     "1": WiringGroup("voltage", "電壓／mV", "CALYS V 輸出與 COM 接 DUT 電壓輸入。", {
-        0: (122,), 4: (120, 121),
+        0: (122,), 4: (121,),
     }),
     "2": WiringGroup("rtd", "RTD 三線", "CALYS RTD 三線端依接線圖接 DUT L1／L2／L3。", {
-        2: (113, 116), 5: (115,), 8: (114,), 9: (117,),
+        # Profile 2 is shared with Ni120, but Pt100 is the fixed electrical
+        # calibration representative. Ni120 remains available for validation.
+        2: (113,), 5: (115,), 8: (114,), 9: (117,),
     }),
-    "3": WiringGroup("tc", "熱電偶 TC", "依產品接線圖將 CALYS TC+／TC− 接至 DUT 熱電偶輸入。", {
+    "3": WiringGroup("tc", "熱電偶 TC",
+        "Factory Gain 校正使用 CALYS V/mV 與 COM 接至 DUT TC+／TC−；"
+        "此步驟輸出直接 mV，不使用 TC 溫度模擬。", {
         0: (23, 26, 48, 58, 100, 101, 102), 1: (15, 80, 93),
         3: (46,), 7: (11, 84),
     }),
     "4": WiringGroup("current", "電流", "CALYS mA 與 COM 串入 DUT 電流輸入回路。", {
-        6: (123, 124),
+        6: (123,),
     }),
 }
 
@@ -109,17 +118,49 @@ def wait_stable_sample(dut, channel, timeout=30.0, stable_count=5,
 
 def calibration_source_points(profile, sensor, input_fn=input):
     """Return the physical source points required by the firmware target."""
-    if profile == 0:
-        if sensor.code != 122:
-            raise ValueError("Profile 0 必須由 [2.1] 電壓／mV 使用 0-50mV 校正；"
-                             "TC 溫度輸出僅供量程驗證")
-        print("Profile 0 固定校正標準：0 mV / 50 mV")
-        return validate(sensor, 0), validate(sensor, 50)
+    electrical_points = {
+        0: ("5", "45", "mV"),
+        1: ("3", "27", "mV"),
+        3: ("10", "90", "mV"),
+        4: ("1", "9", "V"),
+        6: ("2", "18", "mA"),
+        7: ("1.5", "13.5", "mV"),
+    }
+    if profile in electrical_points:
+        low, high, unit = electrical_points[profile]
+        print(f"Profile {profile} 固定校正標準（電氣量程 10% / 90%）："
+              f"{low} / {high} {unit}")
+        return numeric(low), numeric(high)
+    rtd_points = {
+        # Fixed RTD 10 % / 90 % calibration points. The temperatures generate
+        # the stated resistances for each representative sensor. Profile 8 is
+        # specifically based on the CALYS PT1000 -220..740 degC output range.
+        2: (113, "-111.170", "725.938", "55.716 / 353.285 ohm"),
+        # CALYS PT1000 simulation range is -220 to 740 degC.
+        8: (114, "-124.000", "644.000", "504.705 / 3277.435 ohm"),
+        9: (117, "-30.000", "130.000", "43.580 / 77.820 ohm"),
+    }
+    if profile in rtd_points:
+        required_code, low, high, resistance = rtd_points[profile]
+        if sensor.code != required_code:
+            raise ValueError(
+                f"Profile {profile} 必須使用 Sensor code {required_code} 校正")
+        basis = "CALYS 輸出量程" if profile == 8 else "電阻量程"
+        print(f"Profile {profile} 固定校正標準（{basis} 10% / 90%）："
+              f"{low} / {high} degC；{resistance}")
+        return validate(sensor, low), validate(sensor, high)
     source_low = validate(sensor, input_fn(
         f"CALYS {sensor.label} 低點輸出 ({sensor.unit})："))
     source_high = validate(sensor, input_fn(
         f"CALYS {sensor.label} 高點輸出 ({sensor.unit})："))
     return source_low, source_high
+
+
+def calibration_stimulus(group, profile, sensor):
+    """Select the CALYS source independently from the DUT sensor profile."""
+    if group.key == "tc":
+        return CALIBRATION_MV_100
+    return sensor
 
 
 class FactoryCalibration:
@@ -179,17 +220,18 @@ def guided_profile_run(calys, dut, channel, group, profile, sensor,
     previous = read_profile(dut, channel, profile)
     print(f"CH{channel} Profile {profile} {PROFILE_LABELS[profile]} targets："
           f"{target_zero} / {target_span} uV；原校正={previous}")
+    stimulus = calibration_stimulus(group, profile, sensor)
     source_low, source_high = calibration_source_points(profile, sensor, input_fn)
     if source_high == source_low:
         raise ValueError("CALYS 高低點不可相同")
     settings = settings or {}
-    calys.configure(sensor, **settings)
+    calys.configure(stimulus, **settings)
     measurements = []
     try:
         for label, source_value, action in (("低點", source_low, factory.CAPTURE_ZERO),
                                             ("高點", source_high, factory.CAPTURE_SPAN)):
-            print(f"輸出 {label}：{source_value} {sensor.unit}")
-            calys.output(sensor, source_value)
+            print(f"輸出 {label}：{source_value} {stimulus.unit}")
+            calys.output(stimulus, source_value)
             sleep(dwell)
             stable = wait_stable_sample(dut, channel, timeout=stable_timeout,
                                         spread_limit_uv=spread_limit_uv, sleep=sleep)
@@ -206,6 +248,7 @@ def guided_profile_run(calys, dut, channel, group, profile, sensor,
         if not 0.25 <= gain_ratio <= 4.0:
             raise RuntimeError(f"增益修正比例 {gain_ratio:.6f} 超出保護範圍 0.25..4.0")
         preview = {"channel": channel, "profile": profile, "sensor": sensor.label,
+                   "calibration_stimulus": stimulus.label,
                    "target_zero_uv": target_zero, "target_span_uv": target_span,
                    "measured_zero_uv": pending_zero, "measured_span_uv": pending_span,
                    "gain_ratio": gain_ratio, "before": previous,

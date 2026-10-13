@@ -473,7 +473,7 @@ static void TestInvalidRanges(void)
                interface.context, 0x0FFFU, 1U, &value) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     assert(interface.read_holding_registers(
-               interface.context, 0x1009U, 2U, &value) ==
+               interface.context, 0x100AU, 2U, &value) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     assert(interface.write_single_register(
                interface.context, 0x1007U, 0U) ==
@@ -1376,6 +1376,40 @@ static void TestCjcSourcePendingApply(void)
     assert(EventService_Acknowledge(event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
 }
 
+static void TestCjcOffsetPendingApply(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    product_temperature_input_config_t active;
+    TemperatureInputConfigurationChangedEvent_t event;
+    uint16_t readback;
+
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    assert(interface.write_single_register(interface.context, 0x100AU,
+                                           (uint16_t)(int16_t)-529) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(interface.read_holding_registers(interface.context, 0x100AU, 1U,
+                                            &readback) ==
+           MODBUS_EXCEPTION_NONE);
+    assert((int16_t)readback == 0); /* Read Active, not Pending. */
+    assert(interface.write_single_register(interface.context, 0x1009U,
+                                           PRODUCT_MODBUS_APPLY_KEY_VALUE) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
+        0U, &active));
+    assert(active.cjcOffsetCentiC == -529);
+    assert(EventService_GetTemperatureInputConfigurationChanged(0U, &event));
+    assert(event.changed_mask == EVENT_TEMPERATURE_INPUT_CHANGE_CJC_OFFSET);
+    assert(event.new_configuration.cjc_offset_centi_c == -529);
+    assert(EventService_Acknowledge(
+        event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
+    assert(interface.write_single_register(interface.context, 0x100AU,
+                                           (uint16_t)(int16_t)-2001) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(interface.write_single_register(interface.context, 0x100AU,
+                                           2001U) ==
+           MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
@@ -1431,6 +1465,7 @@ int main(void)
     TestFourIndependentTemperatureInputs();
     TestInvalidRanges();
     TestCjcSourcePendingApply();
+    TestCjcOffsetPendingApply();
     TestProductSerialPolicy();
     TestProductDiagnosticsFaultRegisters();
     TestFactoryCalibrationSlots();
