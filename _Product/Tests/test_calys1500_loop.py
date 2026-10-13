@@ -60,6 +60,8 @@ class DutFake:
         self.writes = []
     def write_multiple_registers(self, address, values):
         self.writes.append((address, values))
+    def write_single_register(self, address, value):
+        self.writes.append((address, value))
     def read_holding_registers(self, address, quantity):
         if address == 0x1018:
             return [1]
@@ -269,12 +271,14 @@ class Tests(unittest.TestCase):
                     return [0]
                 raise AssertionError((hex(address), quantity))
             def write_multiple_registers(self, address, values):
-                self.writes.append((address, values[0]))
-                if address == 0x4702 and values[0] == 2:
+                self.writes.append((address, list(values)))
+            def write_single_register(self, address, value):
+                self.writes.append((address, value))
+                if address == 0x4702 and value == 2:
                     self.pending[0:2] = i32_regs(self.microvolts)
-                if address == 0x4702 and values[0] == 3:
+                if address == 0x4702 and value == 3:
                     self.pending[2:4] = i32_regs(self.microvolts)
-                if address == 0x4702 and values[0] == 4:
+                if address == 0x4702 and value == 4:
                     self.record = [*self.pending, 1, 1, 0, 0]
 
         dut = Dut()
@@ -289,6 +293,7 @@ class Tests(unittest.TestCase):
                          (1000, 51000))
         self.assertIn((0x4702, 5), dut.writes)  # abort
         self.assertNotIn((0x4702, 4), dut.writes)  # no NVM Apply
+        self.assertIn((0x4700, [0x1234, 0x1234]), dut.writes)
 
         dut = Dut()
         calys = Calys(dut)

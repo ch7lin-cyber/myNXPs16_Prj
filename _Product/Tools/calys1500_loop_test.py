@@ -77,6 +77,10 @@ class DutLink:
         time.sleep(self.request_delay)
         return self.client.write_multiple_registers(address, values)
 
+    def write_single_register(self, address, value):
+        time.sleep(self.request_delay)
+        return self.client.write_single_register(address, value)
+
     def close(self):
         self.client.close()
 

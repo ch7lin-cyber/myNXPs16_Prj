@@ -117,8 +117,8 @@ class FactoryCalibration:
         self.dut = dut
 
     def _write(self, address, value):
-        # No retries on FC10 writes: a lost response must not duplicate an action.
-        self.dut.write_multiple_registers(address, [value])
+        # No retries on writes: a lost response must not duplicate an action.
+        self.dut.write_single_register(address, value)
 
     def _command(self, command):
         self._write(self.COMMAND, command)
@@ -129,8 +129,8 @@ class FactoryCalibration:
     def select(self, channel, profile):
         if self.dut.read_holding_registers(self.STORAGE_READY, 1)[0] != 1:
             raise RuntimeError("Factory storage 尚未 ready，拒絕校正")
-        self._write(self.UNLOCK1, 0x1234)
-        self._write(self.UNLOCK2, 0x1234)
+        # Firmware accepts the two unlock keys as one atomic FC10 write.
+        self.dut.write_multiple_registers(self.UNLOCK1, [0x1234, 0x1234])
         self._write(self.CHANNEL, channel)
         self._write(self.PROFILE, profile)
         self._command(self.SELECT)
