@@ -19,6 +19,30 @@ def modbus_helpers():
     return ModbusRtuClient, float32_from_registers, int32_from_registers, uint32_from_registers
 
 
+def parse_wiring_group_selection(text):
+    """Return the internal wiring-group key from a displayed 2.x choice."""
+    value = text.strip().lower()
+    if value == "q":
+        return None
+    if value.startswith("2."):
+        value = value[2:]
+    if value not in WIRING_GROUPS:
+        raise ValueError("接線類別必須是 2.1、2.2、2.3 或 2.4")
+    return value
+
+
+def parse_profile_selection(text):
+    """Accept the displayed Pn profile ID as well as the legacy bare number."""
+    value = text.strip().upper()
+    if value == "Q":
+        return None
+    if value.startswith("P"):
+        value = value[1:]
+    if not value.isdigit():
+        raise ValueError("Profile ID 格式必須為 P0、P1 等")
+    return int(value)
+
+
 FIELDS = ["utc", "point", "channel", "sensor_code", "sensor", "gain", "setpoint",
           "unit", "pv", "input_error", "raw_code", "microvolts", "successful_samples",
           "calys_idn", "cjc", "fixed_cjc", "current_supply", "dwell_seconds",
@@ -257,18 +281,18 @@ def main(argv=None):
     try:
         while True:
             print("\n0 CALYS 1500 相關")
-            print("----0.1.0 自動通訊測試")
-            print("----0.1.1 改 CALYS port")
-            print("----0.1.2 改 DUT port")
-            print("--0.2 改 CALYS Sensor")
-            print("--0.3 設輸出值")
-            print("1 選通道／Sensor（直接寫 DUT）")
-            print("----1.1.0 十點自動測試")
-            print("2 自動校正（依接線類別；預設只預覽）")
-            print("----2.1 熱電偶 TC")
-            print("----2.2 RTD 三線")
-            print("----2.3 電壓／mV")
-            print("----2.4 電流")
+            print("    [0.1.0] 自動通訊測試")
+            print("    [0.1.1] 改 CALYS port")
+            print("  [0.2] 改 DUT port")
+            print("  [0.3] 改 CALYS Sensor type")
+            print("  [0.4] 設定輸出值")
+            print("\n[1] 選通道／Sensor（直接寫 DUT）")
+            print("    [1.1.0] 十點自動測試")
+            print("\n[2] 自動校正（依接線類別；預設只預覽）／選通道")
+            print("  [2.1] 熱電偶 TC")
+            print("  [2.2] RTD 三線")
+            print("  [2.3] 電壓／mV")
+            print("  [2.4] 電流")
             print("q 結束")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "
                   f"CH={channel} Sensor={selected.label if selected else '未選'}")
@@ -292,14 +316,14 @@ def main(argv=None):
                     print("可用 ports：", ", ".join(p.device for p in list_ports.comports()))
                     calys_port = input("CALYS port：").strip()
                     save_ports()
-                elif action == "0.1.2":
+                elif action == "0.2":
                     dut_port = input("DUT port：").strip()
                     save_ports()
-                elif action == "0.2":
+                elif action == "0.3":
                     sensor = select_sensor()
                     connect().configure(sensor, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     selected = sensor
-                elif action == "0.3":
+                elif action == "0.4":
                     if selected is None:
                         raise ValueError("請先選擇 Sensor")
                     value = validate(selected, input(f"輸出值 ({selected.unit})："))
@@ -357,12 +381,11 @@ def main(argv=None):
                     if candidate not in range(4):
                         raise ValueError("通道必須是 0～3")
                     for key, group in WIRING_GROUPS.items():
-                        print(f"2.{key} {group.title}：{group.wiring}")
-                    group_key = input("接線類別 (1/2/3/4；q 返回)：").strip()
-                    if group_key.lower() == "q":
+                        print(f"[2.{key}] {group.title}：{group.wiring}")
+                    group_key = parse_wiring_group_selection(
+                        input("接線類別 [2.1] / [2.2] / [2.3] / [2.4]；q 返回："))
+                    if group_key is None:
                         continue
-                    if group_key not in WIRING_GROUPS:
-                        raise ValueError("接線類別必須是 1～4")
                     group = WIRING_GROUPS[group_key]
                     print(f"\n{group.title} 接線：{group.wiring}")
                     if input("確認已依上方說明接線 (YES/q)：").strip() != "YES":
@@ -382,12 +405,12 @@ def main(argv=None):
                         print("本類別的唯一 Firmware Profiles：")
                         for profile, sensor_codes in group.profiles.items():
                             labels = ", ".join(SENSORS[code].label for code in sensor_codes)
-                            print(f"  P{profile} {PROFILE_LABELS[profile]}：{labels}")
+                            print(f"  [P{profile}] {PROFILE_LABELS[profile]}：{labels}")
                         while True:
-                            profile_text = input("要校正的 Profile ID (q 返回)：").strip()
-                            if profile_text.lower() == "q":
+                            profile = parse_profile_selection(
+                                input("要校正的 Profile ID（例如 P0；q 返回）："))
+                            if profile is None:
                                 break
-                            profile = int(profile_text)
                             if profile not in group.profiles:
                                 raise ValueError("此接線類別不包含該 Profile")
                             profile_key = (candidate, profile)

@@ -71,26 +71,29 @@ python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\calys1500_loop_test.
 
 ```text
 0 CALYS 1500 相關
-----0.1.0 自動通訊測試
-----0.1.1 改 CALYS port
-----0.1.2 改 DUT port
---0.2 改 CALYS Sensor
---0.3 設輸出值
-1 選通道／Sensor（直接寫 DUT）
-----1.1.0 十點自動測試
-2 自動校正（依接線類別；預設只預覽）
-----2.1 熱電偶 TC
-----2.2 RTD 三線
-----2.3 電壓／mV
-----2.4 電流
+    [0.1.0] 自動通訊測試
+    [0.1.1] 改 CALYS port
+  [0.2] 改 DUT port
+  [0.3] 改 CALYS Sensor type
+  [0.4] 設定輸出值
+
+[1] 選通道／Sensor（直接寫 DUT）
+    [1.1.0] 十點自動測試
+
+[2] 自動校正（依接線類別；預設只預覽）／選通道
+  [2.1] 熱電偶 TC
+  [2.2] RTD 三線
+  [2.3] 電壓／mV
+  [2.4] 電流
 q 結束
 ```
 
 - `1`：選通道及 Sensor，立即對 DUT 用 FC10 寫入 Sensor type、目前 CJC source 及 `0xA5A5` Apply Key；讀回正確才更新選擇。讀回不是 ADC 硬體套用完成的證明，請用診斷確認。
-- `0.2`：只改 CALYS Sensor；不寫 DUT。
-- `0.3`：設定 CALYS 輸出，並重新套用本次啟動的 CJC 模式；不寫 DUT。
+- `0.2`：修改 DUT port。
+- `0.3`：只改 CALYS Sensor type；不寫 DUT。
+- `0.4`：設定 CALYS 輸出，並重新套用本次啟動的 CJC 模式；不寫 DUT。
 - `1.1.0`：重新設定 CALYS 及 DUT，執行十點測試，逐點等待新成功 ADC 樣本，結果寫入 CSV。
-- `2`：選 CH、接線類別，再選類別內的唯一韌體 Profile 與代表 Sensor。工具自動輸出操作人輸入的 CALYS 低／高點，等待每點 5 筆新鮮穩定 ADC 樣本，請韌體擷取零點／跨度，顯示 Profile target 與增益修正比例並保存 JSON。預設只預覽並 Abort，不寫 NVM。
+- `2`：選 CH，再以 `[2.1]`～`[2.4]` 選接線類別，並以 `[P0]`、`[P1]` 等 ID 選擇類別內的唯一韌體 Profile 與代表 Sensor。工具自動輸出操作人輸入的 CALYS 低／高點，等待每點 5 筆新鮮穩定 ADC 樣本，請韌體擷取零點／跨度，顯示 Profile target 與增益修正比例並保存 JSON。預設只預覽並 Abort，不寫 NVM。
 - 要允許寫入 NVM，需另外以 `--allow-calibration-apply` 啟動；預覽後還要逐筆輸入 `APPLY CHn PROFILE p`。Apply 命令不重送，結果會讀回 Profile 校正槽驗證。若來源值、CALYS/DUT 端子和參考標準尚未驗證，請勿開啟此參數。低／高來源值要依該 Profile 的韌體 target µV 及已驗證標準輸入；程式目前不推測或換算未驗證的來源值。
 - 初步分組：TC Profile 0/1/3/7、RTD Profile 2/5/8/9、電壓／mV Profile 0/4、電流 Profile 6。TC 與電壓／mV 共用 Profile 0，執行期間同槽只處理一次。物理端子文字仍須依現場接線圖確認。
 - 穩定判定預設每點 5 筆、最大範圍 20 µV、逾時 30 秒；可用 `--calibration-timeout`、`--calibration-stability-uv` 調整。校正 JSON 存入 `--results`。

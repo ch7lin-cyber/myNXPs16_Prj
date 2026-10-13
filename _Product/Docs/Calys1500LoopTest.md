@@ -36,9 +36,9 @@ python _Product/Tools/calys1500_loop_test.py --list-sensors
 | 0 | CALYS 子選單提示 |
 | 0.1.0 | 指定 port 自動連線、辨識 CALYS 1500、查詢通訊錯誤 |
 | 0.1.1 | 列出可用 ports，修改 CALYS port |
-| 0.1.2 | 修改 DUT port |
-| 0.2 | 選 CALYS Sensor type 並設定輸出模式 |
-| 0.3 | 設定輸出值，接受正負及小數；依 Sensor 規格檢查範圍 |
+| 0.2 | 修改 DUT port |
+| 0.3 | 選 CALYS Sensor type 並設定輸出模式 |
+| 0.4 | 設定輸出值，接受正負及小數；依 Sensor 規格檢查範圍 |
 | 1 | 選 CH0～CH3／Sensor 後立即寫 DUT 與 Apply Key，讀回確認成功才更新選擇 |
 | 1.1.0 | 對選定通道／Sensor 設定 DUT，執行十點輸出／讀回 |
 | 2 | 列出所有校正預留入口 |
@@ -48,27 +48,29 @@ python _Product/Tools/calys1500_loop_test.py --list-sensors
 | 2.4.0～2.4.3 | RTD Gain 1、8、16、32，僅提示未實作 |
 | q | 結束、送 LOC 解除 CALYS 遠端控制 |
 
-`1` 現在直接寫 DUT；`0.2`／`0.3` 只設定 CALYS，不寫 DUT。
+`1` 現在直接寫 DUT；`0.3`／`0.4` 只設定 CALYS，不寫 DUT。
 `1.1.0` 開始前仍會重新設定 CALYS 與 DUT。寫入或讀回失敗不會將候選通道／Sensor 標示為成功。
 DUT Sensor type 讀回不代表 ADC 已套用完成，請查看 ADC configuration trace 與成功樣本。
 
 ```text
 0 CALYS 1500 相關
-----0.1.0 自動通訊測試
-----0.1.1 改 CALYS port
-----0.1.2 改 DUT port
---0.2 改 CALYS Sensor
---0.3 設輸出值
-1 選通道／Sensor（直接寫 DUT）
-----1.1.0 十點自動測試
-2 自動校正（依接線類別；預設只預覽）
-----2.1 熱電偶 TC
-----2.2 RTD 三線
-----2.3 電壓／mV
-----2.4 電流
+    [0.1.0] 自動通訊測試
+    [0.1.1] 改 CALYS port
+  [0.2] 改 DUT port
+  [0.3] 改 CALYS Sensor type
+  [0.4] 設定輸出值
+
+[1] 選通道／Sensor（直接寫 DUT）
+    [1.1.0] 十點自動測試
+
+[2] 自動校正（依接線類別；預設只預覽）／選通道
+  [2.1] 熱電偶 TC
+  [2.2] RTD 三線
+  [2.3] 電壓／mV
+  [2.4] 電流
 q 結束
 ```
-校正先選 CH 與接線類別，再選該類別的一個代表 Sensor／Profile。每個 Profile 本次只處理一次；TC 與電壓／mV 共用的 Profile 0 不可重複 Apply。工具從韌體讀目標 µV 和校正槽，不複製另一份目標常數。
+校正先選 CH，再輸入畫面標示的 `[2.1]`～`[2.4]` 接線類別，接著以 `[P0]`、`[P1]` 等 ID 選該類別的一個代表 Sensor／Profile。每個 Profile 本次只處理一次；TC 與電壓／mV 共用的 Profile 0 不可重複 Apply。工具從韌體讀目標 µV 和校正槽，不複製另一份目標常數。
 
 預設是預覽模式：送 CALYS 低／高點、檢查 5 筆新鮮穩定 ADC 樣本、由韌體擷取 pending 點、檢查跨度並輸出 JSON 記錄，最後 Abort，不寫 NVM。低／高 CALYS 設定值由操作人輸入，必須依校正標準和產品接線核對；本工具尚未替各型式推導或認證標準刺激值。若產品板上的端子對映、來源值及參考標準已驗證，啟動時加 `--allow-calibration-apply`，並於預覽後輸入 `APPLY CHn PROFILE p` 才會讓韌體寫入。`0x4C00` 校正槽僅讀回，不直接寫入。詳見 [Calys1500AutoCalibrationDesign.md](Calys1500AutoCalibrationDesign.md)。
 

@@ -206,6 +206,21 @@ class Tests(unittest.TestCase):
             for profile, codes in group.profiles.items():
                 self.assertTrue(all(code in protocol.SENSORS for code in codes))
 
+    def test_calibration_menu_selection_parsing(self):
+        self.assertEqual(loop.parse_wiring_group_selection("2.1"), "1")
+        self.assertEqual(loop.parse_wiring_group_selection(" 2.4 "), "4")
+        self.assertEqual(loop.parse_wiring_group_selection("1"), "1")
+        self.assertIsNone(loop.parse_wiring_group_selection("q"))
+        with self.assertRaisesRegex(ValueError, "2.1"):
+            loop.parse_wiring_group_selection("2.5")
+
+        self.assertEqual(loop.parse_profile_selection("P0"), 0)
+        self.assertEqual(loop.parse_profile_selection(" p7 "), 7)
+        self.assertEqual(loop.parse_profile_selection("3"), 3)
+        self.assertIsNone(loop.parse_profile_selection("Q"))
+        with self.assertRaisesRegex(ValueError, "P0"):
+            loop.parse_profile_selection("profile0")
+
     def test_calibration_preview_aborts_without_apply(self):
         from calys1500_calibration import WIRING_GROUPS, guided_profile_run
 
