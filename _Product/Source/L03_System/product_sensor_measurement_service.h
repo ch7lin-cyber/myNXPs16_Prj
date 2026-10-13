@@ -11,6 +11,10 @@
 extern "C" {
 #endif
 
+/* Modbus Temperature Input Error values, shared by all sensor types. */
+#define PRODUCT_INPUT_ERROR_OUT_OF_SPEC  (142U)
+#define PRODUCT_INPUT_ERROR_OUT_OF_RANGE (143U)
+
 typedef struct
 {
     uint32_t raw_code;

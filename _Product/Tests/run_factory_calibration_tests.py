@@ -15,6 +15,8 @@ def platform_sources(names):
 def product_source(name):
     return str(next(PRODUCT.rglob(name + '.c')))
 suites = {
+    'temperature_range': [product_source('product_temperature_range_resolver'),
+        product_source('test_product_temperature_range_resolver')],
     'storage': platform_sources(['FactoryCalibrationService', 'FactoryModeService', 'HalAdcMeasurement']) +
         [product_source('product_factory_calibration_storage'), product_source('test_product_factory_calibration_storage')],
     'fram': platform_sources(['FactoryCalibrationService', 'FactoryModeService', 'HalAdcMeasurement', 'HalNvm']) +

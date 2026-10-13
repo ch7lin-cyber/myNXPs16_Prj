@@ -4,7 +4,7 @@
 
 #include "product_temperature_input_types.h"
 
-bool ProductTemperatureRangeResolver_Resolve(
+static bool ResolveNominalRange(
     const EventTemperatureInputConfiguration_t *configuration,
     float *minimum,
     float *maximum,
@@ -117,3 +117,27 @@ bool ProductTemperatureRangeResolver_Resolve(
     }
 }
 
+
+/* Temperature limits used by linked consumers include the measurement margin.
+ * Conversion configuration retains nominal limits for OUT_OF_SPEC detection. */
+bool ProductTemperatureRangeResolver_Resolve(
+    const EventTemperatureInputConfiguration_t *configuration,
+    float *minimum,
+    float *maximum,
+    bool *input_enabled,
+    void *context)
+{
+    if (!ResolveNominalRange(configuration, minimum, maximum,
+                             input_enabled, context))
+    {
+        return false;
+    }
+    if (*input_enabled &&
+        !((configuration->sensor_type >= PRODUCT_SENSOR_TYPE_VOLTAGE_0_5V) &&
+          (configuration->sensor_type <= PRODUCT_SENSOR_TYPE_CURRENT_4_20MA)))
+    {
+        *minimum -= 20.0F;
+        *maximum += 20.0F;
+    }
+    return true;
+}

@@ -228,6 +228,15 @@ static uint16_t ConversionError(
     {
         return PRODUCT_INPUT_ERROR_AMBIENT;
     }
+    /* OUT_OF_RANGE implies OUT_OF_SPEC; report the more severe condition. */
+    if ((flags & SENSOR_FLAG_OUT_OF_RANGE) != 0UL)
+    {
+        return PRODUCT_INPUT_ERROR_OUT_OF_RANGE;
+    }
+    if ((flags & SENSOR_FLAG_OUT_OF_SPEC) != 0UL)
+    {
+        return PRODUCT_INPUT_ERROR_OUT_OF_SPEC;
+    }
     if (SensorConversionService_IsRtd(type))
     {
         return PRODUCT_INPUT_ERROR_RTD;

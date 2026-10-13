@@ -307,6 +307,60 @@ static void TestAnalogPvEngineeringRange(void)
     }
 }
 
+static void TestDistinctRangeErrors(void)
+{
+    const uint16_t types[] = {
+        PRODUCT_SENSOR_TYPE_TC_K, PRODUCT_SENSOR_TYPE_RTD_100_OHM,
+        PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV, PRODUCT_SENSOR_TYPE_CURRENT_4_20MA};
+    SensorConversionConfig_t config;
+    FactoryCalibrationProfile_t profile;
+    ProductSensorMeasurementSnapshot_t snapshot;
+    const uint16_t errors[] = {61U, 142U, 143U, 142U, 143U, 61U};
+    g_product_configuration.filterTimeConstantSeconds = 0.0F;
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_product_configuration.cjcOffsetCentiC = 0;
+    g_sample.valid = true;
+    for (unsigned int i = 0U; i < 4U; i++)
+    {
+        g_product_configuration.sensorType = types[i];
+        ProductSensorMeasurementService_Initialize();
+        assert(ProductSensorMeasurementService_ResolveConfiguration(types[i], &config, &profile));
+        for (unsigned int j = 0U; j < 6U; j++)
+        {
+            if (i < 2U)
+            {
+                const PiecewiseLinearTable_t *table = config.measurement_table;
+                const PiecewiseLinearSegment_t *edge = j < 3U ?
+                    &table->segments[0] : &table->segments[table->segment_count-1U];
+                int32_t target = j < 3U ? config.nominal_min : config.nominal_max;
+                target += (j == 0U) ? 10000L : (j == 1U) ? -10000L :
+                          (j == 2U) ? -30000L : (j == 3U) ? 10000L :
+                          (j == 4U) ? 30000L : -10000L;
+                int64_t input = ((int64_t)target * table->coefficient_scale - edge->intercept) / edge->slope;
+                g_sample.microvolts = i == 0U ? (int32_t)input :
+                    (int32_t)(input * config.excitation_current_ua / 1000LL);
+            }
+            else if (i == 2U)
+            {
+                const int32_t uv[] = {1000L, -500L, -1001L, 50500L, 51001L, 1000L};
+                g_sample.microvolts = uv[j];
+            }
+            else
+            {
+                const int32_t ua[] = {10000L, 3900L, 3600L, 20100L, 20500L, 10000L};
+                g_sample.microvolts = (int32_t)((int64_t)ua[j] * config.shunt_resistance_milliohm *
+                    config.frontend_ratio_denominator / (1000LL * config.frontend_ratio_numerator));
+            }
+            g_sample.sequence++;
+            assert(ProductSensorMeasurementService_Process(0U));
+            assert(g_monitor.inputError == errors[j]);
+            assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
+            assert(snapshot.input_error == errors[j]);
+            assert(snapshot.valid);
+        }
+    }
+}
+
 int main(void)
 {
     TestConfigurationMapping();
@@ -316,6 +370,7 @@ int main(void)
     TestInvalidCjcIsReported();
     TestCjcSourceSelection();
     TestAnalogPvEngineeringRange();
+    TestDistinctRangeErrors();
     return 0;
 }
 

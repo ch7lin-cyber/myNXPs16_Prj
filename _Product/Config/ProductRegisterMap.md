@@ -356,3 +356,72 @@ remains overtemperature.
 
 
 CJC source semantics, NVM migration and copper-wire test steps: [CjcSourceSelection.md](../Docs/CjcSourceSelection.md).
+
+
+## Temperature sensor specification and measurement limits
+
+All TC/RTD limits are in °C. Values outside the nominal specification set
+`SENSOR_FLAG_OUT_OF_SPEC` (bit 0). Values strictly below nominal minimum −20°C
+or strictly above nominal maximum +20°C additionally set
+`SENSOR_FLAG_OUT_OF_RANGE` (bit 1). Equality at nominal endpoints is normal;
+equality at extended endpoints is out of specification but not out of range.
+Linked safety/alarm range consumers receive extended limits. Conversion keeps
+nominal limits to preserve both classifications. Voltage/current PV scaling is unchanged; physical signal limits below apply.
+
+| Sensor | Nominal specification (°C) | Extended measurement limits (°C) |
+|---|---|---|
+| TC-K / TC-N | −200…1300 | −220…1320 |
+| TC-J | −200…1200 | −220…1220 |
+| TC-T | −200…400 | −220…420 |
+| TC-E | 0…600 | −20…620 |
+| TC-R / TC-S | 0…1700 | −20…1720 |
+| TC-B | 100…1800 | 80…1820 |
+| TC-L | −200…850 | −220…870 |
+| TC-U | −200…500 | −220…520 |
+| TC-TXK | −150…800 | −170…820 |
+| TC-C / TC-D | 0…2300 | −20…2320 |
+| Pt100 / Pt1000 | −200…850 | −220…870 |
+| JPt100 | −20…400 | −40…420 |
+| Ni120 | −80…300 | −100…320 |
+| Cu50 | −50…150 | −70…170 |
+
+When a legacy measurement table ends before an extended limit, conversion
+continues its nearest endpoint integer linear segment. These extrapolated
+values require hardware validation; this does not extend calibrated accuracy.
+The CJC table still rejects unsupported ambient temperatures. Both range flags
+remain available in the internal measurement snapshot; the input error register distinguishes OUT_OF_SPEC (142) and OUT_OF_RANGE (143).
+
+
+### Voltage/current physical limits
+
+The extension is 2% of the physical span (maximum − minimum). Classification
+uses the calibrated physical signal before PV scaling, independently of the
+engineering display range. Nominal endpoints are normal; extended endpoints
+are OUT_OF_SPEC only; beyond extended endpoints both flags are set.
+
+| Input | Nominal specification | Extended measurement limits |
+|---|---|---|
+| Voltage 0…5 V | 0…5 V | −0.1…5.1 V |
+| Voltage 0…10 V | 0…10 V | −0.2…10.2 V |
+| Voltage 0…50 mV | 0…50 mV | −1…51 mV |
+| Current 0…20 mA | 0…20 mA | −0.4…20.4 mA |
+| Current 4…20 mA | 4…20 mA | 3.68…20.32 mA |
+
+The input error register reports 142 for OUT_OF_SPEC and 143 for OUT_OF_RANGE. Hardware
+headroom and extended-range accuracy still require physical validation.
+
+
+### Sensor Input Error classification
+
+Read the existing Input Error register at `0x1002 + channel * 0x10`
+(CH0 `0x1002`, CH1 `0x1012`, CH2 `0x1022`, CH3 `0x1032`).
+
+| Decimal | Hex | Meaning |
+|---|---|---|
+| 61 | 0x003D | Normal |
+| 142 | 0x008E | Sensor outside nominal specification |
+| 143 | 0x008F | Sensor outside extended measurement range |
+
+If both flags are set, 143 takes precedence. Existing CJC, table/conversion,
+and factory-calibration errors keep their original codes. Classification uses
+unfiltered calibrated measurements; PV remains readable during range errors.
