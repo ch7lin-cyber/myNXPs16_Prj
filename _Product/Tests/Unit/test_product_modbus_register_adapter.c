@@ -496,7 +496,7 @@ static void TestProductSerialPolicy(void)
     {
         {{115200UL, HAL_SERIAL_DATA_BITS_8, HAL_SERIAL_PARITY_NONE,
           HAL_SERIAL_STOP_BITS_1},
-         SERIAL_PROTOCOL_MODBUS_RTU, SERIAL_ROLE_MODBUS_SLAVE, 1000UL},
+         SERIAL_PROTOCOL_MODBUS_RTU, SERIAL_ROLE_MODBUS_SLAVE, 1000UL, 0UL},
         2U
     };
     ModbusSerialPortConfiguration_t port1 = port0;
@@ -514,6 +514,22 @@ static void TestProductSerialPolicy(void)
     assert(ModbusRegisterAdapter_ReadSerialRegister(0x1210U, &value) ==
            MODBUS_EXCEPTION_NONE);
     assert(value == MODBUS_SERIAL_BAUD_921600);
+
+    assert(interface.write_single_register(
+               interface.context, 0x120BU, 2500U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(ModbusRegisterAdapter_ReadSerialRegister(0x120BU, &value) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(value == 2500U);
+    assert(ModbusRegisterAdapter_ReadSerialRegister(0x121BU, &value) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(value == 0U); /* Response delay is independent per port. */
+    assert(interface.write_single_register(
+               interface.context, 0x121BU, 60000U) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(ModbusRegisterAdapter_ReadSerialRegister(0x121BU, &value) ==
+           MODBUS_EXCEPTION_NONE);
+    assert(value == 60000U);
 
     assert(interface.write_single_register(
                interface.context, 0x1204U,

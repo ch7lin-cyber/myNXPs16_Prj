@@ -33,6 +33,7 @@ typedef struct
     size_t rxScannedLength;
     size_t txLength;
     uint16_t configurationRevision;
+    uint32_t responseDelayUs;
     bool initialized;
 } ProductModbusContext_t;
 
@@ -56,6 +57,10 @@ static void SetInitialSerialConfiguration(
     configuration->serial.role = role;
     configuration->serial.response_timeout_ms =
         PRODUCT_MODBUS_RESPONSE_TIMEOUT_MS;
+    configuration->serial.response_delay_us =
+        (role == SERIAL_ROLE_MODBUS_SLAVE) ?
+            PRODUCT_MODBUS_FC0_RESPONSE_DELAY_US :
+            PRODUCT_MODBUS_FC1_RESPONSE_DELAY_US;
     configuration->unit_id = unit_id;
 }
 
@@ -164,6 +169,7 @@ static bool SynchronizeActiveConfiguration(void)
 
     s_modbus.protocol = active.serial.protocol;
     s_modbus.slave.unit_address = (uint8_t)active.unit_id;
+    s_modbus.responseDelayUs = active.serial.response_delay_us;
     s_modbus.configurationRevision = revision;
     return ConfigureDirectionTiming(&active.serial) &&
            ConfigureReceiveTiming(&active.serial);
@@ -257,17 +263,17 @@ static bool SendPreparedResponse(void)
 
 static bool StartResponse(void)
 {
-#if (PRODUCT_MODBUS_FC0_RESPONSE_DELAY_US == 0UL)
-    return SendPreparedResponse();
-#else
+    if (s_modbus.responseDelayUs == 0U)
+    {
+        return SendPreparedResponse();
+    }
     if (BspRs485_StartSlaveResponseDelayUs(
-            PRODUCT_MODBUS_FC0_RESPONSE_DELAY_US) != BSP_RS485_STATUS_OK)
+            s_modbus.responseDelayUs) != BSP_RS485_STATUS_OK)
     {
         return false;
     }
     s_modbus.state = PRODUCT_MODBUS_WAITING_RESPONSE_DELAY;
     return true;
-#endif
 }
 
 bool L03_ProductModbus_Init(void)
@@ -306,6 +312,8 @@ bool L03_ProductModbus_Init(void)
     s_modbus.protocol = slave_configuration.serial.protocol;
     s_modbus.slave.unit_address =
         (uint8_t)slave_configuration.unit_id;
+    s_modbus.responseDelayUs =
+        slave_configuration.serial.response_delay_us;
     ProductModbusRegisterAdapter_GetInterface(&s_modbus.slave.registers);
     s_modbus.initialized = true;
     return StartReceive();

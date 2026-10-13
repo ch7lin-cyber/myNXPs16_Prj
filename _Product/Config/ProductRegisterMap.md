@@ -63,6 +63,20 @@ to allow the digital filter to settle. The AD7124 ERROR register is captured
 once during device initialization/reinitialization and is not read by the
 normal 100 Hz polling path.
 
+## Serial response delay
+
+FC0 and FC1 each expose an independent response-delay setting. Writes stage a
+Pending value and take effect with the shared serial Apply Key at `0x1208`.
+
+| Port | Address | Range | Current behavior |
+|---|---:|---:|---|
+| FC0 Modbus Slave | `0x120B` | 0..60000 us | Delay from a complete valid request until response TX/DE starts |
+| FC1 Modbus Master | `0x121B` | 0..60000 us | Stored per-port setting reserved for a future Slave role; it does not delay Master requests |
+
+This setting is separate from `Response Timeout` (`0x1207`/`0x1217`) and from
+the RS-485 DE assert/release timing. A value of zero sends the response without
+an added delay.
+
 ## Four-channel PWM configuration
 
 | Address | Access | Meaning | Range / unit |
