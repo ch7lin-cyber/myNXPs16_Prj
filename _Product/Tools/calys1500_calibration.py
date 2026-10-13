@@ -206,8 +206,9 @@ def guided_profile_run(calys, dut, channel, group, profile, sensor,
             print("預覽模式：未寫入 NVM。若刺激值與接線已在產品板驗證，"
                   "加上 --allow-calibration-apply 才能進入 Apply 確認。")
             return preview
-        phrase = f"APPLY CH{channel} PROFILE {profile}"
-        confirmation = input_fn(f"確認來源、端子接線與校正標準後，輸入 {phrase}：")
+        phrase = f"APPLY_CH{channel}_PROFILE_{profile}"
+        confirmation = input_fn(
+            f"確認來源、端子接線與校正標準後，輸入 {phrase}：").strip().upper()
         if confirmation != phrase:
             factory.abort()
             print("確認字串不符，已 Abort；未寫入 NVM。")

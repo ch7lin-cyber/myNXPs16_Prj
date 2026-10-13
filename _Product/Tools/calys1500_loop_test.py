@@ -236,7 +236,7 @@ def main(argv=None):
     parser.add_argument("--calibration-stability-uv", type=positive, default=20.0,
                         help="穩定視窗最大 µV 範圍")
     parser.add_argument("--allow-calibration-apply", action="store_true",
-                        help="允許進入 NVM Apply；仍需逐筆輸入 APPLY CHn PROFILE p 確認")
+                        help="允許進入 NVM Apply；仍需逐筆輸入 APPLY_CHn_PROFILE_p 確認")
     parser.add_argument("--calys-timeout", type=positive, default=5.0)
     parser.add_argument("--calys-write-delay", type=nonnegative, default=0.15,
                         help="CALYS 每筆指令後的等待秒數（預設 0.15）")

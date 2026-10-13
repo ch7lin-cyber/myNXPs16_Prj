@@ -297,7 +297,7 @@ class Tests(unittest.TestCase):
 
         dut = Dut()
         calys = Calys(dut)
-        inputs = iter(["0", "5", "APPLY CH0 PROFILE 4"])
+        inputs = iter(["0", "5", "  apply_ch0_profile_4  "])
         report = guided_profile_run(
             calys, dut, 0, WIRING_GROUPS["3"], 4, protocol.SENSORS[120],
             allow_apply=True, dwell=0, stable_timeout=1, spread_limit_uv=20,
