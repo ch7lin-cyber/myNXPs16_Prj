@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Interactive Modbus RTU test menu for product ADC diagnostics.
+"""Interactive Modbus RTU/ASCII diagnostic menu for product ADC diagnostics.
 
 Default communication settings:
     Slave address: 2
     Baud rate:     115200
-    Data format:   8N1
+    Data format:   RTU 8N1 / ASCII 7E1 (overridable)
     Request delay: 50 ms before each request
 
 Dependency:
@@ -82,7 +82,7 @@ ADC_DIAGNOSTIC_NAMES = {
 
 
 class ModbusError(RuntimeError):
-    """Raised when an RTU response is invalid or reports an exception."""
+    """Raised when a Modbus response is invalid or reports an exception."""
 
 
 def crc16_modbus(data: bytes) -> int:
@@ -96,6 +96,28 @@ def crc16_modbus(data: bytes) -> int:
 
 def append_crc(frame: bytes) -> bytes:
     return frame + crc16_modbus(frame).to_bytes(2, byteorder="little")
+
+
+def lrc_modbus(data: bytes) -> int:
+    return (-sum(data)) & 0xFF
+
+
+def encode_ascii_frame(data: bytes) -> bytes:
+    return b":" + (data + bytes([lrc_modbus(data)])).hex().upper().encode("ascii") + b"\r\n"
+
+
+def decode_ascii_frame(frame: bytes) -> bytes:
+    if not frame.startswith(b":") or not frame.endswith(b"\r\n"):
+        raise ModbusError("ASCII response is incomplete or missing colon/CRLF")
+    encoded = frame[1:-2]
+    if len(encoded) < 8 or len(encoded) % 2 or any(
+        byte not in b"0123456789ABCDEFabcdef" for byte in encoded
+    ):
+        raise ModbusError("ASCII response contains invalid hexadecimal data")
+    decoded = bytes.fromhex(encoded.decode("ascii"))
+    if sum(decoded) & 0xFF:
+        raise ModbusError("response LRC error")
+    return decoded[:-1]
 
 
 def parse_integer(text: str, minimum: int = 0, maximum: int = 0xFFFF) -> int:
@@ -151,13 +173,26 @@ class ModbusRtuClient:
     baud_rate: int = DEFAULT_BAUD_RATE
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
 
+    # Keep the existing class name/defaults for CALYS tool imports.
+    mode: str = "rtu"
+    bytesize: int | None = None
+    parity: str | None = None
+    stopbits: int = 1
+
     def __post_init__(self) -> None:
+        self.mode = self.mode.lower()
+        if self.mode not in ("rtu", "ascii"):
+            raise ValueError("mode must be rtu or ascii")
+        if self.bytesize is None:
+            self.bytesize = 7 if self.mode == "ascii" else 8
+        if self.parity is None:
+            self.parity = "E" if self.mode == "ascii" else "N"
         self.serial = serial.Serial(
             port=self.port,
             baudrate=self.baud_rate,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
+            bytesize=self.bytesize,
+            parity=self.parity,
+            stopbits=self.stopbits,
             timeout=self.timeout_seconds,
             write_timeout=self.timeout_seconds,
         )
@@ -167,35 +202,55 @@ class ModbusRtuClient:
             self.serial.close()
 
     def _exchange(self, request_pdu: bytes, expected_function: int) -> bytes:
-        request = append_crc(bytes([self.slave_id]) + request_pdu)
+        data = bytes([self.slave_id]) + request_pdu
+        request = encode_ascii_frame(data) if self.mode == "ascii" else append_crc(data)
         # Allow the RS-485 slave to release TX and re-arm reception.
         time.sleep(DEFAULT_REQUEST_DELAY_SECONDS)
         self.serial.reset_input_buffer()
-        print(f"  TX: {request.hex().upper()}")
+        print(f"  TX: {request!r}" if self.mode == "ascii" else f"  TX: {request.hex().upper()}")
         self.serial.write(request)
         self.serial.flush()
 
-        header = self.serial.read(3)
-        if len(header) != 3:
-            raise ModbusError(
-                f"response timeout: expected 3-byte header, received {len(header)}"
-            )
+        if self.mode == "ascii":
+            frame = self.serial.read_until(b"\r\n", size=513)
+            print(f"  RX: {frame!r}")
+            response = decode_ascii_frame(frame)
+        else:
+            header = self.serial.read(3)
+            if len(header) != 3:
+                raise ModbusError(
+                    f"response timeout: expected 3-byte header, received {len(header)}"
+                )
 
-        function = header[1]
+            function = header[1]
+            if function & 0x80:
+                response = header + self.serial.read(2)
+            elif function in (0x03, 0x04):
+                response = header + self.serial.read(header[2] + 2)
+            elif function in (0x06, 0x10):
+                response = header + self.serial.read(5)
+            else:
+                raise ModbusError(f"unsupported response function 0x{function:02X}")
+
+            print(f"  RX: {response.hex().upper()}")
+            if len(response) < 5:
+                raise ModbusError("response is incomplete")
+            if crc16_modbus(response[:-2]) != int.from_bytes(response[-2:], "little"):
+                raise ModbusError("response CRC error")
+            response = response[:-2]
+        function = response[1]
         if function & 0x80:
-            response = header + self.serial.read(2)
+            expected_length = 3
         elif function in (0x03, 0x04):
-            response = header + self.serial.read(header[2] + 2)
+            if len(response) < 3:
+                raise ModbusError("response is incomplete")
+            expected_length = 3 + response[2]
         elif function in (0x06, 0x10):
-            response = header + self.serial.read(5)
+            expected_length = 6
         else:
             raise ModbusError(f"unsupported response function 0x{function:02X}")
-
-        print(f"  RX: {response.hex().upper()}")
-        if len(response) < 5:
-            raise ModbusError("response is incomplete")
-        if crc16_modbus(response[:-2]) != int.from_bytes(response[-2:], "little"):
-            raise ModbusError("response CRC error")
+        if len(response) != expected_length:
+            raise ModbusError(f"invalid response length {len(response)}, expected {expected_length}")
         if response[0] != self.slave_id:
             raise ModbusError(
                 f"unexpected slave address {response[0]}, expected {self.slave_id}"
@@ -494,7 +549,7 @@ def write_registers(client: ModbusRtuClient) -> None:
 def run_menu(client: ModbusRtuClient) -> None:
     while True:
         print(
-            "\n========== Modbus RTU Test Menu ==========\n"
+            "\n========== Modbus RTU/ASCII 診斷工具 ==========\n"
             "1. Read channel PV and ADC diagnostics\n"
             "3. Read arbitrary holding registers\n"
             "6. Write holding register(s)\n"
@@ -522,6 +577,11 @@ def main() -> int:
     parser.add_argument("--port", help="serial port, for example COM8")
     parser.add_argument("--slave", type=int, default=DEFAULT_SLAVE_ID)
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD_RATE)
+    parser.add_argument("--mode", type=str.lower, choices=("rtu", "ascii"),
+                        help="protocol; if omitted, choose at startup (Enter = RTU)")
+    parser.add_argument("--bytesize", type=int, choices=(7, 8))
+    parser.add_argument("--parity", type=str.upper, choices=("N", "E", "O"))
+    parser.add_argument("--stopbits", type=int, choices=(1, 2), default=1)
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     args = parser.parse_args()
 
@@ -533,12 +593,24 @@ def main() -> int:
         parser.error("--timeout must be positive")
 
     try:
+        mode = args.mode
+        if mode is None:
+            while True:
+                selection = input("Mode: 1. RTU / 2. ASCII [1]: ").strip().lower()
+                if selection in ("", "1", "rtu", "2", "ascii"):
+                    mode = "ascii" if selection in ("2", "ascii") else "rtu"
+                    break
+                print("Select 1 (RTU) or 2 (ASCII).")
         port = choose_serial_port(args.port)
         client = ModbusRtuClient(
             port=port,
             slave_id=args.slave,
             baud_rate=args.baud,
             timeout_seconds=args.timeout,
+            mode=mode,
+            bytesize=args.bytesize,
+            parity=args.parity,
+            stopbits=args.stopbits,
         )
     except (ValueError, serial.SerialException) as exc:
         print(f"Unable to open serial port: {exc}", file=sys.stderr)
@@ -546,7 +618,8 @@ def main() -> int:
 
     print(
         f"Connected: {port}, slave={args.slave}, "
-        f"{args.baud} baud, 8N1, timeout={args.timeout:.1f}s"
+        f"{args.baud} baud, {client.bytesize}{client.parity}{client.stopbits}, "
+        f"mode={client.mode.upper()}, timeout={args.timeout:.1f}s"
     )
     try:
         run_menu(client)

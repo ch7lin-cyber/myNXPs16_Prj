@@ -101,7 +101,7 @@ q 結束
 
 手動在 CALYS 面板改 CSF 後，若工具再次設定 TC Sensor／輸出，會依啟動參數覆寫 CSF。因此要停用補償，請明確加 `--cjc DIS`。
 
-## 3. Modbus RTU 診斷工具
+## 3. Modbus RTU/ASCII 診斷工具
 
 ```powershell
 python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\modbus_rtu_test_menu.py --port COM8 --slave 2 --baud 115200 --timeout 3
@@ -111,10 +111,22 @@ python D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools\modbus_rtu_test_menu
 |---|---|
 | `--port COM8` | DUT port |
 | `--slave 2` | Modbus 站號 |
-| `--baud 115200` | Baud rate；格式為 8N1 |
+| `--mode rtu` / `--mode ascii` | 通訊模式；省略時啟動選擇，Enter 預設 RTU |
+| `--bytesize 7` / `8` | 資料位元；RTU 預設 8，ASCII 預設 7 |
+| `--parity N` / `E` / `O` | 同位檢查；RTU 預設 N，ASCII 預設 E |
+| `--stopbits 1` / `2` | 停止位元；預設 1 |
+| `--baud 115200` | Baud rate |
 | `--timeout 3` | 回覆逾時 3 秒；未指定時預設 1 秒 |
 
-此工具每筆請求送出前固定等待 **50 ms**。選單 `1` 讀通道 PV 與完整 ADC 診斷；`3` 讀指定 Holding Register；`6` 寫入 Register；`0` 結束。
+ASCII 範例（7E1）：
+
+```powershell
+python modbus_rtu_test_menu.py --port COM8 --slave 2 --baud 115200 --mode ascii --timeout 3
+```
+
+RTU 預設 8N1，ASCII 預設 7E1；可用上述參數覆寫，必須與 DUT 的協定及 UART 格式一致。選擇工具模式不會自動切換 MCU 協定。ASCII 使用冒號、HEX 字元、LRC 與 CRLF；RTU 使用 CRC。兩種模式共用診斷與 FC03/06/10 讀寫功能。為相容現有 CALYS 工具匯入，保留檔名 `modbus_rtu_test_menu.py`。
+
+此工具每筆請求送出前固定等待 **50 ms**。選單 `1` 讀通道 PV 與完整 ADC 診斷；`3` 讀指定 Holding Register；`6` 寫入 Register；`q` 結束。
 
 **這支工具不支援 `--cjc DIS`**，不會設定 CALYS，也不會變更 DUT 的 CJC。加入該參數會出現不認得參數的錯誤。
 
@@ -127,7 +139,7 @@ cd D:\Python\pyTestCode\NXP\myNXPs16_Prj\_Product\Tools
 python calys1500_loop_test.py --calys-port COM20 --dut-port COM8 --calys-write-delay 0.3 --calys-timeout 10 --calys-trace --cjc DIS
 ```
 
-使用 RTU 診斷工具前，先以 `q` 關閉 CALYS 測試工具，避免兩支工具同時存取 COM8。之後再啟動 CALYS 工具繼續測試。
+使用 RTU/ASCII 診斷工具前，先以 `q` 關閉 CALYS 測試工具，避免兩支工具同時存取 COM8。之後再啟動 CALYS 工具繼續測試。
 
 
 ## 5. 十點測試結果與帶正負號的差值
