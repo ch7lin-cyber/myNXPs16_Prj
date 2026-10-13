@@ -293,9 +293,9 @@ def main(argv=None):
             print("\n[1] 選通道／Sensor（直接寫 DUT）")
             print("    [1.1.0] 十點自動測試")
             print("\n[2] 自動校正（依接線類別；預設只預覽）／選通道")
-            print("  [2.1] 熱電偶 TC")
+            print("  [2.1] 電壓／mV")
             print("  [2.2] RTD 三線")
-            print("  [2.3] 電壓／mV")
+            print("  [2.3] 熱電偶 TC")
             print("  [2.4] 電流")
             print("q 結束")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "

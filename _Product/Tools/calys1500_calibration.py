@@ -22,15 +22,15 @@ class WiringGroup:
 
 
 WIRING_GROUPS = {
-    "1": WiringGroup("tc", "熱電偶 TC", "依產品接線圖將 CALYS TC+／TC− 接至 DUT 熱電偶輸入。", {
-        0: (23, 26, 48, 58, 100, 101, 102), 1: (15, 80, 93),
-        3: (46,), 7: (11, 84),
+    "1": WiringGroup("voltage", "電壓／mV", "CALYS V 輸出與 COM 接 DUT 電壓輸入。", {
+        0: (122,), 4: (120, 121),
     }),
     "2": WiringGroup("rtd", "RTD 三線", "CALYS RTD 三線端依接線圖接 DUT L1／L2／L3。", {
         2: (113, 116), 5: (115,), 8: (114,), 9: (117,),
     }),
-    "3": WiringGroup("voltage", "電壓／mV", "CALYS V 輸出與 COM 接 DUT 電壓輸入。", {
-        0: (122,), 4: (120, 121),
+    "3": WiringGroup("tc", "熱電偶 TC", "依產品接線圖將 CALYS TC+／TC− 接至 DUT 熱電偶輸入。", {
+        0: (23, 26, 48, 58, 100, 101, 102), 1: (15, 80, 93),
+        3: (46,), 7: (11, 84),
     }),
     "4": WiringGroup("current", "電流", "CALYS mA 與 COM 串入 DUT 電流輸入回路。", {
         6: (123, 124),
@@ -92,9 +92,10 @@ def wait_stable_sample(dut, channel, timeout=30.0, stable_count=5,
         if sample["count"] == previous_count:
             continue
         previous_count = sample["count"]
-        # 61 is the firmware's normal input status code. Reject stale/invalid ADC data.
-        if (sample["input_error"] != 61 or sample["fault"] != 0 or
-                sample["raw_code"] in (0, 0xFFFFFF)):
+        # Factory capture uses uncalibrated ADC microvolts.  Do not reject a
+        # healthy raw sample merely because an old bad calibration makes the
+        # converted PV report an input error; that would prevent recovery.
+        if (sample["fault"] != 0 or sample["raw_code"] in (0, 0xFFFFFF)):
             values.clear()
             continue
         values.append(sample["microvolts"])
@@ -104,6 +105,21 @@ def wait_stable_sample(dut, channel, timeout=30.0, stable_count=5,
                     "spread_uv": max(values) - min(values),
                     "sample_count": sample["count"], "pv_words": sample["pv"]}
     raise TimeoutError(f"等待 {stable_count} 筆穩定有效 ADC 樣本逾時（{timeout:g}s）")
+
+
+def calibration_source_points(profile, sensor, input_fn=input):
+    """Return the physical source points required by the firmware target."""
+    if profile == 0:
+        if sensor.code != 122:
+            raise ValueError("Profile 0 必須由 [2.1] 電壓／mV 使用 0-50mV 校正；"
+                             "TC 溫度輸出僅供量程驗證")
+        print("Profile 0 固定校正標準：0 mV / 50 mV")
+        return validate(sensor, 0), validate(sensor, 50)
+    source_low = validate(sensor, input_fn(
+        f"CALYS {sensor.label} 低點輸出 ({sensor.unit})："))
+    source_high = validate(sensor, input_fn(
+        f"CALYS {sensor.label} 高點輸出 ({sensor.unit})："))
+    return source_low, source_high
 
 
 class FactoryCalibration:
@@ -163,8 +179,7 @@ def guided_profile_run(calys, dut, channel, group, profile, sensor,
     previous = read_profile(dut, channel, profile)
     print(f"CH{channel} Profile {profile} {PROFILE_LABELS[profile]} targets："
           f"{target_zero} / {target_span} uV；原校正={previous}")
-    source_low = validate(sensor, input_fn(f"CALYS {sensor.label} 低點輸出 ({sensor.unit})："))
-    source_high = validate(sensor, input_fn(f"CALYS {sensor.label} 高點輸出 ({sensor.unit})："))
+    source_low, source_high = calibration_source_points(profile, sensor, input_fn)
     if source_high == source_low:
         raise ValueError("CALYS 高低點不可相同")
     settings = settings or {}

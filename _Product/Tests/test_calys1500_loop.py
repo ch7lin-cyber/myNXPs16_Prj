@@ -198,15 +198,44 @@ class Tests(unittest.TestCase):
             with path.open(encoding="utf-8-sig") as stream:
                 self.assertEqual(list(csv.DictReader(stream))[0]["status"], "error")
 
+    def test_factory_stability_accepts_raw_sample_despite_old_pv_error(self):
+        from calys1500_calibration import wait_stable_sample
+
+        class Dut:
+            def __init__(self):
+                self.count = 0
+            def read_holding_registers(self, address, quantity):
+                if address == 0x4831:
+                    self.count += 1
+                    return [0, self.count]
+                if address == 0x1000:
+                    return [0, 0, 140]  # Old bad calibration breaks PV only.
+                if address == 0x484F:
+                    return [0x0080, 1, 0, 0, 0, 1234]
+                if address == 0x4823:
+                    return [0]
+                raise AssertionError((hex(address), quantity))
+
+        sample = wait_stable_sample(Dut(), 0, timeout=1, stable_count=5,
+                                    sleep=lambda _: None)
+        self.assertEqual(sample["mean_uv"], 1234)
+        self.assertEqual(sample["spread_uv"], 0)
+
     def test_wiring_groups_and_unique_profiles(self):
-        from calys1500_calibration import WIRING_GROUPS
+        from calys1500_calibration import WIRING_GROUPS, calibration_source_points
         self.assertEqual(set(WIRING_GROUPS), {"1", "2", "3", "4"})
+        self.assertEqual(WIRING_GROUPS["1"].key, "voltage")
+        self.assertEqual(WIRING_GROUPS["3"].key, "tc")
         self.assertIn(0, WIRING_GROUPS["1"].profiles)
         self.assertIn(0, WIRING_GROUPS["3"].profiles)  # shared firmware profile
         for group in WIRING_GROUPS.values():
             self.assertEqual(len(group.profiles), len(set(group.profiles)))
             for profile, codes in group.profiles.items():
                 self.assertTrue(all(code in protocol.SENSORS for code in codes))
+        self.assertEqual(calibration_source_points(0, protocol.SENSORS[122]),
+                         (Decimal("0"), Decimal("50")))
+        with self.assertRaisesRegex(ValueError, "電壓／mV"):
+            calibration_source_points(0, protocol.SENSORS[48])
 
     def test_calibration_menu_selection_parsing(self):
         self.assertEqual(loop.parse_wiring_group_selection("2.1"), "1")
@@ -285,7 +314,7 @@ class Tests(unittest.TestCase):
         calys = Calys(dut)
         inputs = iter(["0", "5"])
         report = guided_profile_run(
-            calys, dut, 0, WIRING_GROUPS["3"], 4, protocol.SENSORS[120],
+            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[120],
             allow_apply=False, dwell=0, stable_timeout=1, spread_limit_uv=20,
             input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
         self.assertFalse(report["applied"])
@@ -299,7 +328,7 @@ class Tests(unittest.TestCase):
         calys = Calys(dut)
         inputs = iter(["0", "5", "  apply_ch0_profile_4  "])
         report = guided_profile_run(
-            calys, dut, 0, WIRING_GROUPS["3"], 4, protocol.SENSORS[120],
+            calys, dut, 0, WIRING_GROUPS["1"], 4, protocol.SENSORS[120],
             allow_apply=True, dwell=0, stable_timeout=1, spread_limit_uv=20,
             input_fn=lambda prompt: next(inputs), sleep=lambda _: None)
         self.assertTrue(report["applied"])
