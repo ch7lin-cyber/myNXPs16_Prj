@@ -101,7 +101,8 @@ static bool ProductRs485Dma_IsBaudRateSupported(uint32_t baudRate)
            (baudRate == 38400UL) ||
            (baudRate == 57600UL) ||
            (baudRate == 115200UL) ||
-           (baudRate == 230400UL);
+           (baudRate == 230400UL) ||
+           (baudRate == 921600UL);
 }
 
 static mrt_chnl_t ProductRs485Dma_GetReceiveTimerChannel(product_rs485_channel_t channel)

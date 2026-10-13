@@ -510,10 +510,10 @@ static void TestProductSerialPolicy(void)
 
     assert(interface.write_single_register(
                interface.context, 0x1200U,
-               MODBUS_SERIAL_BAUD_230400) == MODBUS_EXCEPTION_NONE);
+               MODBUS_SERIAL_BAUD_921600) == MODBUS_EXCEPTION_NONE);
     assert(ModbusRegisterAdapter_ReadSerialRegister(0x1210U, &value) ==
            MODBUS_EXCEPTION_NONE);
-    assert(value == MODBUS_SERIAL_BAUD_230400);
+    assert(value == MODBUS_SERIAL_BAUD_921600);
 
     assert(interface.write_single_register(
                interface.context, 0x1204U,
