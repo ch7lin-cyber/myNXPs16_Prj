@@ -419,9 +419,8 @@ def main(argv=None):
                                 raise ValueError("此接線類別不包含該 Profile")
                             profile_key = (candidate, profile)
                             if profile_key in processed_calibration_profiles:
-                                print(f"CH{candidate} Profile {profile} 本次已處理，"
-                                      "此 Profile 與另一接線類別共用，略過以免重複校正。")
-                                continue
+                                print(f"CH{candidate} Profile {profile} 本次已處理；"
+                                      "依操作員選擇重新校正。")
                             choices = group.profiles[profile]
                             print("此 Profile 的可選 Sensor：", ", ".join(
                                 f"{code}:{SENSORS[code].label}" for code in choices))
