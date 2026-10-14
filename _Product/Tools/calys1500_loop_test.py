@@ -406,11 +406,13 @@ def main(argv=None):
                     dut = DutLink(cls(dut_port, args.slave, args.dut_baud, args.dut_timeout),
                                   args.dut_read_retries, args.dut_request_delay)
                     try:
-                        print("本類別的唯一 Firmware Profiles：")
-                        for profile, sensor_codes in group.profiles.items():
-                            labels = ", ".join(SENSORS[code].label for code in sensor_codes)
-                            print(f"  [P{profile}] {PROFILE_LABELS[profile]}：{labels}")
                         while True:
+                            print("\n本類別的唯一 Firmware Profiles：")
+                            for profile, sensor_codes in group.profiles.items():
+                                labels = ", ".join(
+                                    SENSORS[code].label for code in sensor_codes)
+                                print(f"  [P{profile}] "
+                                      f"{PROFILE_LABELS[profile]}：{labels}")
                             profile = parse_profile_selection(
                                 input("要校正的 Profile ID（例如 P0；q 返回）："))
                             if profile is None:
