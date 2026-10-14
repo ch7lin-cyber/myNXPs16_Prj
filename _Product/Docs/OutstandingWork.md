@@ -2,7 +2,7 @@
 
 更新日期：2026-10-14  
 主專案基準：`63bc47f`  
-PlatformCore 基準：`5506f06`
+PlatformCore 基準：`21c06e7`
 
 本文件記錄目前尚未完成、已實作但仍待硬體驗證，以及明確保留給後續版本的工作。
 主機單元測試通過不等同於目標板整合與產品驗證完成。
@@ -14,7 +14,7 @@ PlatformCore 基準：`5506f06`
 - [ ] 本機切換至 `branch2_ver1` 並更新主專案。
 - [ ] 執行 `git submodule sync --recursive`。
 - [ ] 執行 `git submodule update --init --recursive`。
-- [ ] 確認 PlatformCore 位於 `5506f06` 或其後續相容版本。
+- [ ] 確認 PlatformCore 位於 `21c06e7` 或其後續相容版本。
 - [ ] 在 MCUXpresso 執行 Clean Project 與 Build Project。
 - [ ] 確認以下欄位不再出現編譯錯誤：
   - `EventTemperatureInputConfiguration_t.cjc_offset_centi_c`
