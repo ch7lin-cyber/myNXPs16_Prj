@@ -302,6 +302,21 @@ high-word first.
 | `0x4949..0x494A` | R | Correlation event ID |
 | `0x494B..0x495A` | R | Diagnostic values 0..7, signed 32-bit each |
 
+For an NVM fault Snapshot (`0x4945 = 4`, NVM fault code in `0x4946`), the
+eight diagnostic values have the following fixed NVM-specific meaning. Slot
+or channel values use `-1` when no value is available.
+
+| Value | Registers | NVM diagnostic meaning |
+|---|---|---|
+| 0 | `0x494B..0x494C` | `NvmServiceState_t` |
+| 1 | `0x494D..0x494E` | `NvmServiceError_t` |
+| 2 | `0x494F..0x4950` | Active slot, or `-1` |
+| 3 | `0x4951..0x4952` | Target slot, or `-1` |
+| 4 | `0x4953..0x4954` | Queued channel, or `-1` |
+| 5 | `0x4955..0x4956` | NVM sequence |
+| 6 | `0x4957..0x4958` | Loaded valid-channel bit mask |
+| 7 | `0x4959..0x495A` | Pending valid-channel bit mask |
+
 ## SW2 rotary switch
 
 SW2 is sampled every 10 ms from the four GPIO inputs labelled `RR_SW_1`,

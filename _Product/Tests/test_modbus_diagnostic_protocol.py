@@ -49,6 +49,10 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(m.append_crc(payload).hex().upper(), '02031000000440FA')
         self.assertEqual(m.encode_ascii_frame(payload), b':020310000004E7\r\n')
 
+    def test_register_address_accepts_hex_suffix(self):
+        self.assertEqual(m.parse_integer('1000h'), 0x1000)
+        self.assertEqual(m.parse_integer('0x1000'), 0x1000)
+
     def test_read_and_write_both_modes(self):
         for mode in ('rtu', 'ascii'):
             with self.subTest(mode=mode):
@@ -86,6 +90,49 @@ class TransportTests(unittest.TestCase):
             client, _ = self.client(mode, bytes.fromhex('020610000001'))
             with self.assertRaisesRegex(m.ModbusError, 'echo'):
                 client.write_single_register(0x1000, 2)
+
+    def test_continuous_read_defaults_and_format(self):
+        settings = m.ContinuousReadSettings()
+        self.assertEqual(settings.interval_seconds, 1.0)
+        self.assertEqual(len(settings.register_addresses), 10)
+        self.assertTrue(all(address is None for address in settings.register_addresses))
+        self.assertEqual(
+            m.format_continuous_register_values(
+                [0x1000, 0x1002, 0x1003], [0x03E8, 0xFFFF, 0]
+            ),
+            "(1) 1000h = 0x03E8 (1000) / "
+            "(2) 1002h = 0xFFFF (65535) / "
+            "(3) 1003h = 0x0000 (0)",
+        )
+
+    def test_continuous_read_format_rejects_mismatched_counts(self):
+        with self.assertRaisesRegex(ValueError, "count mismatch"):
+            m.format_continuous_register_values([0x1000], [])
+
+    def test_continuous_read_reads_only_configured_positions(self):
+        class FakeClient:
+            show_frames = True
+
+            def __init__(self):
+                self.addresses = []
+
+            def read_holding_registers(self, address, quantity):
+                self.addresses.append((address, quantity))
+                return [address & 0xFFFF]
+
+        client = FakeClient()
+        settings = m.ContinuousReadSettings(
+            register_addresses=[0x1000, None, 0x1002] + [None] * 7
+        )
+        output = io.StringIO()
+        with patch.object(
+            m, "wait_for_continuous_read_stop", return_value=True
+        ), contextlib.redirect_stdout(output):
+            m.start_continuous_read(client, settings)
+        self.assertEqual(client.addresses, [(0x1000, 1), (0x1002, 1)])
+        self.assertTrue(client.show_frames)
+        self.assertIn("(1) 1000h = 0x1000 (4096)", output.getvalue())
+        self.assertIn("(2) 1002h = 0x1002 (4098)", output.getvalue())
 
 
 if __name__ == '__main__':

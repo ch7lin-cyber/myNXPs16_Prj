@@ -17,7 +17,7 @@ import argparse
 import struct
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Sequence
 
 try:
@@ -33,6 +33,8 @@ DEFAULT_SLAVE_ID = 2
 DEFAULT_BAUD_RATE = 115200
 DEFAULT_TIMEOUT_SECONDS = 1.0
 DEFAULT_REQUEST_DELAY_SECONDS = 0.05
+DEFAULT_CONTINUOUS_READ_INTERVAL_SECONDS = 1.0
+CONTINUOUS_REGISTER_SLOT_COUNT = 10
 
 PV_BASE_ADDRESS = 0x1000
 PV_CHANNEL_STRIDE = 0x0010
@@ -85,6 +87,14 @@ class ModbusError(RuntimeError):
     """Raised when a Modbus response is invalid or reports an exception."""
 
 
+@dataclass
+class ContinuousReadSettings:
+    interval_seconds: float = DEFAULT_CONTINUOUS_READ_INTERVAL_SECONDS
+    register_addresses: list[int | None] = field(
+        default_factory=lambda: [None] * CONTINUOUS_REGISTER_SLOT_COUNT
+    )
+
+
 def crc16_modbus(data: bytes) -> int:
     crc = 0xFFFF
     for byte in data:
@@ -121,7 +131,12 @@ def decode_ascii_frame(frame: bytes) -> bytes:
 
 
 def parse_integer(text: str, minimum: int = 0, maximum: int = 0xFFFF) -> int:
-    value = int(text.strip(), 0)
+    normalized = text.strip().lower()
+    value = (
+        int(normalized[:-1], 16)
+        if normalized.endswith("h")
+        else int(normalized, 0)
+    )
     if not minimum <= value <= maximum:
         raise ValueError(f"value must be in range {minimum}..{maximum}")
     return value
@@ -178,6 +193,7 @@ class ModbusRtuClient:
     bytesize: int | None = None
     parity: str | None = None
     stopbits: int = 1
+    show_frames: bool = True
 
     def __post_init__(self) -> None:
         self.mode = self.mode.lower()
@@ -207,13 +223,19 @@ class ModbusRtuClient:
         # Allow the RS-485 slave to release TX and re-arm reception.
         time.sleep(DEFAULT_REQUEST_DELAY_SECONDS)
         self.serial.reset_input_buffer()
-        print(f"  TX: {request!r}" if self.mode == "ascii" else f"  TX: {request.hex().upper()}")
+        if self.show_frames:
+            print(
+                f"  TX: {request!r}"
+                if self.mode == "ascii"
+                else f"  TX: {request.hex().upper()}"
+            )
         self.serial.write(request)
         self.serial.flush()
 
         if self.mode == "ascii":
             frame = self.serial.read_until(b"\r\n", size=513)
-            print(f"  RX: {frame!r}")
+            if self.show_frames:
+                print(f"  RX: {frame!r}")
             response = decode_ascii_frame(frame)
         else:
             header = self.serial.read(3)
@@ -232,7 +254,8 @@ class ModbusRtuClient:
             else:
                 raise ModbusError(f"unsupported response function 0x{function:02X}")
 
-            print(f"  RX: {response.hex().upper()}")
+            if self.show_frames:
+                print(f"  RX: {response.hex().upper()}")
             if len(response) < 5:
                 raise ModbusError("response is incomplete")
             if crc16_modbus(response[:-2]) != int.from_bytes(response[-2:], "little"):
@@ -546,13 +569,170 @@ def write_registers(client: ModbusRtuClient) -> None:
     print("Write completed.")
 
 
+def configure_continuous_interval(settings: ContinuousReadSettings) -> None:
+    text = input(
+        f"Read interval seconds [{settings.interval_seconds:.1f}]: "
+    ).strip().lower()
+    if text == "q" or not text:
+        return
+    interval = float(text)
+    if not 0.1 <= interval <= 3600.0:
+        raise ValueError("interval must be in range 0.1..3600.0 seconds")
+    settings.interval_seconds = interval
+
+
+def configure_continuous_registers(settings: ContinuousReadSettings) -> None:
+    print(
+        "Set up to 10 register addresses. Enter keeps the current setting; "
+        "'-' clears it; q returns."
+    )
+    for index in range(CONTINUOUS_REGISTER_SLOT_COUNT):
+        current = settings.register_addresses[index]
+        current_text = "not set" if current is None else f"{current:04X}h"
+        text = input(
+            f"  ({index + 1}) register address [{current_text}]: "
+        ).strip().lower()
+        if text == "q":
+            return
+        if not text:
+            continue
+        if text == "-":
+            settings.register_addresses[index] = None
+            continue
+        settings.register_addresses[index] = parse_integer(text)
+
+
+def show_continuous_registers(settings: ContinuousReadSettings) -> None:
+    print(f"Read interval: {settings.interval_seconds:.1f} seconds")
+    configured = False
+    for index, address in enumerate(settings.register_addresses, start=1):
+        if address is not None:
+            print(f"  ({index}) {address:04X}h")
+            configured = True
+    if not configured:
+        print("  No registers configured; unset positions are not read.")
+
+
+def format_continuous_register_values(
+    addresses: Sequence[int], values: Sequence[int]
+) -> str:
+    if len(addresses) != len(values):
+        raise ValueError("address/value count mismatch")
+    return " / ".join(
+        f"({index}) {address:04X}h = 0x{value:04X} ({value})"
+        for index, (address, value) in enumerate(
+            zip(addresses, values), start=1
+        )
+    )
+
+
+def wait_for_continuous_read_stop(wait_seconds: float) -> bool:
+    deadline = time.monotonic() + max(0.0, wait_seconds)
+    if sys.platform == "win32":
+        import msvcrt
+
+        while time.monotonic() < deadline:
+            if msvcrt.kbhit():
+                if msvcrt.getwch().lower() == "q":
+                    return True
+            time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        return False
+
+    import select
+
+    while time.monotonic() < deadline:
+        timeout = min(0.05, max(0.0, deadline - time.monotonic()))
+        readable, _, _ = select.select([sys.stdin], [], [], timeout)
+        if readable and sys.stdin.readline().strip().lower() == "q":
+            return True
+    return False
+
+
+def start_continuous_read(
+    client: ModbusRtuClient, settings: ContinuousReadSettings
+) -> None:
+    addresses = [
+        address for address in settings.register_addresses
+        if address is not None
+    ]
+    if not addresses:
+        print("No registers configured. Use r1.2 first.")
+        return
+
+    stop_hint = (
+        "Press q to stop."
+        if sys.platform == "win32"
+        else "Enter q then press Enter to stop."
+    )
+    print(
+        f"Reading {len(addresses)} register(s) every "
+        f"{settings.interval_seconds:.1f} seconds. {stop_hint}"
+    )
+    previous_show_frames = client.show_frames
+    client.show_frames = False
+    try:
+        while True:
+            cycle_started = time.monotonic()
+            try:
+                values = [
+                    client.read_holding_registers(address, 1)[0]
+                    for address in addresses
+                ]
+                print(format_continuous_register_values(addresses, values))
+            except (ValueError, ModbusError, serial.SerialException) as exc:
+                print(f"ERROR: {exc}")
+            elapsed = time.monotonic() - cycle_started
+            if wait_for_continuous_read_stop(
+                settings.interval_seconds - elapsed
+            ):
+                return
+    except KeyboardInterrupt:
+        print("\nContinuous read stopped.")
+    finally:
+        client.show_frames = previous_show_frames
+
+
+def run_continuous_read_menu(
+    client: ModbusRtuClient, settings: ContinuousReadSettings
+) -> None:
+    while True:
+        print(
+            "\n---------- [r1] Continue read register ----------\n"
+            f"[r1.1] Set interval x.x seconds "
+            f"(current={settings.interval_seconds:.1f})\n"
+            "[r1.2] Set register positions (maximum 10)\n"
+            "[r1.3] Show configured registers\n"
+            "[r1.4] Start continuous read\n"
+            "[q] Return to main menu\n"
+            "--------------------------------------------------"
+        )
+        selection = input("Select: ").strip().lower()
+        try:
+            if selection in ("r1.1", "1"):
+                configure_continuous_interval(settings)
+            elif selection in ("r1.2", "2"):
+                configure_continuous_registers(settings)
+            elif selection in ("r1.3", "3"):
+                show_continuous_registers(settings)
+            elif selection in ("r1.4", "4"):
+                start_continuous_read(client, settings)
+            elif selection == "q":
+                return
+            else:
+                print("Unknown selection. Use r1.1, r1.2, r1.3, r1.4, or q.")
+        except (ValueError, ModbusError, serial.SerialException) as exc:
+            print(f"ERROR: {exc}")
+
+
 def run_menu(client: ModbusRtuClient) -> None:
+    continuous_settings = ContinuousReadSettings()
     while True:
         print(
             "\n========== Modbus RTU/ASCII 診斷工具 ==========\n"
             "1. Read channel PV and ADC diagnostics\n"
             "3. Read arbitrary holding registers\n"
             "6. Write holding register(s)\n"
+            "r1. Continue read register\n"
             "q. Exit\n"
             "=========================================="
         )
@@ -564,10 +744,12 @@ def run_menu(client: ModbusRtuClient) -> None:
                 read_arbitrary_registers(client)
             elif selection == "6":
                 write_registers(client)
+            elif selection == "r1":
+                run_continuous_read_menu(client, continuous_settings)
             elif selection == "q":
                 return
             else:
-                print("Unknown selection. Use 1, 3, 6, or q.")
+                print("Unknown selection. Use 1, 3, 6, r1, or q.")
         except (ValueError, ModbusError, serial.SerialException) as exc:
             print(f"ERROR: {exc}")
 
