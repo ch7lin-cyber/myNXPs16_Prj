@@ -8,7 +8,7 @@
       <cores selected="cm33_core0">
          <core name="Cortex-M33" id="cm33_core0" description="M33 core"/>
       </cores>
-      <description>Configuration imported from myNXPs16_prj</description>
+      <description>Configuration imported from DTX_plus</description>
    </common>
    <preferences>
       <validate_boot_init_only>true</validate_boot_init_only>
@@ -28,7 +28,7 @@
             <pin_labels>
                <pin_label pin_num="54" pin_signal="PIO0_0/FC3_SCK/CTIMER0_MAT0/SCT_GPI0/SECURE_GPIO0_0/ACMP0_A" label="J11[2]/J13[5]/ARD_CMP0_IN_A" identifier="PULSE_0"/>
                <pin_label pin_num="7" pin_signal="PIO0_1/FC3_CTS_SDA_SSEL0/CT_INP0/SCT_GPI1/CMP0_OUT/SECURE_GPIO0_1" label="J11[3]/J12[1]/EXP_CMP0_OUT" identifier="RR_SW_4"/>
-               <pin_label pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4" label="J10[16]/U24[14]/FC3_SPI_SSEL0" identifier="CAN_RXD"/>
+               <pin_label pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4" label="J10[16]/U24[14]/FC3_SPI_SSEL0" identifier="READ_PIN1"/>
                <pin_label pin_num="88" pin_signal="PIO0_5/CAN0_TD/FC4_RXD_SDA_MOSI_DATA/CTIMER3_MAT0/SCT_GPI5/FC3_RTS_SCL_SSEL1/MCLK/SECURE_GPIO0_5" label="J9[7]/J17[7]/J18[2]/SW4/JS3[1]/U22[11]/N4M_ISP_MODE" identifier="SW4;ISP"/>
                <pin_label pin_num="55" pin_signal="PIO0_9/FC3_SSEL2/FC5_TXD_SCL_MISO_WS/SECURE_GPIO0_9/ACMP0_B" label="J24/PI00_9" identifier="AD7124_CS0"/>
                <pin_label pin_num="21" pin_signal="PIO0_10/FC6_SCK/CT_INP10/CTIMER2_MAT0/FC1_TXD_SCL_MISO_WS/SCT0_OUT2/SWO/SECURE_GPIO0_10/ADC0_1" label="J9[1]/U18[12]/N4M_SWO" identifier="DEBUG_SWD_SWO"/>
@@ -66,14 +66,15 @@
                <pin_label pin_num="87" pin_signal="PIO1_16/FC6_TXD_SCL_MISO_WS/CTIMER1_MAT3" label="J12[18]/J13[4]/EXP_P1_16" identifier="CLR_BAR"/>
                <pin_label pin_num="43" pin_signal="PIO1_17/FC6_RTS_SCL_SSEL1/SCT0_OUT4" label="J12[20]/J13[2]/EXP_P1_17" identifier="GPIO_4;GPIO_3;GPIO_3_IntBus_CLK;GPIO_3_InterBus_CLK"/>
                <pin_label pin_num="64" pin_signal="PIO1_18/SCT0_OUT5/PLU_OUT0" label="SW1/J8[2]/J12[15]/MIK_EXP_BTN_WK" identifier="SW1;WAKEUP;RR_SW_2"/>
-               <pin_label pin_num="58" pin_signal="PIO1_19/SCT0_OUT7/CTIMER3_MAT1/SCT_GPI7/FC4_SCK/PLU_OUT1/ACMPVREF" label="J18[4]/ISP_P1_19" identifier="PULSE_2"/>
+               <pin_label pin_num="58" pin_signal="PIO1_19/SCT0_OUT7/CTIMER3_MAT1/SCT_GPI7/FC4_SCK/PLU_OUT1/ACMPVREF" label="J18[4]/ISP_P1_19" identifier="PULSE_3"/>
                <pin_label pin_num="4" pin_signal="PIO1_20/FC7_RTS_SCL_SSEL1/CT_INP14/FC4_TXD_SCL_MISO_WS/PLU_OUT2" label="U12[4]/U13[2]/J8[5]/J9[2]/FC4_I2C_SCL" identifier="FC4_I2C_SCL;FC7_SPI_SSEL1"/>
                <pin_label pin_num="30" pin_signal="PIO1_21/FC7_CTS_SDA_SSEL0/CTIMER3_MAT2/FC4_RXD_SDA_MOSI_DATA/PLU_OUT3" label="U12[6]/U13[3]/J8[6]/J9[4]/FC4_I2C_SDA" identifier="FC4_I2C_SDA;GPIO_0;GPIO_0_IntBus_ENA;GPIO_0_InterBus_ENA"/>
-               <pin_label pin_num="41" pin_signal="PIO1_22/CTIMER2_MAT3/SCT_GPI5/FC4_SSEL3/PLU_OUT4/CAN0_RD" label="U25[3]/CAN_RXD" identifier="CAN_RXD;PULSE_3"/>
+               <pin_label pin_num="41" pin_signal="PIO1_22/CTIMER2_MAT3/SCT_GPI5/FC4_SSEL3/PLU_OUT4/CAN0_RD" label="U25[3]/CAN_RXD" identifier="CAN_RXD;PULSE_2"/>
                <pin_label pin_num="42" pin_signal="PIO1_23/FC2_SCK/SCT0_OUT0/FC3_SSEL2/PLU_OUT5" label="J4[4]/U8[3]/J12[7]/HS_USB1_ID" identifier="GPIO_3;GPIO_4;GPIO_4_IntBus_FB;GPIO_4_InterBus_FB"/>
                <pin_label pin_num="3" pin_signal="PIO1_24/FC2_RXD_SDA_MOSI_DATA/SCT0_OUT1/FC3_SSEL3/PLU_OUT6" label="J8[3]/J12[9]/J12[16]/ARD_MIK_FC2_USART_RXD" identifier="AD7124_CS3"/>
                <pin_label pin_num="77" pin_signal="PIO1_25/FC2_TXD_SCL_MISO_WS/SCT0_OUT2/UTICK_CAP0/PLU_CLKIN" label="J9[15]/J12[5]/I2S_IRQ" identifier="I2S_IRQ;DO3"/>
                <pin_label pin_num="68" pin_signal="PIO1_26/FC2_CTS_SDA_SSEL0/SCT0_OUT3/CT_INP3/UTICK_CAP1/HS_SPI_SSEL3/PLU_IN5" label="U12[11]/J12[13]/J12[17]/ACC_INT_EXP_P1_26" identifier="ACCL_INTR;CV_SEL_2"/>
+               <pin_label pin_num="85" pin_signal="PIO1_27/FC2_RTS_SCL_SSEL1/CTIMER0_MAT3/CLKOUT/PLU_IN4/CAN0_TD" label="U26[3]/CAN_TXD" identifier="READ_PIN0"/>
                <pin_label pin_num="91" pin_signal="PIO1_31/MCLK/CTIMER0_MAT2/SCT0_OUT6/PLU_IN0" label="J13[7]/J13[8]/U13[28]/I2S_MCLK" identifier="I2S_MCLK;LV"/>
             </pin_labels>
             <external_user_signals>
@@ -142,31 +143,13 @@
                   <enableClock>true</enableClock>
                </options>
                <dependencies>
-                  <dependency resourceType="Peripheral" resourceId="FLEXCOMM1" description="Peripheral FLEXCOMM1 is not initialized" problem_level="1" source="Pins:BOARD_InitUART2Pins">
-                     <feature name="initialized" evaluation="equal">
-                        <data>true</data>
-                     </feature>
-                  </dependency>
                   <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitUART2Pins">
                      <feature name="enabled" evaluation="equal" configuration="cm33_core0">
                         <data>true</data>
                      </feature>
                   </dependency>
-                  <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_gpio" description="Pins initialization requires the LPC_GPIO Driver in the project." problem_level="2" source="Pins:BOARD_InitUART2Pins">
-                     <feature name="enabled" evaluation="equal" configuration="cm33_core0">
-                        <data>true</data>
-                     </feature>
-                  </dependency>
                </dependencies>
-               <pins>
-                  <pin peripheral="FLEXCOMM1" signal="RXD_SDA_MOSI_DATA" pin_num="71" pin_signal="PIO0_13/FC1_CTS_SDA_SSEL0/UTICK_CAP0/CT_INP0/SCT_GPI0/FC1_RXD_SDA_MOSI_DATA/PLU_IN0/SECURE_GPIO0_13"/>
-                  <pin peripheral="FLEXCOMM1" signal="TXD_SCL_MISO_WS" pin_num="93" pin_signal="PIO1_11/FC1_TXD_SCL_MISO_WS/CT_INP5/USB0_VBUS"/>
-                  <pin peripheral="GPIO" signal="PIO0, 14" pin_num="72" pin_signal="PIO0_14/FC1_RTS_SCL_SSEL1/UTICK_CAP1/CT_INP1/SCT_GPI1/FC1_TXD_SCL_MISO_WS/PLU_IN1/SECURE_GPIO0_14">
-                     <pin_features>
-                        <pin_feature name="direction" value="OUTPUT"/>
-                     </pin_features>
-                  </pin>
-               </pins>
+               <pins/>
             </function>
             <function name="BOARD_InitSWD_DEBUGPins">
                <description>Configures pin routing and optionally pin electrical features.</description>
@@ -222,21 +205,13 @@
                   <enableClock>true</enableClock>
                </options>
                <dependencies>
-                  <dependency resourceType="Peripheral" resourceId="CAN0" description="Peripheral CAN0 is not initialized" problem_level="1" source="Pins:BOARD_InitCANPins">
-                     <feature name="initialized" evaluation="equal">
-                        <data>true</data>
-                     </feature>
-                  </dependency>
                   <dependency resourceType="SWComponent" resourceId="platform.drivers.common" description="Pins initialization requires the COMMON Driver in the project." problem_level="2" source="Pins:BOARD_InitCANPins">
                      <feature name="enabled" evaluation="equal" configuration="cm33_core0">
                         <data>true</data>
                      </feature>
                   </dependency>
                </dependencies>
-               <pins>
-                  <pin peripheral="CAN0" signal="CAN_TD" pin_num="85" pin_signal="PIO1_27/FC2_RTS_SCL_SSEL1/CTIMER0_MAT3/CLKOUT/PLU_IN4/CAN0_TD"/>
-                  <pin peripheral="CAN0" signal="CAN_RD" pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4"/>
-               </pins>
+               <pins/>
             </function>
             <function name="BOARD_InitExtADCPins">
                <description>Use 4 AD7124 modules; Route 7 SPI pins: MOSI(d_out), MISO(d_in), SCK(clock), SSEL0&amp;tilde;3; Route 4 GPIO pins.</description>
@@ -338,7 +313,7 @@
                <pins>
                   <pin peripheral="CTIMER2" signal="MATCH, 3" pin_num="41" pin_signal="PIO1_22/CTIMER2_MAT3/SCT_GPI5/FC4_SSEL3/PLU_OUT4/CAN0_RD">
                      <pin_features>
-                        <pin_feature name="identifier" value="PULSE_3"/>
+                        <pin_feature name="identifier" value="PULSE_2"/>
                      </pin_features>
                   </pin>
                   <pin peripheral="CTIMER0" signal="MATCH, 0" pin_num="54" pin_signal="PIO0_0/FC3_SCK/CTIMER0_MAT0/SCT_GPI0/SECURE_GPIO0_0/ACMP0_A"/>
@@ -646,6 +621,16 @@
                   <pin peripheral="GPIO" signal="PIO1, 18" pin_num="64" pin_signal="PIO1_18/SCT0_OUT5/PLU_OUT0">
                      <pin_features>
                         <pin_feature name="identifier" value="RR_SW_2"/>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO1, 27" pin_num="85" pin_signal="PIO1_27/FC2_RTS_SCL_SSEL1/CTIMER0_MAT3/CLKOUT/PLU_IN4/CAN0_TD">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="GPIO" signal="PIO0, 4" pin_num="86" pin_signal="PIO0_4/CAN0_RD/FC4_SCK/CT_INP12/SCT_GPI4/FC3_CTS_SDA_SSEL0/SECURE_GPIO0_4">
+                     <pin_features>
                         <pin_feature name="direction" value="INPUT"/>
                      </pin_features>
                   </pin>
@@ -959,6 +944,16 @@
                   <data type="Version">2.5.0</data>
                </feature>
             </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="WWDT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.drivers.wwdt" description="Unsupported version of the WWDT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">2.1.2</data>
+               </feature>
+            </dependency>
             <dependency resourceType="SWComponent" resourceId="platform.drivers.ctimer" description="CTimer Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
                <feature name="enabled" evaluation="equal">
                   <data type="Boolean">true</data>
@@ -1019,16 +1014,6 @@
                   <data type="Version">2.1.3</data>
                </feature>
             </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.mrt" description="MRT Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data type="Boolean">true</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.mrt" description="Unsupported version of the MRT Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
-               <feature name="version" evaluation="equivalent">
-                  <data type="Version">2.0.0</data>
-               </feature>
-            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/peripherals.c" update_enabled="true"/>
@@ -1043,6 +1028,11 @@
                <description></description>
                <options/>
                <dependencies>
+                  <dependency resourceType="ClockOutput" resourceId="WDT_clock" description="WDT_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
+                     <feature name="frequency" evaluation="greaterThan">
+                        <data type="Frequency" unit="Hz">0</data>
+                     </feature>
+                  </dependency>
                   <dependency resourceType="ClockOutput" resourceId="CTIMER2_clock" description="CTIMER2_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
                      <feature name="frequency" evaluation="greaterThan">
                         <data type="Frequency" unit="Hz">0</data>
@@ -1253,11 +1243,6 @@
                         <data type="Boolean">true</data>
                      </feature>
                   </dependency>
-                  <dependency resourceType="ClockOutput" resourceId="System_clock" description="System_clock is inactive." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
-                     <feature name="frequency" evaluation="greaterThan">
-                        <data type="Frequency" unit="Hz">0</data>
-                     </feature>
-                  </dependency>
                </dependencies>
                <instances>
                   <instance name="DMA0" uuid="1ce3fd73-afee-4582-b1a6-5c26cf786b03" type="lpc_dma" type_id="lpc_dma_1e560b38547e8785cc7d22228be0a18c" mode="basic" peripheral="DMA0" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
@@ -1273,8 +1258,8 @@
                         <struct name="dma_interrupt">
                            <setting name="IRQn" value="DMA0_IRQn"/>
                            <setting name="enable_interrrupt" value="enabled"/>
-                           <setting name="enable_priority" value="true"/>
-                           <setting name="priority" value="2"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1287,8 +1272,8 @@
                         <struct name="dma_interrupt">
                            <setting name="IRQn" value="DMA1_IRQn"/>
                            <setting name="enable_interrrupt" value="enabled"/>
-                           <setting name="enable_priority" value="true"/>
-                           <setting name="priority" value="3"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1310,6 +1295,7 @@
                            <struct name="11"/>
                            <struct name="12"/>
                            <struct name="13"/>
+                           <struct name="14"/>
                         </array>
                         <array name="interrupts">
                            <struct name="0">
@@ -1317,8 +1303,8 @@
                               <struct name="interrupt_t">
                                  <setting name="IRQn" value="FLEXCOMM0_IRQn"/>
                                  <setting name="enable_interrrupt" value="enabled"/>
-                                 <setting name="enable_priority" value="true"/>
-                                 <setting name="priority" value="2"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
                                  <setting name="enable_custom_name" value="false"/>
                               </struct>
                            </struct>
@@ -1327,20 +1313,20 @@
                               <struct name="interrupt_t">
                                  <setting name="IRQn" value="FLEXCOMM1_IRQn"/>
                                  <setting name="enable_interrrupt" value="enabled"/>
-                                 <setting name="enable_priority" value="true"/>
-                                 <setting name="priority" value="2"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
                                  <setting name="enable_custom_name" value="false"/>
                               </struct>
                            </struct>
                         </array>
                      </config_set>
                   </instance>
-                  <instance name="WWDT" uuid="b1882a78-fe37-43a6-8001-19493f387d37" type="wwdt" type_id="wwdt_4afd1b7f7bc88fc51c044e9c38c1808c" mode="reset_mode" peripheral="WWDT" enabled="false" comment="" custom_name_enabled="false" editing_lock="false">
+                  <instance name="WWDT" uuid="b1882a78-fe37-43a6-8001-19493f387d37" type="wwdt" type_id="wwdt_4afd1b7f7bc88fc51c044e9c38c1808c" mode="reset_mode" peripheral="WWDT" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
                      <config_set name="general">
                         <struct name="wwdt_config">
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="enableWwdt" value="false"/>
+                           <setting name="enableWwdt" value="true"/>
                            <setting name="enableWatchdogProtect" value="false"/>
                            <setting name="timeoutValue_input" value="500000"/>
                            <setting name="windowEnable" value="false"/>
@@ -1348,9 +1334,9 @@
                         </struct>
                         <struct name="interrupt">
                            <setting name="IRQn" value="WDT_BOD_IRQn"/>
-                           <setting name="enable_interrrupt" value="disabled"/>
-                           <setting name="enable_priority" value="true"/>
-                           <setting name="priority" value="1"/>
+                           <setting name="enable_interrrupt" value="enabled"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
@@ -1361,7 +1347,7 @@
                            <setting name="mode" value="kCTIMER_TimerMode"/>
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="timerPrescaler" value="100"/>
+                           <setting name="timerPrescaler" value="10"/>
                         </struct>
                         <setting name="EnableTimerInInit" value="true"/>
                         <struct name="pwmConfig">
@@ -1373,8 +1359,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER2_IRQn"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="4"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer2_match3_callback"/>
@@ -1387,7 +1373,7 @@
                            <setting name="mode" value="kCTIMER_TimerMode"/>
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="timerPrescaler" value="100"/>
+                           <setting name="timerPrescaler" value="10"/>
                         </struct>
                         <setting name="EnableTimerInInit" value="true"/>
                         <struct name="pwmConfig">
@@ -1399,8 +1385,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER0_IRQn"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="4"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer0_match0_callback"/>
@@ -1413,7 +1399,7 @@
                            <setting name="mode" value="kCTIMER_TimerMode"/>
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="timerPrescaler" value="100"/>
+                           <setting name="timerPrescaler" value="10"/>
                         </struct>
                         <setting name="EnableTimerInInit" value="true"/>
                         <struct name="pwmConfig">
@@ -1425,8 +1411,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER1_IRQn"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="4"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer1_match0_callback"/>
@@ -1439,7 +1425,7 @@
                            <setting name="mode" value="kCTIMER_TimerMode"/>
                            <setting name="clockSource" value="FunctionClock"/>
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
-                           <setting name="timerPrescaler" value="100"/>
+                           <setting name="timerPrescaler" value="10"/>
                         </struct>
                         <setting name="EnableTimerInInit" value="true"/>
                         <struct name="pwmConfig">
@@ -1451,8 +1437,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER3_IRQn"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="4"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="ctimer3_match1_callback"/>
@@ -1771,8 +1757,8 @@
                            <struct name="adc_interrupt">
                               <setting name="IRQn" value="ADC0_IRQn"/>
                               <setting name="enable_interrrupt" value="enabled"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="3"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                               <setting name="enable_custom_name" value="false"/>
                            </struct>
                         </struct>
@@ -1897,8 +1883,8 @@
                         <struct name="interruptCallbackConfig">
                            <struct name="interrupt">
                               <setting name="IRQn" value="CTIMER4_IRQn"/>
-                              <setting name="enable_priority" value="true"/>
-                              <setting name="priority" value="2"/>
+                              <setting name="enable_priority" value="false"/>
+                              <setting name="priority" value="0"/>
                            </struct>
                            <setting name="callback" value="kCTIMER_SingleCallback"/>
                            <setting name="singleCallback" value="COMM_TMOut_callback"/>
@@ -1928,8 +1914,8 @@
                               <setting name="enable_callback" value="true"/>
                               <struct name="interrupt">
                                  <setting name="IRQn" value="PIN_INT0_IRQn"/>
-                                 <setting name="enable_priority" value="true"/>
-                                 <setting name="priority" value="2"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
                               </struct>
                            </struct>
                         </array>
@@ -1946,31 +1932,11 @@
                               <setting name="enable_callback" value="true"/>
                               <struct name="interrupt">
                                  <setting name="IRQn" value="PIN_INT1_IRQn"/>
-                                 <setting name="enable_priority" value="true"/>
-                                 <setting name="priority" value="2"/>
+                                 <setting name="enable_priority" value="false"/>
+                                 <setting name="priority" value="0"/>
                               </struct>
                            </struct>
                         </array>
-                     </config_set>
-                  </instance>
-                  <instance name="MRT0" uuid="3e6e60af-030d-4a8e-a9e0-3a5066422173" type="mrt" type_id="mrt_ec4ff9f008b2eee803e5f398b3b3325f" mode="general_config" peripheral="MRT0" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
-                     <config_set name="fsl_mrt" quick_selection="default">
-                        <setting name="mrtOperationMode" value="HSM"/>
-                        <struct name="clockSettingMRT">
-                           <setting name="clockSource" value="BusInterfaceClock"/>
-                           <setting name="clockSourceFreq" value="ClocksTool_DefaultInit"/>
-                        </struct>
-                        <array name="mrtChannels"/>
-                        <struct name="interruptVector">
-                           <setting name="enableInterrupt" value="false"/>
-                           <struct name="interrupt">
-                              <setting name="IRQn" value="MRT0_IRQn"/>
-                              <setting name="enable_interrrupt" value="enabled"/>
-                              <setting name="enable_priority" value="false"/>
-                              <setting name="priority" value="0"/>
-                              <setting name="enable_custom_name" value="false"/>
-                           </struct>
-                        </struct>
                      </config_set>
                   </instance>
                </instances>
