@@ -46,6 +46,7 @@
 #include "l03_product_modbus_master.h"
 #include "product_application.h"
 #include "product_pwm_driver.h"
+#include "product_watchdog_driver.h"
 #include "product_dac8562_driver.h"
 #include "product_nvm_driver.h"
 #include "product_digital_io_driver.h"
@@ -84,7 +85,8 @@ typedef enum
     kProductBootErrorRs485 = 6U,
     kProductBootErrorModbus = 7U,
     kProductBootErrorSysTick = 8U,
-    kProductBootErrorUsb = 9U
+    kProductBootErrorUsb = 9U,
+    kProductBootErrorWatchdog = 10U
 } ProductBootError_t;
 
 /* Keep these visible in the debugger even when boot cannot print a message. */
@@ -243,6 +245,10 @@ int main(void) {
     {
         ProductBootHalt(kProductBootErrorSysTick);
     }
+    if (!ProductWatchdogDriver_StartRuntime(g_systemTick100us))
+    {
+        ProductBootHalt(kProductBootErrorWatchdog);
+    }
     g_productBootStage = (uint32_t)kProductBootStageRunning;
 
     /* Force the counter to be placed into memory. */
@@ -273,7 +279,9 @@ int main(void) {
         __asm volatile ("nop");
 
 
-        /* WWDT is disabled during hardware bring-up. */
+        /* Feed only after a full foreground pass and real SysTick progress.
+         * Never feed in IRQ handlers or ProductBootHalt(). */
+        ProductWatchdogDriver_Process(g_systemTick100us);
 
     }
     return 0 ;

@@ -1,6 +1,8 @@
 #ifndef PRODUCT_DIP_SWITCH_CONFIG_H
 #define PRODUCT_DIP_SWITCH_CONFIG_H
 
+#define PRODUCT_DIP_SWITCH_ENABLE (0U) /* DTX has no DipSW / FC8. */
+
 /* U5 is read through the board's parallel-in/serial-out SPI interface. */
 #define PRODUCT_DIP_SWITCH_COUNT            (8U)
 #define PRODUCT_DIP_SWITCH_SAMPLE_PERIOD_MS (10U)

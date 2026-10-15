@@ -6,6 +6,14 @@
 #ifndef _PERIPHERALS_H_
 #define _PERIPHERALS_H_
 
+/* WWDT: 1 MHz source / 4, 8-second startup budget, no window. */
+#define WWDT_PERIPHERAL WWDT
+#define WWDT_TIMEOUT 2000000UL
+#define WWDT_WINDOW 0xFFFFFFUL
+#define WWDT_WARNING 0UL
+#define WWDT_IRQN WDT_BOD_IRQn
+
+
 /***********************************************************************************************************************
  * Included files
  **********************************************************************************************************************/
@@ -22,6 +30,7 @@
 #include "fsl_crc.h"
 #include "fsl_pint.h"
 #include "fsl_mrt.h"
+#include "fsl_wwdt.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -134,13 +143,8 @@ extern "C" {
 #define ADC_FC3_CLOCK_SOURCE 48000000UL
 /* ADC_FC3 interrupt vector ID (number). */
 #define ADC_FC3_FLEXCOMM_IRQN FLEXCOMM3_IRQn
-/* BOARD_InitPeripherals defines for FLEXCOMM8 */
 /* Definition of peripheral ID */
-#define DIPSW_SPI_PERIPHERAL ((SPI_Type *)FLEXCOMM8)
 /* Definition of the clock source frequency */
-#define DIPSW_SPI_CLOCK_SOURCE 48000000UL
-/* DIPSW_SPI interrupt vector ID (number). */
-#define DIPSW_SPI_FLEXCOMM_IRQN FLEXCOMM8_IRQn
 /* Alias for ADC0 peripheral */
 #define CJC_ADC0_PERIPHERAL ADC0
 /* CJC_ADC0 interrupt vector ID (number). */
@@ -227,10 +231,9 @@ extern const usart_config_t UART1_FC1_config;
 extern dma_handle_t UART1_FC1_RX_Handle;
 extern dma_handle_t UART1_FC1_TX_Handle;
 extern usart_dma_handle_t UART1_FC1_USART_DMA_Handle;
+extern const wwdt_config_t WWDT_config;
 extern const spi_master_config_t ADC_FC3_config;
 extern spi_master_handle_t ADC_FC3_handle;
-extern const spi_master_config_t DIPSW_SPI_config;
-extern spi_master_handle_t DIPSW_SPI_handle;
 extern const lpadc_config_t CJC_ADC0_config;
 extern lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3];
 extern lpadc_conv_trigger_config_t CJC_ADC0_triggersConfig[3];

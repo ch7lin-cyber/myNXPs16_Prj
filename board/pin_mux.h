@@ -6,6 +6,29 @@
 #ifndef _PIN_MUX_H_
 #define _PIN_MUX_H_
 
+/* GPIO mux selection for the three DTX reassigned pins. */
+#define PIO1_3_FUNC_ALT0 0U
+#define PIO0_4_FUNC_ALT0 0U
+#define PIO1_27_FUNC_ALT0 0U
+
+/* DTX analog mode and station strap inputs; mirrored from MEX. */
+#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO GPIO
+#define BOARD_INITEXTDACPINS_MAO_SEL_PORT 1U
+#define BOARD_INITEXTDACPINS_MAO_SEL_PIN 3U
+#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO_PIN_MASK (1U << 3U)
+#define BOARD_INITEXTDACPINS_MAO_SEL_PIN_MASK (1U << 3U)
+#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO GPIO
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PORT 1U
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN 27U
+#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO_PIN_MASK (1U << 27U)
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN_MASK (1U << 27U)
+#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO GPIO
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PORT 0U
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN 4U
+#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO_PIN_MASK (1U << 4U)
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN_MASK (1U << 4U)
+
+
 /*!
  * @addtogroup pin_mux
  * @{
@@ -717,7 +740,6 @@ void BOARD_InitLEDsPins(void); /* Function assigned for the Cortex-M33 */
  * @brief Route 8 GPIO input pins.
  *
  */
-void BOARD_InitDipSWPins(void); /* Function assigned for the Cortex-M33 */
 
 /*!
  * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */

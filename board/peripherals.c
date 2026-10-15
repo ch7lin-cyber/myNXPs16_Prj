@@ -193,12 +193,12 @@ instance:
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
       - enableWwdt: 'true'
       - enableWatchdogProtect: 'false'
-      - timeoutValue_input: '500000'
+      - timeoutValue_input: '8000000'
       - windowEnable: 'false'
       - warningValue_input: '0'
     - interrupt:
       - IRQn: 'WDT_BOD_IRQn'
-      - enable_interrrupt: 'enabled'
+      - enable_interrrupt: 'disabled'
       - enable_priority: 'false'
       - priority: '0'
       - enable_custom_name: 'false'
@@ -217,8 +217,7 @@ const wwdt_config_t WWDT_config = {
 static void WWDT_init(void) {
   /* WWDT initiation  */
   WWDT_Init(WWDT_PERIPHERAL, &WWDT_config);
-  /* Enable interrupt WDT_BOD_IRQn request in the NVIC. */
-  EnableIRQ(WWDT_IRQN);
+  /* Reset-only watchdog; no warning interrupt or shared BOD IRQ needed. */
 }
 
 /***********************************************************************************************************************
