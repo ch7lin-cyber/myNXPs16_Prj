@@ -78,8 +78,8 @@ instance:
     - dma_interrupt:
       - IRQn: 'DMA0_IRQn'
       - enable_interrrupt: 'enabled'
-      - enable_priority: 'true'
-      - priority: '2'
+      - enable_priority: 'false'
+      - priority: '0'
       - enable_custom_name: 'false'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
@@ -109,8 +109,8 @@ instance:
     - dma_interrupt:
       - IRQn: 'DMA1_IRQn'
       - enable_interrrupt: 'enabled'
-      - enable_priority: 'true'
-      - priority: '3'
+      - enable_priority: 'false'
+      - priority: '0'
       - enable_custom_name: 'false'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
@@ -155,16 +155,16 @@ instance:
         - interrupt_t:
           - IRQn: 'FLEXCOMM0_IRQn'
           - enable_interrrupt: 'enabled'
-          - enable_priority: 'true'
-          - priority: '2'
+          - enable_priority: 'false'
+          - priority: '0'
           - enable_custom_name: 'false'
       - 1:
         - channelId: 'UART1_FC1'
         - interrupt_t:
           - IRQn: 'FLEXCOMM1_IRQn'
           - enable_interrrupt: 'enabled'
-          - enable_priority: 'true'
-          - priority: '2'
+          - enable_priority: 'false'
+          - priority: '0'
           - enable_custom_name: 'false'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
@@ -172,6 +172,54 @@ instance:
 /* Empty initialization function (commented out)
 static void NVIC_init(void) {
 } */
+
+/***********************************************************************************************************************
+ * WWDT initialization code
+ **********************************************************************************************************************/
+/* clang-format off */
+/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+instance:
+- name: 'WWDT'
+- type: 'wwdt'
+- mode: 'reset_mode'
+- custom_name_enabled: 'false'
+- type_id: 'wwdt_4afd1b7f7bc88fc51c044e9c38c1808c'
+- functional_group: 'BOARD_InitPeripherals'
+- peripheral: 'WWDT'
+- config_sets:
+  - general:
+    - wwdt_config:
+      - clockSource: 'FunctionClock'
+      - clockSourceFreq: 'BOARD_BootClockPLL150M'
+      - enableWwdt: 'true'
+      - enableWatchdogProtect: 'false'
+      - timeoutValue_input: '500000'
+      - windowEnable: 'false'
+      - warningValue_input: '0'
+    - interrupt:
+      - IRQn: 'WDT_BOD_IRQn'
+      - enable_interrrupt: 'enabled'
+      - enable_priority: 'false'
+      - priority: '0'
+      - enable_custom_name: 'false'
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
+/* clang-format on */
+const wwdt_config_t WWDT_config = {
+  .enableWwdt = true,
+  .enableWatchdogReset = true,
+  .enableWatchdogProtect = false,
+  .windowValue = WWDT_WINDOW,
+  .timeoutValue = WWDT_TIMEOUT,
+  .warningValue = WWDT_WARNING,
+  .clockFreq_Hz = 250000
+};
+
+static void WWDT_init(void) {
+  /* WWDT initiation  */
+  WWDT_Init(WWDT_PERIPHERAL, &WWDT_config);
+  /* Enable interrupt WDT_BOD_IRQn request in the NVIC. */
+  EnableIRQ(WWDT_IRQN);
+}
 
 /***********************************************************************************************************************
  * OUT4_CTIMER2 initialization code
@@ -192,7 +240,7 @@ instance:
       - mode: 'kCTIMER_TimerMode'
       - clockSource: 'FunctionClock'
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
-      - timerPrescaler: '100'
+      - timerPrescaler: '10'
     - EnableTimerInInit: 'true'
     - pwmConfig:
       - pwmPeriodChannel: 'kCTIMER_Match_0'
@@ -202,8 +250,8 @@ instance:
     - interruptCallbackConfig:
       - interrupt:
         - IRQn: 'CTIMER2_IRQn'
-        - enable_priority: 'true'
-        - priority: '4'
+        - enable_priority: 'false'
+        - priority: '0'
       - callback: 'kCTIMER_SingleCallback'
       - singleCallback: 'ctimer2_match3_callback'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
@@ -211,7 +259,7 @@ instance:
 const ctimer_config_t OUT4_CTIMER2_config = {
   .mode = kCTIMER_TimerMode,
   .input = kCTIMER_Capture_0,
-  .prescale = 99
+  .prescale = 9
 };
 /* Single callback functions definition */
 ctimer_callback_t OUT4_CTIMER2_callback[] = {ctimer2_match3_callback};
@@ -219,8 +267,6 @@ ctimer_callback_t OUT4_CTIMER2_callback[] = {ctimer2_match3_callback};
 static void OUT4_CTIMER2_init(void) {
   /* CTIMER2 peripheral initialization */
   CTIMER_Init(OUT4_CTIMER2_PERIPHERAL, &OUT4_CTIMER2_config);
-  /* Interrupt vector CTIMER2_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(OUT4_CTIMER2_TIMER_IRQN, OUT4_CTIMER2_TIMER_IRQ_PRIORITY);
   /* Enable interrupt of PWM channel 3 that determinates the PWM period */
   CTIMER_EnableInterrupts(OUT4_CTIMER2_PERIPHERAL, kCTIMER_Match3InterruptEnable);
   CTIMER_RegisterCallBack(OUT4_CTIMER2_PERIPHERAL, OUT4_CTIMER2_callback, kCTIMER_SingleCallback);
@@ -249,7 +295,7 @@ instance:
       - mode: 'kCTIMER_TimerMode'
       - clockSource: 'FunctionClock'
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
-      - timerPrescaler: '100'
+      - timerPrescaler: '10'
     - EnableTimerInInit: 'true'
     - pwmConfig:
       - pwmPeriodChannel: 'kCTIMER_Match_3'
@@ -259,8 +305,8 @@ instance:
     - interruptCallbackConfig:
       - interrupt:
         - IRQn: 'CTIMER0_IRQn'
-        - enable_priority: 'true'
-        - priority: '4'
+        - enable_priority: 'false'
+        - priority: '0'
       - callback: 'kCTIMER_SingleCallback'
       - singleCallback: 'ctimer0_match0_callback'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
@@ -268,7 +314,7 @@ instance:
 const ctimer_config_t OUT1_CTIMER0_config = {
   .mode = kCTIMER_TimerMode,
   .input = kCTIMER_Capture_0,
-  .prescale = 99
+  .prescale = 9
 };
 /* Single callback functions definition */
 ctimer_callback_t OUT1_CTIMER0_callback[] = {ctimer0_match0_callback};
@@ -276,8 +322,6 @@ ctimer_callback_t OUT1_CTIMER0_callback[] = {ctimer0_match0_callback};
 static void OUT1_CTIMER0_init(void) {
   /* CTIMER0 peripheral initialization */
   CTIMER_Init(OUT1_CTIMER0_PERIPHERAL, &OUT1_CTIMER0_config);
-  /* Interrupt vector CTIMER0_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(OUT1_CTIMER0_TIMER_IRQN, OUT1_CTIMER0_TIMER_IRQ_PRIORITY);
   /* Enable interrupt of PWM channel 3 that determinates the PWM period */
   CTIMER_EnableInterrupts(OUT1_CTIMER0_PERIPHERAL, kCTIMER_Match3InterruptEnable);
   CTIMER_RegisterCallBack(OUT1_CTIMER0_PERIPHERAL, OUT1_CTIMER0_callback, kCTIMER_SingleCallback);
@@ -306,7 +350,7 @@ instance:
       - mode: 'kCTIMER_TimerMode'
       - clockSource: 'FunctionClock'
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
-      - timerPrescaler: '100'
+      - timerPrescaler: '10'
     - EnableTimerInInit: 'true'
     - pwmConfig:
       - pwmPeriodChannel: 'kCTIMER_Match_3'
@@ -316,8 +360,8 @@ instance:
     - interruptCallbackConfig:
       - interrupt:
         - IRQn: 'CTIMER1_IRQn'
-        - enable_priority: 'true'
-        - priority: '4'
+        - enable_priority: 'false'
+        - priority: '0'
       - callback: 'kCTIMER_SingleCallback'
       - singleCallback: 'ctimer1_match0_callback'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
@@ -325,7 +369,7 @@ instance:
 const ctimer_config_t OUT2_CTIMER1_config = {
   .mode = kCTIMER_TimerMode,
   .input = kCTIMER_Capture_0,
-  .prescale = 99
+  .prescale = 9
 };
 /* Single callback functions definition */
 ctimer_callback_t OUT2_CTIMER1_callback[] = {ctimer1_match0_callback};
@@ -333,8 +377,6 @@ ctimer_callback_t OUT2_CTIMER1_callback[] = {ctimer1_match0_callback};
 static void OUT2_CTIMER1_init(void) {
   /* CTIMER1 peripheral initialization */
   CTIMER_Init(OUT2_CTIMER1_PERIPHERAL, &OUT2_CTIMER1_config);
-  /* Interrupt vector CTIMER1_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(OUT2_CTIMER1_TIMER_IRQN, OUT2_CTIMER1_TIMER_IRQ_PRIORITY);
   /* Enable interrupt of PWM channel 3 that determinates the PWM period */
   CTIMER_EnableInterrupts(OUT2_CTIMER1_PERIPHERAL, kCTIMER_Match3InterruptEnable);
   CTIMER_RegisterCallBack(OUT2_CTIMER1_PERIPHERAL, OUT2_CTIMER1_callback, kCTIMER_SingleCallback);
@@ -363,7 +405,7 @@ instance:
       - mode: 'kCTIMER_TimerMode'
       - clockSource: 'FunctionClock'
       - clockSourceFreq: 'BOARD_BootClockPLL150M'
-      - timerPrescaler: '100'
+      - timerPrescaler: '10'
     - EnableTimerInInit: 'true'
     - pwmConfig:
       - pwmPeriodChannel: 'kCTIMER_Match_3'
@@ -373,8 +415,8 @@ instance:
     - interruptCallbackConfig:
       - interrupt:
         - IRQn: 'CTIMER3_IRQn'
-        - enable_priority: 'true'
-        - priority: '4'
+        - enable_priority: 'false'
+        - priority: '0'
       - callback: 'kCTIMER_SingleCallback'
       - singleCallback: 'ctimer3_match1_callback'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
@@ -382,7 +424,7 @@ instance:
 const ctimer_config_t OUT3_CTIMER3_config = {
   .mode = kCTIMER_TimerMode,
   .input = kCTIMER_Capture_0,
-  .prescale = 99
+  .prescale = 9
 };
 /* Single callback functions definition */
 ctimer_callback_t OUT3_CTIMER3_callback[] = {ctimer3_match1_callback};
@@ -390,8 +432,6 @@ ctimer_callback_t OUT3_CTIMER3_callback[] = {ctimer3_match1_callback};
 static void OUT3_CTIMER3_init(void) {
   /* CTIMER3 peripheral initialization */
   CTIMER_Init(OUT3_CTIMER3_PERIPHERAL, &OUT3_CTIMER3_config);
-  /* Interrupt vector CTIMER3_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(OUT3_CTIMER3_TIMER_IRQN, OUT3_CTIMER3_TIMER_IRQ_PRIORITY);
   /* Enable interrupt of PWM channel 3 that determinates the PWM period */
   CTIMER_EnableInterrupts(OUT3_CTIMER3_PERIPHERAL, kCTIMER_Match3InterruptEnable);
   CTIMER_RegisterCallBack(OUT3_CTIMER3_PERIPHERAL, OUT3_CTIMER3_callback, kCTIMER_SingleCallback);
@@ -665,85 +705,6 @@ static void ADC_FC3_init(void) {
 }
 
 /***********************************************************************************************************************
- * DIPSW_SPI initialization code
- **********************************************************************************************************************/
-/* clang-format off */
-/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
-instance:
-- name: 'DIPSW_SPI'
-- type: 'flexcomm_spi'
-- mode: 'SPI_Transfer'
-- custom_name_enabled: 'true'
-- type_id: 'flexcomm_spi_481dadba00035f986f31ed9ac95af181'
-- functional_group: 'BOARD_InitPeripherals'
-- peripheral: 'FLEXCOMM8'
-- config_sets:
-  - transferCfg:
-    - transfer:
-      - init_transfer: 'false'
-      - transfer_cfg:
-        - halfDuplex: 'false'
-        - txDataBufferEnable: 'true'
-        - rxDataBufferEnable: 'true'
-        - dataSize: '10'
-      - init_callback: 'false'
-      - callback_fcn: ''
-      - user_data: ''
-  - fsl_spi:
-    - spi_mode: 'kSPI_Master'
-    - clockSource: 'FXCOMFunctionClock'
-    - clockSourceFreq: 'BOARD_BootClockPLL150M'
-    - spi_master_config:
-      - enableLoopback: 'false'
-      - enableMaster: 'true'
-      - polarity: 'kSPI_ClockPolarityActiveLow'
-      - phase: 'kSPI_ClockPhaseFirstEdge'
-      - direction: 'kSPI_MsbFirst'
-      - baudRate_Bps: '100000'
-      - dataWidth: 'kSPI_Data8Bits'
-      - sselNum: 'kSPI_Ssel1'
-      - sselPol_set: 'kSPI_Spol1ActiveHigh'
-      - txWatermark: 'kSPI_TxFifo0'
-      - rxWatermark: 'kSPI_RxFifo1'
-      - delayConfig:
-        - preDelay: '1'
-        - postDelay: '0'
-        - frameDelay: '0'
-        - transferDelay: '0'
-    - interrupt_priority:
-      - IRQn: 'FLEXCOMM8_IRQn'
-      - enable_priority: 'false'
-      - priority: '0'
- * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
-/* clang-format on */
-const spi_master_config_t DIPSW_SPI_config = {
-  .enableLoopback = false,
-  .enableMaster = true,
-  .polarity = kSPI_ClockPolarityActiveLow,
-  .phase = kSPI_ClockPhaseFirstEdge,
-  .direction = kSPI_MsbFirst,
-  .baudRate_Bps = 100000UL,
-  .dataWidth = kSPI_Data8Bits,
-  .sselNum = kSPI_Ssel1,
-  .sselPol = kSPI_Spol1ActiveHigh,
-  .txWatermark = kSPI_TxFifo0,
-  .rxWatermark = kSPI_RxFifo1,
-  .delayConfig = {
-    .preDelay = 1U,
-    .postDelay = 0U,
-    .frameDelay = 0U,
-    .transferDelay = 0U
-  }
-};
-spi_master_handle_t DIPSW_SPI_handle;
-
-static void DIPSW_SPI_init(void) {
-  /* Initialization function */
-  SPI_MasterInit(DIPSW_SPI_PERIPHERAL, &DIPSW_SPI_config, DIPSW_SPI_CLOCK_SOURCE);
-  SPI_MasterTransferCreateHandle(DIPSW_SPI_PERIPHERAL, &DIPSW_SPI_handle, NULL, NULL);
-}
-
-/***********************************************************************************************************************
  * CJC_ADC0 initialization code
  **********************************************************************************************************************/
 /* clang-format off */
@@ -782,7 +743,7 @@ instance:
         - commandId: '1'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.2'
+        - channelNumber: 'CH.3'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -797,7 +758,7 @@ instance:
         - commandId: '2'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.3'
+        - channelNumber: 'CH.2'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -856,8 +817,8 @@ instance:
       - adc_interrupt:
         - IRQn: 'ADC0_IRQn'
         - enable_interrrupt: 'enabled'
-        - enable_priority: 'true'
-        - priority: '3'
+        - enable_priority: 'false'
+        - priority: '0'
         - enable_custom_name: 'false'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
@@ -877,7 +838,7 @@ const lpadc_config_t CJC_ADC0_config = {
 lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 2U,
+    .channelNumber = 3U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
@@ -891,7 +852,7 @@ lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   },
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 3U,
+    .channelNumber = 2U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
@@ -966,8 +927,6 @@ static void CJC_ADC0_init(void) {
   LPADC_SetConvTriggerConfig(CJC_ADC0_PERIPHERAL, CJC_ADC0_CJC1_TRIG, &CJC_ADC0_triggersConfig[1]);
   /* Configure trigger 2. */
   LPADC_SetConvTriggerConfig(CJC_ADC0_PERIPHERAL, CJC_ADC0_CHIPTEMP_TRIG, &CJC_ADC0_triggersConfig[2]);
-  /* Interrupt vector ADC0_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(CJC_ADC0_IRQN, CJC_ADC0_IRQ_PRIORITY);
   /* Enable interrupts from LPADC */
   LPADC_EnableInterrupts(CJC_ADC0_PERIPHERAL, (kLPADC_FIFO0WatermarkInterruptEnable | kLPADC_FIFO1WatermarkInterruptEnable));
   /* Enable interrupt ADC0_IRQn request in the NVIC. */
@@ -1167,8 +1126,8 @@ instance:
     - interruptCallbackConfig:
       - interrupt:
         - IRQn: 'CTIMER4_IRQn'
-        - enable_priority: 'true'
-        - priority: '2'
+        - enable_priority: 'false'
+        - priority: '0'
       - callback: 'kCTIMER_SingleCallback'
       - singleCallback: 'COMM_TMOut_callback'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
@@ -1192,8 +1151,6 @@ ctimer_callback_t COMM_CTIMER4_callback[] = {COMM_TMOut_callback};
 static void COMM_CTIMER4_init(void) {
   /* CTIMER4 peripheral initialization */
   CTIMER_Init(COMM_CTIMER4_PERIPHERAL, &COMM_CTIMER4_config);
-  /* Interrupt vector CTIMER4_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(COMM_CTIMER4_TIMER_IRQN, COMM_CTIMER4_TIMER_IRQ_PRIORITY);
   /* Match channel 1 of CTIMER4 peripheral initialization */
   CTIMER_SetupMatch(COMM_CTIMER4_PERIPHERAL, COMM_CTIMER4_MATCH_0_CHANNEL, &COMM_CTIMER4_Match_0_config);
   CTIMER_RegisterCallBack(COMM_CTIMER4_PERIPHERAL, COMM_CTIMER4_callback, kCTIMER_SingleCallback);
@@ -1260,16 +1217,14 @@ instance:
         - enable_callback: 'true'
         - interrupt:
           - IRQn: 'PIN_INT0_IRQn'
-          - enable_priority: 'true'
-          - priority: '2'
+          - enable_priority: 'false'
+          - priority: '0'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
 
 static void PINT_init(void) {
   /* PINT initiation  */
   PINT_Init(PINT_PERIPHERAL);
-  /* Interrupt vector PIN_INT0_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(PINT_PINT_0_IRQN, PINT_PINT_0_IRQ_PRIORITY);
   /* PINT PINT.0 configuration */
   PINT_PinInterruptConfig(PINT_PERIPHERAL, PINT_INT_0, kPINT_PinIntEnableRiseEdge, drv_level_detect_callback);
   /* Enable PINT PINT.0 callback */
@@ -1300,16 +1255,14 @@ instance:
         - enable_callback: 'true'
         - interrupt:
           - IRQn: 'PIN_INT1_IRQn'
-          - enable_priority: 'true'
-          - priority: '2'
+          - enable_priority: 'false'
+          - priority: '0'
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
 
 static void PINT_CLK_init(void) {
   /* PINT_CLK initiation  */
   PINT_Init(PINT_CLK_PERIPHERAL);
-  /* Interrupt vector PIN_INT1_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(PINT_CLK_PINT_1_IRQN, PINT_CLK_PINT_1_IRQ_PRIORITY);
   /* PINT_CLK PINT.1 configuration */
   PINT_PinInterruptConfig(PINT_CLK_PERIPHERAL, PINT_CLK_INT_1, kPINT_PinIntEnableRiseEdge, drv_internalbus_clk_callback);
   /* Enable PINT_CLK PINT.1 callback */
@@ -1317,54 +1270,10 @@ static void PINT_CLK_init(void) {
 }
 
 /***********************************************************************************************************************
- * MRT0 initialization code
- **********************************************************************************************************************/
-/* clang-format off */
-/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
-instance:
-- name: 'MRT0'
-- type: 'mrt'
-- mode: 'general_config'
-- custom_name_enabled: 'false'
-- type_id: 'mrt_ec4ff9f008b2eee803e5f398b3b3325f'
-- functional_group: 'BOARD_InitPeripherals'
-- peripheral: 'MRT0'
-- config_sets:
-  - fsl_mrt:
-    - mrtOperationMode: 'HSM'
-    - clockSettingMRT:
-      - clockSource: 'BusInterfaceClock'
-      - clockSourceFreq: 'ClocksTool_DefaultInit'
-    - mrtChannels: []
-    - interruptVector:
-      - enableInterrupt: 'false'
-      - interrupt:
-        - IRQn: 'MRT0_IRQn'
-        - enable_interrrupt: 'enabled'
-        - enable_priority: 'false'
-        - priority: '0'
-        - enable_custom_name: 'false'
-    - quick_selection: 'default'
- * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
-/* clang-format on */
-const mrt_config_t MRT0_config = {
-  .enableMultiTask = false
-};
-
-static void MRT0_init(void) {
-  /* MRT0 peripheral initialization */
-  MRT_Init(MRT0_PERIPHERAL, &MRT0_config);
-}
-
-/***********************************************************************************************************************
  * Initialization functions
  **********************************************************************************************************************/
 static void BOARD_InitPeripherals_CommonPostInit(void)
 {
-  /* Interrupt vector FLEXCOMM0_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(UART0_FC0_IRQN, UART0_FC0_IRQ_PRIORITY);
-  /* Interrupt vector FLEXCOMM1_IRQn priority settings in the NVIC. */
-  NVIC_SetPriority(UART1_FC1_IRQN, UART1_FC1_IRQ_PRIORITY);
   /* Enable interrupt FLEXCOMM0_IRQn request in the NVIC. */
   EnableIRQ(UART0_FC0_IRQN);
   /* Enable interrupt FLEXCOMM1_IRQn request in the NVIC. */
@@ -1378,6 +1287,7 @@ void BOARD_InitPeripherals(void)
   DMA_Init(DMA1_DMA_BASEADDR);
 
   /* Initialize components */
+  WWDT_init();
   OUT4_CTIMER2_init();
   OUT1_CTIMER0_init();
   OUT2_CTIMER1_init();
@@ -1385,7 +1295,6 @@ void BOARD_InitPeripherals(void)
   UART0_FC0_init();
   UART1_FC1_init();
   ADC_FC3_init();
-  DIPSW_SPI_init();
   CJC_ADC0_init();
   DAC_FC5_init();
   MEM_FC7_init();
@@ -1393,7 +1302,6 @@ void BOARD_InitPeripherals(void)
   CRC_ENGINE_init();
   PINT_init();
   PINT_CLK_init();
-  MRT0_init();
   /* Common post-initialization */
   BOARD_InitPeripherals_CommonPostInit();
 }
