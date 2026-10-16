@@ -24,19 +24,16 @@ PlatformCore 基準：`21c06e7`
 
 ### MCUXpresso Config Tools 輸出路徑（已知問題）
 
-- [ ] Config Tools 仍將產生預覽中的 `pin_mux.h` 與 `peripherals.h` 指向
-  `_Product/Tests/Unit/mocks/`；即使在 Configuration Preferences 啟用
-  Output path overrides，2026-10-16 實測仍未生效。
-- [ ] 尚未確認 Config Tools 實際比對的原始路徑格式，以及 output path override
-  是否會正確保存進 `myNXPs16_Prj.mex`。
-- [ ] 問題解決前，每次產生程式碼都必須先檢查 Update Files 預覽；不得允許
-  Config Tools 覆寫 `_Product/Tests/Unit/mocks/pin_mux.h` 或
-  `_Product/Tests/Unit/mocks/peripherals.h`。
-- [ ] 若預覽仍指向 mocks，先取消產生；若已產生，將正式 Config Tools 輸出的
-  `pin_mux.h`／`peripherals.h` 手動更新至 `board/`，並還原 mocks，再執行 diff、
-  host unit test 與目標板 Clean/Rebuild。
-- [ ] 長期修正需讓四個正式產出固定為 `board/pin_mux.c`、`board/pin_mux.h`、
-  `board/peripherals.c`、`board/peripherals.h`，同時保持 mocks 為獨立的手寫測試替身。
+- [x] 根因確認為 Unit Test mocks 與 Config Tools 正式產出同名；刪除同名 mock
+  後，Config Tools 不再選擇 mocks 資料夾。
+- [x] mocks 已改名為 `mock_pin_mux.h` 與 `mock_peripherals.h`，並透過
+  `PRODUCT_HOST_TEST` wrapper 選擇；正式 MCU Build 固定引用 `board/` 產生檔。
+- [x] Product Driver Host Unit Tests 已改用明確命名的 mocks，避免依賴 include
+  path 的同名檔案遮蔽行為。
+- [ ] 在 MCUXpresso 重新開啟 MEX 並執行 Update Code，確認預覽固定為
+  `board/pin_mux.c`、`board/pin_mux.h`、`board/peripherals.c`、
+  `board/peripherals.h`。
+- [ ] 目標板執行 Clean/Rebuild，確認正式 Build 未定義 `PRODUCT_HOST_TEST`。
 
 ### Pt100／Profile 2 校正
 

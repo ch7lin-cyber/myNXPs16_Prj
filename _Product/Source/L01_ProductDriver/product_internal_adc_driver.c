@@ -7,7 +7,7 @@
 #include "fsl_common.h"
 #include "fsl_lpadc.h"
 #include "fsl_power.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 
 #define PRODUCT_INTERNAL_ADC_FIFO_CJC              (0U)
 #define PRODUCT_INTERNAL_ADC_FIFO_MCU_TEMPERATURE  (1U)

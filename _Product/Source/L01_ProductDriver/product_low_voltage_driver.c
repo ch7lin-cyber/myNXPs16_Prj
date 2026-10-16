@@ -3,8 +3,8 @@
 #include "ProductLowVoltageConfig.h"
 #include "fsl_gpio.h"
 #include "fsl_pint.h"
-#include "peripherals.h"
-#include "pin_mux.h"
+#include "product_board_peripherals.h"
+#include "product_board_pin_mux.h"
 
 static volatile uint32_t g_interrupt_count;
 

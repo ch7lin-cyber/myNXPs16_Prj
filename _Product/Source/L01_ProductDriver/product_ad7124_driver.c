@@ -11,7 +11,7 @@
 #include "fsl_gpio.h"
 #include "fsl_iocon.h"
 #include "fsl_spi.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 #include "ProductAdcConfig.h"
 
 #define PRODUCT_AD7124_MAX_TRANSFER_SIZE (8U)

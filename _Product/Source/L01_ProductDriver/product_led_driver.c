@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "fsl_gpio.h"
-#include "pin_mux.h"
+#include "product_board_pin_mux.h"
 
 typedef struct
 {

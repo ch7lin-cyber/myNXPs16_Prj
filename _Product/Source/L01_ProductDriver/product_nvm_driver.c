@@ -6,7 +6,7 @@
 
 #include "HalNvm.h"
 #include "ProductNvmConfig.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 #include "fsl_spi.h"
 
 /* RAMXEED MB85RS2MTY: 2 Mbit (256 KiB) SPI FeRAM. */
