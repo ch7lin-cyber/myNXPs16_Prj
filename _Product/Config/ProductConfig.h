@@ -91,6 +91,7 @@
 #define PRODUCT_MODBUS_STOP_BITS (1U)
 #endif
 #ifndef PRODUCT_MODBUS_FC0_UNIT_ADDRESS
+/* Generic/USB default. DTX FC0 boot address comes from PIN85 instead. */
 #define PRODUCT_MODBUS_FC0_UNIT_ADDRESS (2U)
 #endif
 #ifndef PRODUCT_MODBUS_FC1_LOCAL_UNIT_ADDRESS

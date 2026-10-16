@@ -317,17 +317,22 @@ or channel values use `-1` when no value is available.
 | 6 | `0x4957..0x4958` | Loaded valid-channel bit mask |
 | 7 | `0x4959..0x495A` | Pending valid-channel bit mask |
 
-## SW2 rotary switch
+## DTX station pins
 
-SW2 is sampled every 10 ms from the four GPIO inputs labelled `RR_SW_1`,
-`RR_SW_2`, `RR_SW_4`, and `RR_SW_8`. The default board mapping is active-low,
-so the four logical bits form the rotary position value 0..15. Polarity can be
-changed through `ProductRotarySwitchConfig.h`. All registers are read-only.
+This board has no four-pin rotary switch. PIN85 / PIO1_27 (`READ_PIN0`)
+selects station 1 when low and station 2 when high. PIN86 / PIO0_4
+(`READ_PIN1`) is reported as a raw diagnostic bit only.
+The GPIOs are sampled every 10 ms. FC0 samples them again at Modbus initialization
+and uses that station as its boot unit ID, overriding the fixed default macro.
+Changing a pin while running updates diagnostics but does not change the active
+unit ID until reboot. Existing serial unit-ID writes and Apply remain available.
+Legacy rotary driver filenames/API and diagnostic addresses are retained for IDE
+and register compatibility. All four diagnostic registers are read-only.
 
 | Address | Access | Meaning |
 |---|---|---|
-| `0x1540` | R | Logical rotary position, 0..15 |
-| `0x1541` | R | Raw GPIO nibble, bits 0..3 = 1/2/4/8 inputs |
+| `0x1540` | R | Current pin-selected station, 1 or 2 |
+| `0x1541` | R | Raw GPIO bits: bit0 PIN85, bit1 PIN86 |
 | `0x1542` | R | Revision, increments on first sample and position changes |
 | `0x1543` | R | Status: 0 Ready, 2 not initialized |
 

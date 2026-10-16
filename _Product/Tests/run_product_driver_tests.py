@@ -32,6 +32,10 @@ def driver_source(name: str) -> Path:
 
 
 suites = {
+    "station_boot": [
+        driver_source("product_rotary_switch_driver"),
+        UNIT / "test_product_modbus_station_boot.c",
+    ],
     "dip_switch_absent": [
         driver_source("product_dip_switch_driver"),
         UNIT / "test_product_dip_switch_absent.c",
@@ -81,6 +85,7 @@ with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
             "-Wall",
             "-Wextra",
             "-Werror",
+            "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
             "-DPRODUCT_HOST_TEST=1",
             *(["-I" + str(absent_headers)] if name == "dip_switch_absent" else []),
             *["-I" + str(path) for path in include_dirs],

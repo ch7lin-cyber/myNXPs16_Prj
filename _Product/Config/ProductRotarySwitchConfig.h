@@ -1,10 +1,9 @@
 #ifndef PRODUCT_ROTARY_SWITCH_CONFIG_H
 #define PRODUCT_ROTARY_SWITCH_CONFIG_H
 
-/* SW2 is sampled as a four-bit 1/2/4/8 coded rotary switch. */
+/* DTX station straps. Legacy driver filename is retained for IDE source lists.
+ * PIN85 / PIO1_27: low = station 1, high = station 2.
+ * PIN86 / PIO0_4: diagnostic raw bit only, does not select the station. */
 #define PRODUCT_ROTARY_SWITCH_SAMPLE_PERIOD_MS (10U)
-
-/* Board pull-ups make a selected SW2 bit low. */
-#define PRODUCT_ROTARY_SWITCH_ACTIVE_LOW_MASK  (0x0FU)
 
 #endif

@@ -13,6 +13,7 @@
 #include "SerialConfigurationApplyService.h"
 #include "bsp_rs485.h"
 #include "product_modbus_register_adapter.h"
+#include "product_rotary_switch_driver.h"
 
 typedef enum
 {
@@ -280,12 +281,22 @@ bool L03_ProductModbus_Init(void)
 {
     ModbusSerialPortConfiguration_t slave_configuration;
     ModbusSerialPortConfiguration_t master_configuration;
+    ProductRotarySwitchSnapshot_t station;
 
     (void)memset(&s_modbus, 0, sizeof(s_modbus));
+    /* Sample hardware once for the boot address. Runtime pin changes only
+     * update diagnostics; they must not change a live Modbus transaction. */
+    ProductRotarySwitchDriver_Process();
+    if (!ProductRotarySwitchDriver_GetSnapshot(&station) ||
+        (station.status != PRODUCT_ROTARY_SWITCH_STATUS_READY) ||
+        ((station.position != 1U) && (station.position != 2U)))
+    {
+        return false;
+    }
     SetInitialSerialConfiguration(
         &slave_configuration,
         SERIAL_ROLE_MODBUS_SLAVE,
-        PRODUCT_MODBUS_FC0_UNIT_ADDRESS);
+        station.position);
     SetInitialSerialConfiguration(
         &master_configuration,
         SERIAL_ROLE_MODBUS_MASTER,

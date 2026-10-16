@@ -12,6 +12,7 @@ typedef enum
 
 typedef struct
 {
+    /* DTX station 1/2; raw bits 0/1 are PIN85/PIN86. No rotary switch. */
     uint8_t position;
     uint8_t raw_value;
     uint16_t revision;

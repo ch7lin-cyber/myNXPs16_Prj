@@ -13,29 +13,17 @@ static uint8_t ReadRawValue(void)
 {
     uint8_t raw_value = 0U;
 
-    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_RR_SW_1_GPIO,
-                     BOARD_INITROTARYSWPINS_RR_SW_1_PORT,
-                     BOARD_INITROTARYSWPINS_RR_SW_1_PIN) != 0U)
+    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_READ_PIN0_GPIO,
+                     BOARD_INITROTARYSWPINS_READ_PIN0_PORT,
+                     BOARD_INITROTARYSWPINS_READ_PIN0_PIN) != 0U)
     {
         raw_value |= 0x01U;
     }
-    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_RR_SW_2_GPIO,
-                     BOARD_INITROTARYSWPINS_RR_SW_2_PORT,
-                     BOARD_INITROTARYSWPINS_RR_SW_2_PIN) != 0U)
+    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_READ_PIN1_GPIO,
+                     BOARD_INITROTARYSWPINS_READ_PIN1_PORT,
+                     BOARD_INITROTARYSWPINS_READ_PIN1_PIN) != 0U)
     {
         raw_value |= 0x02U;
-    }
-    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_RR_SW_4_GPIO,
-                     BOARD_INITROTARYSWPINS_RR_SW_4_PORT,
-                     BOARD_INITROTARYSWPINS_RR_SW_4_PIN) != 0U)
-    {
-        raw_value |= 0x04U;
-    }
-    if (GPIO_PinRead(BOARD_INITROTARYSWPINS_RR_SW_8_GPIO,
-                     BOARD_INITROTARYSWPINS_RR_SW_8_PORT,
-                     BOARD_INITROTARYSWPINS_RR_SW_8_PIN) != 0U)
-    {
-        raw_value |= 0x08U;
     }
     return raw_value;
 }
@@ -52,8 +40,9 @@ void ProductRotarySwitchDriver_Initialize(void)
 void ProductRotarySwitchDriver_Process(void)
 {
     uint8_t raw_value = ReadRawValue();
-    uint8_t position = (uint8_t)(
-        (raw_value ^ PRODUCT_ROTARY_SWITCH_ACTIVE_LOW_MASK) & 0x0FU);
+    /* DTX: PIN85 high selects station 2, low selects station 1.
+     * PIN86 is reported in raw_value only; it never selects the station. */
+    uint8_t position = (uint8_t)((raw_value & 0x01U) + 1U);
 
     if (!g_has_valid_sample || (position != g_snapshot.position))
     {
