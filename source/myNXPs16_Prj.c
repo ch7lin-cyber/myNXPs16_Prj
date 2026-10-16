@@ -34,8 +34,8 @@
  */
 #include <stdio.h>
 #include "board.h"
-#include "peripherals.h"
-#include "pin_mux.h"
+#include "product_board_peripherals.h"
+#include "product_board_pin_mux.h"
 #include "clock_config.h"
 #include "LPC55S16.h"
 #include "fsl_pint.h"
