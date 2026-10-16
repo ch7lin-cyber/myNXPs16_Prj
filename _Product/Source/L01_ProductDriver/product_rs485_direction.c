@@ -7,8 +7,8 @@
 
 #include "fsl_gpio.h"
 #include "fsl_usart.h"
-#include "peripherals.h"
-#include "pin_mux.h"
+#include "product_board_peripherals.h"
+#include "product_board_pin_mux.h"
 
 #define PRODUCT_RS485_DIR_RECEIVE_LEVEL (0U)
 #define PRODUCT_RS485_DIR_TRANSMIT_LEVEL (1U)
