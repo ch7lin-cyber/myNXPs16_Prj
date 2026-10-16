@@ -30,12 +30,20 @@ static const product_rs485_channel_hardware_t s_rs485Hardware[kProductRs485Chann
         BOARD_INITDEBUG_UARTPINS_FC0_DIR_PIN,
         UART0_FC0_PERIPHERAL,
     },
+#if defined(BOARD_INITUART2PINS_FC1_DIR_GPIO) && \
+    defined(BOARD_INITUART2PINS_FC1_DIR_PORT) && \
+    defined(BOARD_INITUART2PINS_FC1_DIR_PIN)
     {
         BOARD_INITUART2PINS_FC1_DIR_GPIO,
         BOARD_INITUART2PINS_FC1_DIR_PORT,
         BOARD_INITUART2PINS_FC1_DIR_PIN,
         UART1_FC1_PERIPHERAL,
     },
+#else
+    /* DTX does not use an FC1 RS-485 direction pin. Do not assign a fallback
+     * GPIO: it could drive a different signal on this board. */
+    {NULL, 0U, 0U, UART1_FC1_PERIPHERAL},
+#endif
 };
 
 static product_rs485_timing_t s_rs485Timing[kProductRs485ChannelCount] = {
@@ -57,7 +65,10 @@ static void ProductRs485Direction_Write(product_rs485_channel_t channel, uint8_t
 {
     const product_rs485_channel_hardware_t *hardware = &s_rs485Hardware[(uint32_t)channel];
 
-    GPIO_PinWrite(hardware->gpio, hardware->gpioPort, hardware->gpioPin, level);
+    if (hardware->gpio != NULL)
+    {
+        GPIO_PinWrite(hardware->gpio, hardware->gpioPort, hardware->gpioPin, level);
+    }
 }
 
 static void ProductRs485Direction_Delay(uint32_t delayUs)
