@@ -31,6 +31,7 @@ typedef struct
     uint32_t periodMs;
     uint16_t dutyPermille;
     HalPwmPeriodUpdateMode_t updateMode;
+    bool failNextPeriod;
 } MockPwmDriver_t;
 
 static MockPwmDriver_t g_pwmDriver[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
@@ -186,6 +187,11 @@ static HalPwmStatus_t MockPwmSetPeriod(
     HalPwmPeriodUpdateMode_t updateMode)
 {
     MockPwmDriver_t *driver = (MockPwmDriver_t *)context;
+    if (driver->failNextPeriod)
+    {
+        driver->failNextPeriod = false;
+        return HAL_PWM_STATUS_IO_ERROR;
+    }
     driver->periodMs = periodMs;
     driver->updateMode = updateMode;
     return HAL_PWM_STATUS_OK;
@@ -1426,6 +1432,134 @@ static void TestCjcOffsetPendingApply(void)
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
 }
 
+static float ReadDtxCanonicalFloat(ModbusSlaveRegisterInterface_t *iface, uint16_t address)
+{
+    uint16_t words[2];
+    uint32_t bits;
+    float value;
+    assert(iface->read_holding_registers(iface->context, address, 2U, words) == MODBUS_EXCEPTION_NONE);
+    bits = ((uint32_t)words[0] << 16U) | words[1];
+    (void)memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static void TestDtxCompatibilityRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t iface;
+    product_temperature_input_monitor_t monitor = {0.0F, 61U, 0.0F};
+    uint16_t words[24], value, channel;
+    uint16_t packet[24] = {0};
+    uint16_t pwmBefore[12];
+    product_pwm_output_config_t active, pending;
+    ProductModbusRegisterAdapter_GetInterface(&iface);
+    ProductModbusRegisterAdapter_DiscardPendingPwmConfig();
+
+    /* Signed conversion, both int16 limits, canonical float visibility, and
+     * a real measurement replacing the communication-written PV. */
+    for (channel = 0U; channel < 4U; channel++)
+    {
+        const uint16_t pv[4] = {1234U, (uint16_t)-1234, 0x7FFFU, 0x8000U};
+        float expected = (float)((pv[channel] < 0x8000U) ?
+            (int32_t)pv[channel] : (int32_t)pv[channel] - 65536L) / 10.0F;
+        assert(iface.write_single_register(iface.context, (uint16_t)(0x4908U + channel), pv[channel]) == MODBUS_EXCEPTION_NONE);
+        assert(ReadDtxCanonicalFloat(&iface, (uint16_t)(0x1005U + channel * 0x10U)) == expected);
+        assert(iface.read_holding_registers(iface.context, (uint16_t)(0x4908U + channel), 1U, &value) == MODBUS_EXCEPTION_NONE);
+        assert(value == pv[channel]);
+    }
+    monitor.filteredProcessValue = 4000.0F;
+    assert(ProductModbusRegisterAdapter_SetTemperatureInputMonitor(&monitor));
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 0x7FFFU);
+    monitor.filteredProcessValue = -4000.0F;
+    assert(ProductModbusRegisterAdapter_SetTemperatureInputMonitor(&monitor));
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 0x8000U);
+    monitor.filteredProcessValue = 25.26F;
+    assert(ProductModbusRegisterAdapter_SetTemperatureInputMonitor(&monitor));
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 253U);
+
+    /* An un-applied period must not leak into an immediate duty update. */
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &active));
+    value = (active.periodMs == 2222U) ? 3333U : 2222U;
+    assert(iface.write_single_register(iface.context, 0x1300U, value) == MODBUS_EXCEPTION_NONE);
+    assert(iface.write_single_register(iface.context, 0x4910U, 321U) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetPendingPwmConfig(0U, &pending));
+    assert(pending.periodMs == value && pending.dutyPermille == 321U);
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &pending));
+    assert(pending.periodMs == active.periodMs && pending.dutyPermille == 321U);
+    assert(g_pwmDriver[0].periodMs == active.periodMs && g_pwmDriver[0].dutyPermille == 321U);
+    ProductModbusRegisterAdapter_DiscardPendingPwmConfig();
+
+    /* One FC10 covers all mapped fields and all reserved words, no Apply. */
+    for (channel = 0U; channel < 24U; channel++) packet[channel] = (uint16_t)(100U + channel);
+    packet[4] = 0xAU; /* DI */
+    packet[12] = 0x5U; /* DO */
+    for (channel = 0U; channel < 4U; channel++)
+    {
+        packet[8U + channel] = (uint16_t)(channel * 300U);
+        packet[16U + channel] = (uint16_t)(10U + channel * 100U);
+    }
+    assert(iface.write_multiple_registers(iface.context, 0x4908U, packet, 24U) == MODBUS_EXCEPTION_NONE);
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 24U, words) == MODBUS_EXCEPTION_NONE);
+    assert(memcmp(packet, words, sizeof(packet)) == 0);
+    assert(iface.read_holding_registers(iface.context, 0x1500U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 0xAU);
+    assert(iface.read_holding_registers(iface.context, 0x1510U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 0x5U);
+    for (channel = 0U; channel < 4U; channel++)
+    {
+        assert(g_pwmDriver[channel].dutyPermille == packet[8U + channel]);
+        assert(g_pwmDriver[channel].periodMs == packet[16U + channel]);
+        assert(iface.read_holding_registers(iface.context, (uint16_t)(0x1300U + channel * 3U), 2U, words) == MODBUS_EXCEPTION_NONE);
+        assert(words[0] == packet[16U + channel] && words[1] == packet[8U + channel]);
+    }
+    assert(ProductModbusRegisterAdapter_GetPwmPendingMask() == 0U);
+    assert(iface.read_holding_registers(iface.context, 0x1513U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 0U);
+    assert(DigitalInputService_Process() == DIGITAL_INPUT_STATUS_OK);
+    ProductModbusRegisterAdapter_NotifyDigitalInputSample();
+    assert(iface.read_holding_registers(iface.context, 0x490CU, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 5U);
+    assert(iface.read_holding_registers(iface.context, 0x1500U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 5U);
+
+    assert(iface.write_single_register(iface.context, 0x4918U, 0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x4918U, 9U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x4918U, 10001U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x4910U, 1001U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x490CU, 16U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x4914U, 16U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.write_single_register(iface.context, 0x4918U, 10000U) == MODBUS_EXCEPTION_NONE);
+    assert(iface.write_single_register(iface.context, 0x4910U, 1000U) == MODBUS_EXCEPTION_NONE);
+    assert(iface.read_holding_registers(iface.context, 0x491FU, 2U, words) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(iface.write_multiple_registers(iface.context, 0x491FU, packet, 2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(iface.write_multiple_registers(iface.context, 0x4908U, packet, 0U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+
+    /* An invalid trailing field rejects the entire packet, including PV. */
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 24U, words) == MODBUS_EXCEPTION_NONE);
+    (void)memcpy(packet, words, sizeof(words));
+    packet[0] = 5555U; packet[19] = 0U;
+    assert(iface.write_multiple_registers(iface.context, 0x4908U, packet, 24U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+    assert(iface.read_holding_registers(iface.context, 0x4908U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == words[0]);
+
+    /* A DO hardware failure rolls back PWM already touched by the same FC10. */
+    assert(iface.read_holding_registers(iface.context, 0x1300U, 12U, pwmBefore) == MODBUS_EXCEPTION_NONE);
+    packet[0] = 111U; packet[1] = 222U; packet[2] = 333U; packet[3] = 444U; packet[4] = 0xFU;
+    g_digitalOutput[1].failNextAccess = true;
+    assert(iface.write_multiple_registers(iface.context, 0x4910U, packet, 5U) == MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(iface.read_holding_registers(iface.context, 0x1300U, 12U, words) == MODBUS_EXCEPTION_NONE);
+    assert(memcmp(pwmBefore, words, sizeof(pwmBefore)) == 0);
+    for (channel = 0U; channel < 4U; channel++) assert(g_pwmDriver[channel].dutyPermille == pwmBefore[channel * 3U + 1U]);
+
+    /* A partial PWM driver failure also restores the previous active image. */
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &active));
+    g_pwmDriver[0].failNextPeriod = true;
+    assert(iface.write_single_register(iface.context, 0x4918U,
+        (active.periodMs == 777U) ? 888U : 777U) == MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &pending));
+    assert(pending.periodMs == active.periodMs && pending.dutyPermille == active.dutyPermille);
+    assert(g_pwmDriver[0].periodMs == active.periodMs);
+
+    /* Canonical Apply remains available; changes there reflect back here. */
+    assert(iface.write_single_register(iface.context, 0x1301U, 654U) == MODBUS_EXCEPTION_NONE);
+    assert(iface.write_single_register(iface.context, PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS, PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
+    assert(iface.read_holding_registers(iface.context, 0x4910U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 654U);
+    assert(iface.read_holding_registers(iface.context, 0x4820U, 1U, &value) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
 int main(void)
 {
     static const HalPwmDriverOps_t pwmOps =
@@ -1500,6 +1634,7 @@ int main(void)
     TestDipSwitchRegisters();
     TestRotarySwitchRegisters();
     TestLowVoltageRegisters();
+    TestDtxCompatibilityRegisters();
     return 0;
 }
 

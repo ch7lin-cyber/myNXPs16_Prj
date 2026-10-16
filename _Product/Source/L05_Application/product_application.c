@@ -586,7 +586,10 @@ void ProductApplication_Process(void)
     if (g_digital_input_due)
     {
         g_digital_input_due = false;
-        (void)DigitalInputService_Process();
+        if (DigitalInputService_Process() == DIGITAL_INPUT_STATUS_OK)
+        {
+            ProductModbusRegisterAdapter_NotifyDigitalInputSample();
+        }
     }
     if (g_dip_switch_due)
     {

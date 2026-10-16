@@ -71,6 +71,9 @@ typedef struct _product_modbus_register_context
     uint16_t pendingDigitalOutputMask;
     uint16_t digitalOutputPendingMask;
     product_low_voltage_monitor_t lowVoltageMonitor;
+    uint16_t dtxReserved[PRODUCT_MODBUS_DTX_REGISTER_COUNT];
+    uint16_t dtxDiMask;
+    bool dtxDiWritten;
 } product_modbus_register_context_t;
 
 static product_modbus_register_context_t s_registerContext =
@@ -1149,7 +1152,8 @@ static bool BuildDigitalInputImage(uint16_t *registers)
     {
         return false;
     }
-    registers[0] = snapshot.state_mask;
+    registers[0] = s_registerContext.dtxDiWritten ?
+        s_registerContext.dtxDiMask : snapshot.state_mask;
     registers[1] = snapshot.revision;
     return true;
 }
@@ -1230,6 +1234,62 @@ static bool BuildRotarySwitchImage(uint16_t *registers)
     return true;
 }
 
+/* The compatibility window is an alternate representation of active values. */
+static bool IsDtxAddress(uint16_t address)
+{
+    return (address >= PRODUCT_MODBUS_DTX_BASE_ADDRESS) &&
+           (address <= PRODUCT_MODBUS_DTX_LAST_ADDRESS);
+}
+
+static bool IsDtxRange(uint16_t address, uint16_t quantity)
+{
+    return IsDtxAddress(address) && (quantity != 0U) &&
+        (((uint32_t)address + quantity - 1U) <= PRODUCT_MODBUS_DTX_LAST_ADDRESS);
+}
+
+static uint16_t DtxPvToRegister(float pv)
+{
+    float scaled = pv * 10.0F;
+    /* Saturate before conversion; casting an out-of-range float is undefined. */
+    if (scaled != scaled) return 0U;
+    if (scaled >= 32767.0F) return 0x7FFFU;
+    if (scaled <= -32768.0F) return 0x8000U;
+    return (uint16_t)(int16_t)(scaled + ((scaled < 0.0F) ? -0.5F : 0.5F));
+}
+
+static ModbusExceptionCode_t ReadDtxRegisters(
+    const product_modbus_register_context_t *ctx,
+    uint16_t address, uint16_t quantity, uint16_t *values)
+{
+    uint16_t index;
+    if (!IsDtxRange(address, quantity))
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t current = (uint16_t)(address + index);
+        if (current <= 0x490BU)
+            values[index] = DtxPvToRegister(ctx->monitor[current - 0x4908U].filteredProcessValue);
+        else if (current == 0x490CU)
+        {
+            uint16_t image[2];
+            if (!BuildDigitalInputImage(image)) return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            values[index] = image[0];
+        }
+        else if ((current >= 0x4910U) && (current <= 0x4913U))
+            values[index] = ctx->activePwmConfig[current - 0x4910U].dutyPermille;
+        else if (current == 0x4914U)
+        {
+            DigitalOutputState_t state;
+            if (!DigitalOutputService_GetState(&state)) return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            values[index] = state.active_mask;
+        }
+        else if ((current >= 0x4918U) && (current <= 0x491BU))
+            values[index] = ctx->activePwmConfig[current - 0x4918U].periodMs;
+        else values[index] = ctx->dtxReserved[current - PRODUCT_MODBUS_DTX_BASE_ADDRESS];
+    }
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t ReadRegisters(
     void *context,
     uint16_t starting_address,
@@ -1262,6 +1322,9 @@ static ModbusExceptionCode_t ReadRegisters(
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
+
+    if (IsDtxAddress(starting_address))
+        return ReadDtxRegisters(registerContext, starting_address, quantity, values);
 
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             starting_address, &serial_information))
@@ -1957,6 +2020,117 @@ static ModbusExceptionCode_t ApplyPendingDigitalOutputs(
     return MODBUS_EXCEPTION_NONE;
 }
 
+static void RollbackDtxPwm(const product_modbus_register_context_t *ctx, uint16_t mask)
+{
+    uint8_t channel;
+    for (channel = 0U; channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT; channel++)
+    {
+        if ((mask & (1U << channel)) != 0U)
+        {
+            product_pwm_output_config_t old = ctx->activePwmConfig[channel];
+            old.updateMode = PRODUCT_MODBUS_PWM_UPDATE_IMMEDIATE;
+            (void)ApplyOnePwmConfiguration(channel, &old);
+        }
+    }
+}
+
+static ModbusExceptionCode_t WriteDtxRegisters(
+    product_modbus_register_context_t *ctx,
+    uint16_t address, const uint16_t *values, uint16_t quantity)
+{
+    product_modbus_register_context_t staged = *ctx;
+    uint16_t index, pwmMask = 0U, appliedMask = 0U;
+    bool writeDo = false;
+    uint16_t doMask = 0U;
+    uint8_t channel;
+    if (!IsDtxRange(address, quantity)) return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+
+    /* Validate the whole FC10 request before changing any software or hardware. */
+    for (index = 0U; index < quantity; index++)
+    {
+        uint16_t current = (uint16_t)(address + index);
+        uint16_t value = values[index];
+        if ((current == 0x490CU) || (current == 0x4914U))
+        {
+            if ((value & 0xFFF0U) != 0U) return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        }
+        if ((current >= 0x4910U) && (current <= 0x4913U) &&
+            !IsPwmConfigValueValid(PRODUCT_MODBUS_PWM_DUTY_OFFSET, value))
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        if ((current >= 0x4918U) && (current <= 0x491BU) &&
+            !IsPwmConfigValueValid(PRODUCT_MODBUS_PWM_PERIOD_OFFSET, value))
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+
+        if (current <= 0x490BU)
+        {
+            int32_t signedValue = (value < 0x8000U) ? (int32_t)value : (int32_t)value - 65536L;
+            staged.monitor[current - 0x4908U].filteredProcessValue = (float)signedValue / 10.0F;
+        }
+        else if (current == 0x490CU)
+        {
+            staged.dtxDiMask = value;
+            staged.dtxDiWritten = true;
+        }
+        else if ((current >= 0x4910U) && (current <= 0x4913U))
+        {
+            channel = (uint8_t)(current - 0x4910U);
+            staged.activePwmConfig[channel].dutyPermille = value;
+            staged.pendingPwmConfig[channel].dutyPermille = value;
+            pwmMask |= (uint16_t)(1U << channel);
+        }
+        else if (current == 0x4914U)
+        {
+            writeDo = true;
+            doMask = value;
+            staged.pendingDigitalOutputMask = value;
+            staged.digitalOutputPendingMask = 0U;
+        }
+        else if ((current >= 0x4918U) && (current <= 0x491BU))
+        {
+            channel = (uint8_t)(current - 0x4918U);
+            staged.activePwmConfig[channel].periodMs = value;
+            staged.pendingPwmConfig[channel].periodMs = value;
+            pwmMask |= (uint16_t)(1U << channel);
+        }
+        else staged.dtxReserved[current - PRODUCT_MODBUS_DTX_BASE_ADDRESS] = value;
+    }
+
+    for (channel = 0U; channel < PRODUCT_MODBUS_PWM_CHANNEL_COUNT; channel++)
+    {
+        uint16_t bit = (uint16_t)(1U << channel);
+        if ((pwmMask & bit) == 0U) continue;
+        if ((ctx->activePwmConfig[channel].periodMs != staged.activePwmConfig[channel].periodMs) ||
+            (ctx->activePwmConfig[channel].dutyPermille != staged.activePwmConfig[channel].dutyPermille))
+        {
+            /* Include a partially updated channel in rollback on driver error. */
+            appliedMask |= bit;
+            if (ApplyOnePwmConfiguration(channel, &staged.activePwmConfig[channel]) != PWM_OUTPUT_STATUS_OK)
+            {
+                RollbackDtxPwm(ctx, appliedMask);
+                return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            }
+        }
+        /* Reconcile only the written fields; leave other pending changes staged. */
+        if ((staged.activePwmConfig[channel].periodMs == staged.pendingPwmConfig[channel].periodMs) &&
+            (staged.activePwmConfig[channel].dutyPermille == staged.pendingPwmConfig[channel].dutyPermille) &&
+            (staged.activePwmConfig[channel].updateMode == staged.pendingPwmConfig[channel].updateMode))
+            staged.pwmPendingMask &= (uint16_t)~bit;
+        else staged.pwmPendingMask |= bit;
+    }
+    if (writeDo && (DigitalOutputService_SetMask(doMask) != DIGITAL_OUTPUT_STATUS_OK))
+    {
+        RollbackDtxPwm(ctx, appliedMask);
+        return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    if (appliedMask != 0U)
+    {
+        staged.pwmConfigurationRevision++;
+        if (staged.pwmConfigurationRevision == 0U) staged.pwmConfigurationRevision = 1U;
+    }
+    *ctx = staged;
+    return MODBUS_EXCEPTION_NONE;
+}
+
 static ModbusExceptionCode_t WriteSingleRegister(
     void *context,
     uint16_t address,
@@ -1972,6 +2146,9 @@ static ModbusExceptionCode_t WriteSingleRegister(
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
+
+    if (IsDtxAddress(address))
+        return WriteDtxRegisters(registerContext, address, &value, 1U);
 
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             address, &serial_information))
@@ -2143,6 +2320,9 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
+
+    if (IsDtxAddress(starting_address))
+        return WriteDtxRegisters(registerContext, starting_address, values, quantity);
 
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             starting_address, &serial_information))
@@ -2761,3 +2941,8 @@ void ProductModbusRegisterAdapter_SetLowVoltageMonitor(
     }
 }
 
+
+void ProductModbusRegisterAdapter_NotifyDigitalInputSample(void)
+{
+    s_registerContext.dtxDiWritten = false;
+}
