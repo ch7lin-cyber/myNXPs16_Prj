@@ -1,7 +1,9 @@
 # 尚未完成工作清單
 
-更新日期：2026-10-14  
-主專案基準：`63bc47f`  
+更新日期：2026-10-16
+
+主專案基準：`14cbccd`
+
 PlatformCore 基準：`21c06e7`
 
 本文件記錄目前尚未完成、已實作但仍待硬體驗證，以及明確保留給後續版本的工作。
@@ -19,6 +21,22 @@ PlatformCore 基準：`21c06e7`
 - [ ] 確認以下欄位不再出現編譯錯誤：
   - `EventTemperatureInputConfiguration_t.cjc_offset_centi_c`
   - `SerialConfiguration_t.response_delay_us`
+
+### MCUXpresso Config Tools 輸出路徑（已知問題）
+
+- [ ] Config Tools 仍將產生預覽中的 `pin_mux.h` 與 `peripherals.h` 指向
+  `_Product/Tests/Unit/mocks/`；即使在 Configuration Preferences 啟用
+  Output path overrides，2026-10-16 實測仍未生效。
+- [ ] 尚未確認 Config Tools 實際比對的原始路徑格式，以及 output path override
+  是否會正確保存進 `myNXPs16_Prj.mex`。
+- [ ] 問題解決前，每次產生程式碼都必須先檢查 Update Files 預覽；不得允許
+  Config Tools 覆寫 `_Product/Tests/Unit/mocks/pin_mux.h` 或
+  `_Product/Tests/Unit/mocks/peripherals.h`。
+- [ ] 若預覽仍指向 mocks，先取消產生；若已產生，將正式 Config Tools 輸出的
+  `pin_mux.h`／`peripherals.h` 手動更新至 `board/`，並還原 mocks，再執行 diff、
+  host unit test 與目標板 Clean/Rebuild。
+- [ ] 長期修正需讓四個正式產出固定為 `board/pin_mux.c`、`board/pin_mux.h`、
+  `board/peripherals.c`、`board/peripherals.h`，同時保持 mocks 為獨立的手寫測試替身。
 
 ### Pt100／Profile 2 校正
 
