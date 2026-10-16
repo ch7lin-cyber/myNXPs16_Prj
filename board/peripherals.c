@@ -198,7 +198,7 @@ instance:
       - warningValue_input: '0'
     - interrupt:
       - IRQn: 'WDT_BOD_IRQn'
-      - enable_interrrupt: 'disabled'
+      - enable_interrrupt: 'noInit'
       - enable_priority: 'false'
       - priority: '0'
       - enable_custom_name: 'false'
@@ -217,7 +217,8 @@ const wwdt_config_t WWDT_config = {
 static void WWDT_init(void) {
   /* WWDT initiation  */
   WWDT_Init(WWDT_PERIPHERAL, &WWDT_config);
-  /* Reset-only watchdog; no warning interrupt or shared BOD IRQ needed. */
+  /* Interrupt WDT_BOD_IRQn request in the NVIC is not initialized (disabled by default). */
+  /* It can be enabled later by EnableIRQ(WWDT_IRQN);  function call. */
 }
 
 /***********************************************************************************************************************
