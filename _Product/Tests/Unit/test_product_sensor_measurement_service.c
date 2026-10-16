@@ -283,8 +283,11 @@ static void TestCjcSourceSelection(void)
     /* K 1300 C remains convertible in disabled mode. */
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
     g_sample.microvolts = 52410L;
-    g_sample.sequence++;
-    assert(ProductSensorMeasurementService_Process(0U));
+    for (unsigned int n = 0U; n < 5U; n++)
+    {
+        g_sample.sequence++;
+        assert(ProductSensorMeasurementService_Process(0U));
+    }
     assert(g_monitor.inputError == 61U);
     assert(g_monitor.unfilteredProcessValue > 1299.0F && g_monitor.unfilteredProcessValue < 1301.0F);
 }
@@ -301,8 +304,11 @@ static void TestAnalogPvEngineeringRange(void)
     for (unsigned int i = 0U; i < 3U; ++i)
     {
         g_sample.microvolts = microvolts[i];
-        g_sample.sequence++;
-        assert(ProductSensorMeasurementService_Process(0U));
+        for (unsigned int n = 0U; n < 5U; n++)
+        {
+            g_sample.sequence++;
+            assert(ProductSensorMeasurementService_Process(0U));
+        }
         assert(g_monitor.unfilteredProcessValue == expected[i]);
     }
 }
@@ -351,8 +357,11 @@ static void TestDistinctRangeErrors(void)
                 g_sample.microvolts = (int32_t)((int64_t)ua[j] * config.shunt_resistance_milliohm *
                     config.frontend_ratio_denominator / (1000LL * config.frontend_ratio_numerator));
             }
-            g_sample.sequence++;
-            assert(ProductSensorMeasurementService_Process(0U));
+            for (unsigned int n = 0U; n < 5U; n++)
+            {
+                g_sample.sequence++;
+                assert(ProductSensorMeasurementService_Process(0U));
+            }
             assert(g_monitor.inputError == errors[j]);
             assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
             assert(snapshot.input_error == errors[j]);
@@ -361,8 +370,45 @@ static void TestDistinctRangeErrors(void)
     }
 }
 
+static void TestMedianWindowFive(void)
+{
+    /* 25 mV maps to zero; a high/low spike must not change that PV.
+     * Two high samples are rejected; the third makes the window majority. */
+    const int32_t inputs[] = {25000, 50000, 0, 25000, 25000,
+                             50000, 50000, 50000};
+    g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
+    g_product_configuration.filterTimeConstantSeconds = 0.0F;
+    g_sample.valid = true;
+    ProductSensorMeasurementService_Initialize();
+    for (unsigned int i = 0U; i < sizeof(inputs) / sizeof(inputs[0]); i++)
+    {
+        g_sample.microvolts = inputs[i];
+        g_sample.sequence++;
+        assert(ProductSensorMeasurementService_Process(0U));
+        assert(g_monitor.unfilteredProcessValue == (i == 7U ? 32000.0F : 0.0F));
+        /* Foreground polling the same sample must not shift the window. */
+        for (unsigned int n = 0U; n < 8U; n++)
+        {
+            assert(ProductSensorMeasurementService_Process(0U));
+            assert(g_monitor.unfilteredProcessValue == (i == 7U ? 32000.0F : 0.0F));
+        }
+    }
+    /* A second channel starts with its own independent history. */
+    g_sample.microvolts = 0;
+    assert(ProductSensorMeasurementService_Process(1U));
+    assert(g_monitor.unfilteredProcessValue == -32000.0F);
+    /* OFF then ON must seed a fresh window, even at the same sequence. */
+    g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_OFF;
+    assert(ProductSensorMeasurementService_Process(0U));
+    g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.unfilteredProcessValue == -32000.0F);
+}
+
 int main(void)
 {
+    TestMedianWindowFive();
     TestConfigurationMapping();
     TestKTypePipelineAndCjcPairing();
     TestCurrentShuntConversion();

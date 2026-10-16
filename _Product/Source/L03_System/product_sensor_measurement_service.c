@@ -29,6 +29,7 @@
 #include "SensorTables/tc_txk_table.h"
 #include "SensorTables/tc_u_table.h"
 
+#define PRODUCT_SENSOR_MEDIAN_WINDOW           (5U)
 #define PRODUCT_SENSOR_INPUT_COUNT             (4U)
 #define PRODUCT_INPUT_ERROR_NONE               (61U)
 #define PRODUCT_INPUT_ERROR_FAIL               (32U)
@@ -48,11 +49,53 @@ typedef struct
     uint16_t last_sensor_type;
     uint16_t last_cjc_source;
     int16_t last_cjc_offset_centi_c;
+    int32_t median_samples[PRODUCT_SENSOR_MEDIAN_WINDOW];
+    uint32_t median_sequence;
+    uint8_t median_next;
+    bool median_initialized;
     bool filter_initialized;
 } ProductSensorMeasurementState_t;
 
 static ProductSensorMeasurementState_t
     g_measurement_state[PRODUCT_SENSOR_INPUT_COUNT];
+
+/* Seed with the first sample to provide an immediate output without zero bias.
+ * Only distinct ADC sequences advance the per-channel rolling window. */
+static int32_t FilterMedian(ProductSensorMeasurementState_t *state,
+                            int32_t value, uint32_t sequence)
+{
+    int32_t sorted[PRODUCT_SENSOR_MEDIAN_WINDOW];
+    uint8_t i;
+    if (!state->median_initialized)
+    {
+        for (i = 0U; i < PRODUCT_SENSOR_MEDIAN_WINDOW; i++)
+        {
+            state->median_samples[i] = value;
+        }
+        state->median_next = 0U;
+        state->median_initialized = true;
+    }
+    else if (state->median_sequence != sequence)
+    {
+        state->median_samples[state->median_next] = value;
+        state->median_next = (uint8_t)((state->median_next + 1U) %
+                                      PRODUCT_SENSOR_MEDIAN_WINDOW);
+    }
+    state->median_sequence = sequence;
+    (void)memcpy(sorted, state->median_samples, sizeof(sorted));
+    for (i = 1U; i < PRODUCT_SENSOR_MEDIAN_WINDOW; i++)
+    {
+        int32_t key = sorted[i];
+        uint8_t j = i;
+        while ((j > 0U) && (sorted[j - 1U] > key))
+        {
+            sorted[j] = sorted[j - 1U];
+            j--;
+        }
+        sorted[j] = key;
+    }
+    return sorted[PRODUCT_SENSOR_MEDIAN_WINDOW / 2U];
+}
 
 static void SetCommonConfiguration(
     SensorConversionConfig_t *configuration,
@@ -305,6 +348,7 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
         state->last_cjc_offset_centi_c =
             product_configuration.cjcOffsetCentiC;
         state->last_sample_sequence = 0U;
+        state->median_initialized = false;
         state->filter_initialized = false;
         state->snapshot.valid = false;
     }
@@ -370,7 +414,8 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
     conversion_configuration.cold_junction_compensation_disabled =
         (product_configuration.cjcSource == EVENT_CJC_SOURCE_DISABLED);
     if (!SensorConversionService_Convert(
-            &conversion_configuration, calibrated_uv,
+            &conversion_configuration,
+            FilterMedian(state, calibrated_uv, sample.sequence),
             cjc_millicelsius, &result))
     {
         state->last_sample_sequence = sample.sequence;
