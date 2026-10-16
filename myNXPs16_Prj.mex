@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding= "UTF-8" ?>
-<configuration name="LPC55S16" xsi:schemaLocation="http://mcuxpresso.nxp.com/XSD/mex_configuration_13 http://mcuxpresso.nxp.com/XSD/mex_configuration_13.xsd" uuid="c2d125c4-29aa-4d88-b150-9a92963f26a6" version="13" xmlns="http://mcuxpresso.nxp.com/XSD/mex_configuration_13" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<configuration name="LPC55S16" xsi:schemaLocation="http://mcuxpresso.nxp.com/XSD/mex_configuration_12 http://mcuxpresso.nxp.com/XSD/mex_configuration_12.xsd" uuid="c2d125c4-29aa-4d88-b150-9a92963f26a6" version="12" xmlns="http://mcuxpresso.nxp.com/XSD/mex_configuration_12" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
    <common>
       <processor>LPC55S16</processor>
       <package>LPC55S16JBD100</package>
@@ -18,7 +18,7 @@
       <generate_registers_defines>false</generate_registers_defines>
    </preferences>
    <tools>
-      <pins name="Pins" version="13.1" enabled="true" update_project_code="true">
+      <pins name="Pins" version="13.0" enabled="true" update_project_code="true">
          <generated_project_files>
             <file path="board/pin_mux.h" update_enabled="true"/>
             <file path="board/pin_mux.c" update_enabled="true"/>
@@ -1289,7 +1289,7 @@
                         </struct>
                         <struct name="interrupt">
                            <setting name="IRQn" value="WDT_BOD_IRQn"/>
-                           <setting name="enable_interrrupt" value="disabled"/>
+                           <setting name="enable_interrrupt" value="noInit"/>
                            <setting name="enable_priority" value="false"/>
                            <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
