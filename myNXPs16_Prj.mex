@@ -20,7 +20,7 @@
    <tools>
       <pins name="Pins" version="13.1" enabled="true" update_project_code="true">
          <generated_project_files>
-            <file path="_Product/Tests/Unit/mocks/pin_mux.h" update_enabled="true"/>
+            <file path="board/pin_mux.h" update_enabled="true"/>
             <file path="board/pin_mux.c" update_enabled="true"/>
          </generated_project_files>
          <pins_profile>
@@ -997,7 +997,7 @@
             </dependency>
          </dependencies>
          <generated_project_files>
-            <file path="_Product/Tests/Unit/mocks/peripherals.h" update_enabled="true"/>
+            <file path="board/peripherals.h" update_enabled="true"/>
             <file path="board/peripherals.c" update_enabled="true"/>
          </generated_project_files>
          <peripherals_profile>
