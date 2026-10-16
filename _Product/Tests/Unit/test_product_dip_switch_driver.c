@@ -5,7 +5,6 @@
 
 #include "fsl_spi.h"
 #include "product_dip_switch_driver.h"
-#include "ProductDipSwitchConfig.h"
 
 SPI_Type g_mock_spi;
 static uint8_t g_next_rx_value;
@@ -42,15 +41,6 @@ int main(void)
     assert(snapshot.revision == 0U);
     assert(!ProductDipSwitchDriver_GetSnapshot(NULL));
 
-#if (PRODUCT_DIP_SWITCH_ENABLE == 0U)
-    /* DTX has no DipSW: processing must never access FC8 hardware. */
-    assert(!ProductDipSwitchDriver_Process());
-    assert(!ProductDipSwitchDriver_Process());
-    assert(g_transfer_count == 0U);
-    assert(ProductDipSwitchDriver_GetSnapshot(&snapshot));
-    assert(snapshot.status == PRODUCT_DIP_SWITCH_STATUS_NOT_INITIALIZED);
-    assert(snapshot.revision == 0U);
-#else
     g_next_rx_value = 0xF5U;
     assert(ProductDipSwitchDriver_Process());
     assert(ProductDipSwitchDriver_GetSnapshot(&snapshot));
@@ -82,6 +72,5 @@ int main(void)
     assert(snapshot.revision == 2U);
     assert(snapshot.status == PRODUCT_DIP_SWITCH_STATUS_READY);
     assert(g_transfer_count == 5U);
-#endif
     return 0;
 }

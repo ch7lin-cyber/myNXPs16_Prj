@@ -9,7 +9,6 @@
 static ProductDipSwitchSnapshot_t g_snapshot;
 static bool g_has_valid_sample;
 
-#if (PRODUCT_DIP_SWITCH_ENABLE != 0U)
 static uint8_t ReverseBits(uint8_t value)
 {
     value = (uint8_t)(((value & 0x55U) << 1U) |
@@ -31,8 +30,6 @@ static uint8_t ToLogicalMask(uint8_t raw_value)
     return (uint8_t)(mapped_value ^ PRODUCT_DIP_SWITCH_ACTIVE_LOW_MASK);
 }
 
-#endif
-
 void ProductDipSwitchDriver_Initialize(void)
 {
     g_snapshot.logical_mask = 0U;
@@ -44,7 +41,6 @@ void ProductDipSwitchDriver_Initialize(void)
 
 bool ProductDipSwitchDriver_Process(void)
 {
-#if (PRODUCT_DIP_SWITCH_ENABLE != 0U)
     uint8_t tx_data = 0xFFU;
     uint8_t rx_data = 0U;
     uint8_t logical_mask;
@@ -73,10 +69,6 @@ bool ProductDipSwitchDriver_Process(void)
     g_snapshot.status = PRODUCT_DIP_SWITCH_STATUS_READY;
     g_has_valid_sample = true;
     return true;
-#else
-    /* Preserve the diagnostic API without touching the absent SPI peripheral. */
-    return false;
-#endif
 }
 
 bool ProductDipSwitchDriver_GetSnapshot(ProductDipSwitchSnapshot_t *snapshot)

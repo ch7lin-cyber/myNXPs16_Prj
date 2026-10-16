@@ -1,34 +1,42 @@
-# DTX watchdog validation
+# Product watchdog validation
 
-The MEX and board initialization start WWDT in reset mode with an 8-second
-startup timeout (1 MHz WDT input, fixed /4 counter, TC=2000000). Window mode
-and warning interrupts are disabled. After successful startup the product
-driver switches to a 2-second timeout using the actual WDT input clock.
+WWDT starts during `BOARD_InitBootPeripherals()` in reset mode. Window mode,
+warning interrupts and the shared WDT/BOD interrupt are disabled. After all
+product initialization and SysTick setup succeed, the product watchdog driver
+changes the runtime timeout to 2 seconds using the actual WDT input clock.
 
-Only the completed foreground loop feeds WWDT, at most once every 100 ms of
-SysTick progress. Interrupt handlers, startup halt paths and application
-functions do not feed it. This detects a stalled foreground or stalled timebase;
-it does not prove that every sensor or communication transaction is successful.
+Only a completed foreground-loop pass feeds WWDT, and no more than once every
+100 ms of SysTick progress. Interrupt handlers, boot halt paths and application
+services do not feed it. A stalled foreground loop or stalled SysTick therefore
+leads to a watchdog reset.
 
-Run `python3 _Product/Tests/run_watchdog_tests.py` for host tests of the production
-driver's timing, rollover, frozen tick and invalid configuration handling.
+Run the host regression test with:
 
-On LPC55S16 hardware:
+```text
+python3 _Product/Tests/run_watchdog_tests.py
+```
 
-1. Clean/rebuild in MCUXpresso so the new L01 source is included. Confirm boot
-   reaches `g_productBootStage=9` and `g_productBootError=0`.
-2. Run for at least 60 seconds. Confirm `g_productWatchdogFeedCount` advances
-   about ten times per second and normal I/O and Modbus continue operating.
-3. In a temporary test build, enter an infinite foreground loop before the
-   watchdog process call while leaving SysTick enabled. Verify reset in roughly
-   2 seconds. Repeat with SysTick disabled while foreground continues.
-4. In a temporary test build, halt initialization after board peripherals start.
-   Verify reset in roughly 8 seconds. Restore test changes after verification.
+The host test covers startup guards, runtime timing, frozen ticks, delayed
+foreground execution and unsigned tick rollover. Hardware reset behavior still
+requires target validation.
 
-Use running firmware for timeout tests: debugger halt behavior depends on the
-probe/device settings. Hardware timing and reset recovery require board testing;
-host tests and native SDK syntax checks do not validate ARM linking or reset.
+## LPC55S16 target validation
 
-Regeneration: keep MEX WWDT timeout at 8000000 us, warning=0, window disabled,
-and interrupt disabled. Regenerate both C and H files together; the board headers
-in this revision also repair missing MAO_SEL and station-input definitions.
+1. Clean and rebuild in MCUXpresso so the new L01 source is included.
+2. Confirm `g_productBootStage == 9` and `g_productBootError == 0`.
+3. Run for at least 60 seconds. `g_productWatchdogFeedCount` should advance at
+   about ten counts per second while normal Modbus and I/O continue operating.
+4. In a temporary test build, block the foreground before
+   `ProductWatchdogDriver_Process()` while leaving SysTick enabled. Confirm a
+   reset after about 2 seconds, then restore the test change.
+5. Repeat with SysTick stopped while the foreground continues. The watchdog
+   must not be fed and must reset the MCU.
+
+Debugger halt behavior can depend on probe settings, so perform timeout tests
+with running firmware rather than relying on a breakpoint pause.
+
+## Config Tools regeneration rule
+
+Keep WWDT in reset mode with windowing disabled, warning value zero and IRQ
+initialization disabled. Generate both `board/peripherals.c` and
+`board/peripherals.h`; never generate either file into the unit-test mocks.

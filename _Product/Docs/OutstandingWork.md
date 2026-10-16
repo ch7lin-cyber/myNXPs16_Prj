@@ -1,7 +1,9 @@
 # 尚未完成工作清單
 
-更新日期：2026-10-14  
-主專案基準：`63bc47f`  
+更新日期：2026-10-16
+
+主專案基準：`14cbccd`
+
 PlatformCore 基準：`21c06e7`
 
 本文件記錄目前尚未完成、已實作但仍待硬體驗證，以及明確保留給後續版本的工作。
@@ -19,6 +21,19 @@ PlatformCore 基準：`21c06e7`
 - [ ] 確認以下欄位不再出現編譯錯誤：
   - `EventTemperatureInputConfiguration_t.cjc_offset_centi_c`
   - `SerialConfiguration_t.response_delay_us`
+
+### MCUXpresso Config Tools 輸出路徑（已知問題）
+
+- [x] 根因確認為 Unit Test mocks 與 Config Tools 正式產出同名；刪除同名 mock
+  後，Config Tools 不再選擇 mocks 資料夾。
+- [x] mocks 已改名為 `mock_pin_mux.h` 與 `mock_peripherals.h`，並透過
+  `PRODUCT_HOST_TEST` wrapper 選擇；正式 MCU Build 固定引用 `board/` 產生檔。
+- [x] Product Driver Host Unit Tests 已改用明確命名的 mocks，避免依賴 include
+  path 的同名檔案遮蔽行為。
+- [ ] 在 MCUXpresso 重新開啟 MEX 並執行 Update Code，確認預覽固定為
+  `board/pin_mux.c`、`board/pin_mux.h`、`board/peripherals.c`、
+  `board/peripherals.h`。
+- [ ] 目標板執行 Clean/Rebuild，確認正式 Build 未定義 `PRODUCT_HOST_TEST`。
 
 ### Pt100／Profile 2 校正
 

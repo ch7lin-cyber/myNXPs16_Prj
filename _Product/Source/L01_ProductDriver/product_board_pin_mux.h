@@ -1,10 +1,12 @@
 #ifndef PRODUCT_BOARD_PIN_MUX_H
 #define PRODUCT_BOARD_PIN_MUX_H
 
-#if defined(PRODUCT_HOST_TEST) && (PRODUCT_HOST_TEST != 0)
-#include "../../Tests/Unit/mocks/mock_pin_mux.h"
+/* Keep MCUXpresso-generated headers unique inside the project. Host tests use
+ * an explicitly named mock so Config Tools cannot select it as an output. */
+#if defined(PRODUCT_HOST_TEST)
+#include "mock_pin_mux.h"
 #else
-#include "../../../board/pin_mux.h"
+#include "pin_mux.h"
 #endif
 
-#endif
+#endif /* PRODUCT_BOARD_PIN_MUX_H */
