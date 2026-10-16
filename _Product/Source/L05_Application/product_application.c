@@ -38,6 +38,7 @@
 #include "product_fram_bank_test.h"
 #include "product_sensor_configuration_consumer.h"
 #include "product_sensor_measurement_service.h"
+#include "product_fb_schedule_integration.h"
 #include "product_status_led.h"
 #include "product_temperature_input_types.h"
 
@@ -523,6 +524,10 @@ bool ProductApplication_Init(void)
     g_system_timestamp_ms = 0U;
     (void)BspInternalAdc_RequestCjcSamples();
     (void)BspInternalAdc_RequestMcuTemperature();
+    if (!ProductFbScheduleIntegration_Init(g_system_timestamp_ms))
+    {
+        return false;
+    }
     return true;
 }
 
@@ -681,6 +686,7 @@ void ProductApplication_Process(void)
         (void)AlarmConfigurationEventConsumer_Process(input);
         (void)SafetyConfigurationEventConsumer_Process(input);
     }
+    ProductFbScheduleIntegration_Process(g_system_timestamp_ms);
     ProductFramBankTest_Process();
     if (!ProductFramBankTest_IsBusy())
     {

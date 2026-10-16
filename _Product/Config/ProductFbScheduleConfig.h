@@ -1,11 +1,17 @@
 #ifndef PRODUCT_FB_SCHEDULE_CONFIG_H
 #define PRODUCT_FB_SCHEDULE_CONFIG_H
 
+#ifndef PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_ENABLED
+#define PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_ENABLED false
+#define PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_CALLBACK NULL
+#define PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_CONTEXT NULL
+#endif
+
 /* Product-owned recommendations, not L04 constants. Units: milliseconds.
- * All tasks are disabled placeholders. Supply L05 adapters only after the FB
- * and its tests are complete. No ISR, L03/L04/L05 data wiring is enabled here.
- * Mathematical blocks normally run inline with their consuming control chain;
- * their entries below are planning slots, not a requirement for separate tasks.
+ * CH0 MovingAverage is enabled by the L05 integration table as a read-only
+ * L03-to-L04 validation chain. Remaining tasks are disabled placeholders.
+ * No PWM/DAC or ISR is involved. Mathematical blocks normally run inline with
+ * their consuming control chain; their entries are planning slots.
  * X(name, enabled, period_ms, callback, context) */
 #define PRODUCT_FB_SCHEDULE_TASKS(X) \
     X(SetpointRamp, false, 20U, NULL, NULL) \
@@ -15,7 +21,9 @@
     X(WeightedSum, false, 20U, NULL, NULL) \
     X(Divide, false, 20U, NULL, NULL) \
     X(Selector, false, 20U, NULL, NULL) \
-    X(MovingAverage, false, 20U, NULL, NULL) \
+    X(MovingAverage, PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_ENABLED, 20U, \
+      PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_CALLBACK, \
+      PRODUCT_FB_SCHEDULE_CH0_MOVING_AVERAGE_CONTEXT) \
     X(Linearization, false, 20U, NULL, NULL) \
     X(LeadLag, false, 20U, NULL, NULL) \
     X(DeadTime, false, 20U, NULL, NULL) \
