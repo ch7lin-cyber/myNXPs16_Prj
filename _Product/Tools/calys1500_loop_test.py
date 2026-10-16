@@ -103,7 +103,7 @@ def select_sensor():
 
 def sample_count(dut, channel):
     _, _, _, u32 = modbus_helpers()
-    return u32(dut.read_holding_registers(0x4831 + channel * 0x40, 2))
+    return u32(dut.read_holding_registers(0x4E11 + channel * 0x40, 2))
 
 
 def configure_dut(dut, channel, sensor, wait_seconds):
@@ -177,7 +177,7 @@ def _run_sweep_points(calys, dut, channel, sensor, path, dwell, fresh_timeout, s
                 pv = dut.read_holding_registers(0x1000 + channel * 0x10, 3)
                 row.update(pv=f32(pv[:2]), input_error=pv[2],
                            successful_samples=current_count)
-                raw = dut.read_holding_registers(0x484F + channel * 0x40, 6)
+                raw = dut.read_holding_registers(0x4E2F + channel * 0x40, 6)
                 row.update(raw_code=f"0x{u32(raw[:2]):08X}", microvolts=i32(raw[4:6]))
                 add_comparison(row, sensor, point, settings)
                 if row["input_error"] != 61:

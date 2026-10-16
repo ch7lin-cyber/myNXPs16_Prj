@@ -80,10 +80,10 @@ def read_profile(dut, channel, profile):
 
 def _read_snapshot(dut, channel):
     base = channel * 0x40
-    count = _u32(dut.read_holding_registers(0x4831 + base, 2))
+    count = _u32(dut.read_holding_registers(0x4E11 + base, 2))
     pv = dut.read_holding_registers(0x1000 + channel * 0x10, 3)
-    raw = dut.read_holding_registers(0x484F + base, 6)
-    fault = dut.read_holding_registers(0x4823 + base, 1)[0]
+    raw = dut.read_holding_registers(0x4E2F + base, 6)
+    fault = dut.read_holding_registers(0x4E03 + base, 1)[0]
     return {"count": count, "pv": pv[0:2], "input_error": pv[2],
             "raw_code": _u32(raw[0:2]), "microvolts": _i32(raw[4:6]), "fault": fault}
 
@@ -93,7 +93,7 @@ def wait_stable_sample(dut, channel, timeout=30.0, stable_count=5,
                        sleep=time.sleep):
     """Wait for fresh, healthy ADC readings and return a stable-window summary."""
     deadline = clock() + timeout
-    previous_count = _u32(dut.read_holding_registers(0x4831 + channel * 0x40, 2))
+    previous_count = _u32(dut.read_holding_registers(0x4E11 + channel * 0x40, 2))
     values = deque(maxlen=stable_count)
     while clock() < deadline:
         sleep(poll_seconds)
