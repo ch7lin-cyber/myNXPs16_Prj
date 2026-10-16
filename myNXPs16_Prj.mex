@@ -1342,15 +1342,15 @@
                            <setting name="clockSourceFreq" value="BOARD_BootClockPLL150M"/>
                            <setting name="enableWwdt" value="true"/>
                            <setting name="enableWatchdogProtect" value="false"/>
-                           <setting name="timeoutValue_input" value="500000"/>
+                           <setting name="timeoutValue_input" value="8000000"/>
                            <setting name="windowEnable" value="false"/>
                            <setting name="warningValue_input" value="0"/>
                         </struct>
                         <struct name="interrupt">
                            <setting name="IRQn" value="WDT_BOD_IRQn"/>
                            <setting name="enable_interrrupt" value="disabled"/>
-                           <setting name="enable_priority" value="true"/>
-                           <setting name="priority" value="1"/>
+                           <setting name="enable_priority" value="false"/>
+                           <setting name="priority" value="0"/>
                            <setting name="enable_custom_name" value="false"/>
                         </struct>
                      </config_set>
