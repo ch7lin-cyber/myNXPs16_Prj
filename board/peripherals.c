@@ -149,6 +149,7 @@ instance:
       - 11: []
       - 12: []
       - 13: []
+      - 14: []
     - interrupts:
       - 0:
         - channelId: 'UART0_FC0'
@@ -172,6 +173,54 @@ instance:
 /* Empty initialization function (commented out)
 static void NVIC_init(void) {
 } */
+
+/***********************************************************************************************************************
+ * WWDT initialization code
+ **********************************************************************************************************************/
+/* clang-format off */
+/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+instance:
+- name: 'WWDT'
+- type: 'wwdt'
+- mode: 'reset_mode'
+- custom_name_enabled: 'false'
+- type_id: 'wwdt_4afd1b7f7bc88fc51c044e9c38c1808c'
+- functional_group: 'BOARD_InitPeripherals'
+- peripheral: 'WWDT'
+- config_sets:
+  - general:
+    - wwdt_config:
+      - clockSource: 'FunctionClock'
+      - clockSourceFreq: 'BOARD_BootClockPLL150M'
+      - enableWwdt: 'true'
+      - enableWatchdogProtect: 'false'
+      - timeoutValue_input: '8000000'
+      - windowEnable: 'false'
+      - warningValue_input: '0'
+    - interrupt:
+      - IRQn: 'WDT_BOD_IRQn'
+      - enable_interrrupt: 'noInit'
+      - enable_priority: 'false'
+      - priority: '0'
+      - enable_custom_name: 'false'
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
+/* clang-format on */
+const wwdt_config_t WWDT_config = {
+  .enableWwdt = true,
+  .enableWatchdogReset = true,
+  .enableWatchdogProtect = false,
+  .windowValue = WWDT_WINDOW,
+  .timeoutValue = WWDT_TIMEOUT,
+  .warningValue = WWDT_WARNING,
+  .clockFreq_Hz = 250000
+};
+
+static void WWDT_init(void) {
+  /* WWDT initiation  */
+  WWDT_Init(WWDT_PERIPHERAL, &WWDT_config);
+  /* Interrupt WDT_BOD_IRQn request in the NVIC is not initialized (disabled by default). */
+  /* It can be enabled later by EnableIRQ(WWDT_IRQN);  function call. */
+}
 
 /***********************************************************************************************************************
  * OUT4_CTIMER2 initialization code
@@ -782,7 +831,7 @@ instance:
         - commandId: '1'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.2'
+        - channelNumber: 'CH.3'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -797,7 +846,7 @@ instance:
         - commandId: '2'
         - chainedNextCommandNumber: '0'
         - sampleChannelMode: 'kLPADC_SampleChannelSingleEndSideA'
-        - channelNumber: 'CH.3'
+        - channelNumber: 'CH.2'
         - enableAutoChannelIncrement: 'false'
         - loopCount: '0'
         - hardwareAverageMode: 'kLPADC_HardwareAverageCount128'
@@ -877,7 +926,7 @@ const lpadc_config_t CJC_ADC0_config = {
 lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 2U,
+    .channelNumber = 3U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
@@ -891,7 +940,7 @@ lpadc_conv_command_config_t CJC_ADC0_commandsConfig[3] = {
   },
   {
     .sampleChannelMode = kLPADC_SampleChannelSingleEndSideA,
-    .channelNumber = 3U,
+    .channelNumber = 2U,
     .chainedNextCommandNumber = 0,
     .enableAutoChannelIncrement = false,
     .loopCount = 0UL,
@@ -1378,6 +1427,7 @@ void BOARD_InitPeripherals(void)
   DMA_Init(DMA1_DMA_BASEADDR);
 
   /* Initialize components */
+  WWDT_init();
   OUT4_CTIMER2_init();
   OUT1_CTIMER0_init();
   OUT2_CTIMER1_init();
