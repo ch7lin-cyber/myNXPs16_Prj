@@ -6,7 +6,7 @@
 #include "HalPwm.h"
 #include "fsl_clock.h"
 #include "fsl_ctimer.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 
 #define PRODUCT_PWM_CHANNEL_COUNT             (4U)
 #define PRODUCT_PWM_COUNTER_FREQUENCY_HZ      (100000UL)
