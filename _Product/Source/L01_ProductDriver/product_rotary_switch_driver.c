@@ -4,7 +4,7 @@
 
 #include "ProductRotarySwitchConfig.h"
 #include "fsl_gpio.h"
-#include "pin_mux.h"
+#include "product_board_pin_mux.h"
 
 static ProductRotarySwitchSnapshot_t g_snapshot;
 static bool g_has_valid_sample;
