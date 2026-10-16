@@ -7,8 +7,8 @@
 #include "ProductDacConfig.h"
 #include "fsl_gpio.h"
 #include "fsl_spi.h"
-#include "peripherals.h"
-#include "pin_mux.h"
+#include "product_board_peripherals.h"
+#include "product_board_pin_mux.h"
 
 #define DAC8562_COMMAND_WRITE_INPUT              (0U)
 #define DAC8562_COMMAND_WRITE_INPUT_UPDATE_ALL   (2U)
