@@ -6,19 +6,12 @@
 #ifndef _PERIPHERALS_H_
 #define _PERIPHERALS_H_
 
-/* WWDT: 1 MHz source / 4, 8-second startup budget, no window. */
-#define WWDT_PERIPHERAL WWDT
-#define WWDT_TIMEOUT 2000000UL
-#define WWDT_WINDOW 0xFFFFFFUL
-#define WWDT_WARNING 0UL
-#define WWDT_IRQN WDT_BOD_IRQn
-
-
 /***********************************************************************************************************************
  * Included files
  **********************************************************************************************************************/
 #include "fsl_dma.h"
 #include "fsl_common.h"
+#include "fsl_wwdt.h"
 #include "fsl_ctimer.h"
 #include "fsl_clock.h"
 #include "fsl_reset.h"
@@ -29,8 +22,6 @@
 #include "fsl_power.h"
 #include "fsl_crc.h"
 #include "fsl_pint.h"
-#include "fsl_mrt.h"
-#include "fsl_wwdt.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -46,72 +37,73 @@ extern "C" {
 #define DMA1_DMA_BASEADDR DMA1
 /* NVIC interrupt vector ID (number). */
 #define UART0_FC0_IRQN FLEXCOMM0_IRQn
-/* NVIC interrupt vector priority. */
-#define UART0_FC0_IRQ_PRIORITY 2
 /* NVIC interrupt handler identifier. */
 #define UART0_FC0_IRQHANDLER FLEXCOMM0_IRQHandler
 /* NVIC interrupt vector ID (number). */
 #define UART1_FC1_IRQN FLEXCOMM1_IRQn
-/* NVIC interrupt vector priority. */
-#define UART1_FC1_IRQ_PRIORITY 2
 /* NVIC interrupt handler identifier. */
 #define UART1_FC1_IRQHANDLER FLEXCOMM1_IRQHandler
+/* BOARD_InitPeripherals defines for WWDT */
+/* Definition of peripheral ID */
+#define WWDT_PERIPHERAL ((WWDT_Type *) WWDT_BASE)
+/* Definition of the Watchdog Timer Window value */
+#define WWDT_WINDOW 16777215UL
+/* Definition of the Watchdog Timer Constant value */
+#define WWDT_TIMEOUT 8000000UL
+/* Definition of the Watchdog Timer Warning Interrupt value */
+#define WWDT_WARNING 0UL
+/* WWDT interrupt vector ID (number). */
+#define WWDT_IRQN WDT_BOD_IRQn
+/* WWDT interrupt handler identifier. */
+#define WWDT_IRQHANDLER WDT_BOD_IRQHandler
 /* Definition of peripheral ID */
 #define OUT4_CTIMER2_PERIPHERAL CTIMER2
 /* Timer tick frequency in Hz (input frequency of the timer) */
-#define OUT4_CTIMER2_TICK_FREQ 10000UL
+#define OUT4_CTIMER2_TICK_FREQ 100000UL
 /* Timer tick period in ns (input period of the timer) */
-#define OUT4_CTIMER2_TICK_PERIOD 100000UL
+#define OUT4_CTIMER2_TICK_PERIOD 10000UL
 /* Definition of PWM period channel. */
 #define OUT4_CTIMER2_PWM_PERIOD_CH kCTIMER_Match_0
 /* Definition of PWM period */
-#define OUT4_CTIMER2_PWM_PERIOD 39999
+#define OUT4_CTIMER2_PWM_PERIOD 399999
 /* OUT4_CTIMER2 interrupt vector ID (number). */
 #define OUT4_CTIMER2_TIMER_IRQN CTIMER2_IRQn
-/* OUT4_CTIMER2 interrupt vector priority. */
-#define OUT4_CTIMER2_TIMER_IRQ_PRIORITY 4
 /* Definition of peripheral ID */
 #define OUT1_CTIMER0_PERIPHERAL CTIMER0
 /* Timer tick frequency in Hz (input frequency of the timer) */
-#define OUT1_CTIMER0_TICK_FREQ 10000UL
+#define OUT1_CTIMER0_TICK_FREQ 100000UL
 /* Timer tick period in ns (input period of the timer) */
-#define OUT1_CTIMER0_TICK_PERIOD 100000UL
+#define OUT1_CTIMER0_TICK_PERIOD 10000UL
 /* Definition of PWM period channel. */
 #define OUT1_CTIMER0_PWM_PERIOD_CH kCTIMER_Match_3
 /* Definition of PWM period */
-#define OUT1_CTIMER0_PWM_PERIOD 39999
+#define OUT1_CTIMER0_PWM_PERIOD 399999
 /* OUT1_CTIMER0 interrupt vector ID (number). */
 #define OUT1_CTIMER0_TIMER_IRQN CTIMER0_IRQn
-/* OUT1_CTIMER0 interrupt vector priority. */
-#define OUT1_CTIMER0_TIMER_IRQ_PRIORITY 4
 /* Definition of peripheral ID */
 #define OUT2_CTIMER1_PERIPHERAL CTIMER1
 /* Timer tick frequency in Hz (input frequency of the timer) */
-#define OUT2_CTIMER1_TICK_FREQ 10000UL
+#define OUT2_CTIMER1_TICK_FREQ 100000UL
 /* Timer tick period in ns (input period of the timer) */
-#define OUT2_CTIMER1_TICK_PERIOD 100000UL
+#define OUT2_CTIMER1_TICK_PERIOD 10000UL
 /* Definition of PWM period channel. */
 #define OUT2_CTIMER1_PWM_PERIOD_CH kCTIMER_Match_3
 /* Definition of PWM period */
-#define OUT2_CTIMER1_PWM_PERIOD 39999
+#define OUT2_CTIMER1_PWM_PERIOD 399999
 /* OUT2_CTIMER1 interrupt vector ID (number). */
 #define OUT2_CTIMER1_TIMER_IRQN CTIMER1_IRQn
-/* OUT2_CTIMER1 interrupt vector priority. */
-#define OUT2_CTIMER1_TIMER_IRQ_PRIORITY 4
 /* Definition of peripheral ID */
 #define OUT3_CTIMER3_PERIPHERAL CTIMER3
 /* Timer tick frequency in Hz (input frequency of the timer) */
-#define OUT3_CTIMER3_TICK_FREQ 10000UL
+#define OUT3_CTIMER3_TICK_FREQ 100000UL
 /* Timer tick period in ns (input period of the timer) */
-#define OUT3_CTIMER3_TICK_PERIOD 100000UL
+#define OUT3_CTIMER3_TICK_PERIOD 10000UL
 /* Definition of PWM period channel. */
 #define OUT3_CTIMER3_PWM_PERIOD_CH kCTIMER_Match_3
 /* Definition of PWM period */
-#define OUT3_CTIMER3_PWM_PERIOD 39999
+#define OUT3_CTIMER3_PWM_PERIOD 399999
 /* OUT3_CTIMER3 interrupt vector ID (number). */
 #define OUT3_CTIMER3_TIMER_IRQN CTIMER3_IRQn
-/* OUT3_CTIMER3 interrupt vector priority. */
-#define OUT3_CTIMER3_TIMER_IRQ_PRIORITY 4
 /* Definition of peripheral ID */
 #define UART0_FC0_PERIPHERAL ((USART_Type *)FLEXCOMM0)
 /* Definition of the clock source frequency */
@@ -143,14 +135,10 @@ extern "C" {
 #define ADC_FC3_CLOCK_SOURCE 48000000UL
 /* ADC_FC3 interrupt vector ID (number). */
 #define ADC_FC3_FLEXCOMM_IRQN FLEXCOMM3_IRQn
-/* Definition of peripheral ID */
-/* Definition of the clock source frequency */
 /* Alias for ADC0 peripheral */
 #define CJC_ADC0_PERIPHERAL ADC0
 /* CJC_ADC0 interrupt vector ID (number). */
 #define CJC_ADC0_IRQN ADC0_IRQn
-/* CJC_ADC0 interrupt vector priority. */
-#define CJC_ADC0_IRQ_PRIORITY 3
 /* CJC_ADC0 interrupt handler identifier. */
 #define CJC_ADC0_IRQHANDLER ADC0_IRQHandler
 /* Command 1 - CJC0_Cmd */
@@ -191,8 +179,6 @@ extern "C" {
 #define COMM_CTIMER4_MATCH_0_CHANNEL kCTIMER_Match_1
 /* COMM_CTIMER4 interrupt vector ID (number). */
 #define COMM_CTIMER4_TIMER_IRQN CTIMER4_IRQn
-/* COMM_CTIMER4 interrupt vector priority. */
-#define COMM_CTIMER4_TIMER_IRQ_PRIORITY 2
 /* Definition of peripheral ID */
 #define CRC_ENGINE_PERIPHERAL CRC_ENGINE
 /* BOARD_InitPeripherals defines for PINT */
@@ -200,8 +186,6 @@ extern "C" {
 #define PINT_PERIPHERAL ((PINT_Type *) PINT_BASE)
 /* PINT interrupt vector ID (number). */
 #define PINT_PINT_0_IRQN PIN_INT0_IRQn
-/* PINT interrupt vector priority. */
-#define PINT_PINT_0_IRQ_PRIORITY 2
 /* Definition of PINT interrupt ID for interrupt 0  */
 #define PINT_INT_0 kPINT_PinInt0
 /* BOARD_InitPeripherals defines for PINT */
@@ -209,16 +193,13 @@ extern "C" {
 #define PINT_CLK_PERIPHERAL ((PINT_Type *) PINT_BASE)
 /* PINT_CLK interrupt vector ID (number). */
 #define PINT_CLK_PINT_1_IRQN PIN_INT1_IRQn
-/* PINT_CLK interrupt vector priority. */
-#define PINT_CLK_PINT_1_IRQ_PRIORITY 2
 /* Definition of PINT interrupt ID for interrupt 1  */
 #define PINT_CLK_INT_1 kPINT_PinInt1
-/* Definition of peripheral ID */
-#define MRT0_PERIPHERAL MRT0
 
 /***********************************************************************************************************************
  * Global variables
  **********************************************************************************************************************/
+extern const wwdt_config_t WWDT_config;
 extern const ctimer_config_t OUT4_CTIMER2_config;
 extern const ctimer_config_t OUT1_CTIMER0_config;
 extern const ctimer_config_t OUT2_CTIMER1_config;
@@ -231,7 +212,6 @@ extern const usart_config_t UART1_FC1_config;
 extern dma_handle_t UART1_FC1_RX_Handle;
 extern dma_handle_t UART1_FC1_TX_Handle;
 extern usart_dma_handle_t UART1_FC1_USART_DMA_Handle;
-extern const wwdt_config_t WWDT_config;
 extern const spi_master_config_t ADC_FC3_config;
 extern spi_master_handle_t ADC_FC3_handle;
 extern const lpadc_config_t CJC_ADC0_config;
@@ -244,7 +224,6 @@ extern spi_master_handle_t MEM_FC7_handle;
 extern const ctimer_config_t COMM_CTIMER4_config;
 extern const ctimer_match_config_t COMM_CTIMER4_Match_0_config;
 extern const crc_config_t CRC_ENGINE_config;
-extern const mrt_config_t MRT0_config;
 
 /***********************************************************************************************************************
  * Callback functions
