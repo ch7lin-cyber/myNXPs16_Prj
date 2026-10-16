@@ -4,7 +4,7 @@
 
 #include "ProductDipSwitchConfig.h"
 #include "fsl_spi.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 
 static ProductDipSwitchSnapshot_t g_snapshot;
 static bool g_has_valid_sample;
