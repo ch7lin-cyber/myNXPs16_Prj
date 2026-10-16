@@ -1450,6 +1450,7 @@ static void TestDtxCompatibilityRegisters(void)
     uint16_t words[24], value, channel;
     uint16_t packet[24] = {0};
     uint16_t pwmBefore[12];
+    uint16_t dacBefore[4];
     product_pwm_output_config_t active, pending;
     ProductModbusRegisterAdapter_GetInterface(&iface);
     ProductModbusRegisterAdapter_DiscardPendingPwmConfig();
@@ -1537,12 +1538,15 @@ static void TestDtxCompatibilityRegisters(void)
 
     /* A DO hardware failure rolls back PWM already touched by the same FC10. */
     assert(iface.read_holding_registers(iface.context, 0x1300U, 12U, pwmBefore) == MODBUS_EXCEPTION_NONE);
+    for (channel = 0U; channel < 4U; channel++) dacBefore[channel] = g_dacDriver[channel].code;
     packet[0] = 111U; packet[1] = 222U; packet[2] = 333U; packet[3] = 444U; packet[4] = 0xFU;
     g_digitalOutput[1].failNextAccess = true;
     assert(iface.write_multiple_registers(iface.context, 0x4910U, packet, 5U) == MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
     assert(iface.read_holding_registers(iface.context, 0x1300U, 12U, words) == MODBUS_EXCEPTION_NONE);
     assert(memcmp(pwmBefore, words, sizeof(pwmBefore)) == 0);
     for (channel = 0U; channel < 4U; channel++) assert(g_pwmDriver[channel].dutyPermille == pwmBefore[channel * 3U + 1U]);
+
+    for (channel = 0U; channel < 4U; channel++) assert(g_dacDriver[channel].code == dacBefore[channel]);
 
     /* A partial PWM driver failure also restores the previous active image. */
     assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &active));
@@ -1558,6 +1562,72 @@ static void TestDtxCompatibilityRegisters(void)
     assert(iface.write_single_register(iface.context, PRODUCT_MODBUS_PWM_APPLY_KEY_ADDRESS, PRODUCT_MODBUS_PWM_APPLY_KEY_VALUE) == MODBUS_EXCEPTION_NONE);
     assert(iface.read_holding_registers(iface.context, 0x4910U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == 654U);
     assert(iface.read_holding_registers(iface.context, 0x4820U, 1U, &value) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+}
+
+static void TestDtxMvDacMapping(void)
+{
+    ModbusSlaveRegisterInterface_t iface;
+    const uint16_t mv[5] = {0U, 250U, 500U, 750U, 1000U};
+#if defined(PRODUCT_TEST_DAC_SCALED_ENDPOINTS)
+    const uint16_t expected[4][5] = {
+        {1000U, 3500U, 6000U, 8500U, 11000U},
+        {2000U, 7000U, 12000U, 17000U, 22000U},
+        {3000U, 10500U, 18000U, 25500U, 33000U},
+        {4000U, 14000U, 24000U, 34000U, 44000U}};
+#else
+    const uint16_t expected[4][5] = {
+        {0U, 16384U, 32768U, 49151U, 65535U},
+        {0U, 16384U, 32768U, 49151U, 65535U},
+        {0U, 16384U, 32768U, 49151U, 65535U},
+        {0U, 16384U, 32768U, 49151U, 65535U}};
+#endif
+    uint16_t words[4], code, pending, value;
+    uint8_t channel, index;
+    product_pwm_output_config_t oldPwm, current;
+    ProductModbusRegisterAdapter_GetInterface(&iface);
+    ProductModbusRegisterAdapter_DiscardPendingDacCodes();
+    for (index = 0U; index < 5U; index++)
+    {
+        for (channel = 0U; channel < 4U; channel++) words[channel] = mv[index];
+        assert(iface.write_multiple_registers(iface.context, 0x4910U, words, 4U) == MODBUS_EXCEPTION_NONE);
+        for (channel = 0U; channel < 4U; channel++)
+        {
+            assert(g_dacDriver[channel].code == expected[channel][index]);
+            assert(g_pwmDriver[channel].dutyPermille == mv[index]);
+            assert(iface.read_holding_registers(iface.context, (uint16_t)(0x1400U + channel), 1U, &code) == MODBUS_EXCEPTION_NONE);
+            assert(code == expected[channel][index]);
+        }
+        assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 0U);
+    }
+    /* A direct command must preserve another channel's staged raw code. */
+    assert(iface.write_single_register(iface.context, 0x1401U, 12345U) == MODBUS_EXCEPTION_NONE);
+    assert(iface.write_single_register(iface.context, 0x4910U, 500U) == MODBUS_EXCEPTION_NONE);
+    assert(ProductModbusRegisterAdapter_GetPendingDacCode(1U, &pending) && pending == 12345U);
+    assert(g_dacDriver[1].code == expected[1][4]);
+    assert(ProductModbusRegisterAdapter_GetDacPendingMask() == 2U);
+    ProductModbusRegisterAdapter_DiscardPendingDacCodes();
+
+    /* DAC failure must also roll back PWM in the same MV transaction. */
+    assert(ProductModbusRegisterAdapter_GetDacCode(0U, &code));
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &oldPwm));
+    g_dacDriver[0].failNextWrite = true;
+    assert(iface.write_single_register(iface.context, 0x4910U, 750U) == MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(g_dacDriver[0].code == code && g_pwmDriver[0].dutyPermille == oldPwm.dutyPermille);
+    assert(ProductModbusRegisterAdapter_GetDacCode(0U, &pending) && pending == code);
+    assert(ProductModbusRegisterAdapter_GetPwmConfig(0U, &current) && current.dutyPermille == oldPwm.dutyPermille);
+    assert(iface.read_holding_registers(iface.context, 0x4910U, 1U, &value) == MODBUS_EXCEPTION_NONE && value == oldPwm.dutyPermille);
+    assert(ProductModbusRegisterAdapter_GetDacStatus() == PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED);
+
+    /* A later DAC failure rolls back earlier channels as well. */
+    for (channel = 0U; channel < 4U; channel++) words[channel] = 250U;
+    g_dacDriver[2].failNextWrite = true;
+    assert(iface.write_multiple_registers(iface.context, 0x4910U, words, 4U) == MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE);
+    assert(g_dacDriver[0].code == code);
+    for (channel = 1U; channel < 4U; channel++) assert(g_dacDriver[channel].code == expected[channel][4]);
+    assert(iface.write_single_register(iface.context, 0x4910U, 500U) == MODBUS_EXCEPTION_NONE);
+    assert(g_dacDriver[0].code == expected[0][2]);
+    assert(iface.write_single_register(iface.context, 0x4918U, 4321U) == MODBUS_EXCEPTION_NONE);
+    assert(g_dacDriver[0].code == expected[0][2]); /* Period only does not alter DAC. */
 }
 
 int main(void)
@@ -1635,6 +1705,7 @@ int main(void)
     TestRotarySwitchRegisters();
     TestLowVoltageRegisters();
     TestDtxCompatibilityRegisters();
+    TestDtxMvDacMapping();
     return 0;
 }
 

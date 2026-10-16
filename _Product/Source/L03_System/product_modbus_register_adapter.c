@@ -6,6 +6,7 @@
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
 #include "ProductConfig.h"
+#include "ProductDacConfig.h"
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
@@ -2020,6 +2021,18 @@ static ModbusExceptionCode_t ApplyPendingDigitalOutputs(
     return MODBUS_EXCEPTION_NONE;
 }
 
+static bool DtxMvToDacCode(uint8_t channel, uint16_t mv, uint16_t *code)
+{
+    static const uint16_t minimum[PRODUCT_DAC_CHANNEL_COUNT] = PRODUCT_DAC_MV_MIN_CODES;
+    static const uint16_t maximum[PRODUCT_DAC_CHANNEL_COUNT] = PRODUCT_DAC_MV_MAX_CODES;
+    uint32_t span;
+    if ((channel >= PRODUCT_DAC_CHANNEL_COUNT) || (mv > 1000U) ||
+        (minimum[channel] > maximum[channel])) return false;
+    span = (uint32_t)maximum[channel] - minimum[channel];
+    *code = (uint16_t)(minimum[channel] + (span * mv + 500U) / 1000U);
+    return true;
+}
+
 static void RollbackDtxPwm(const product_modbus_register_context_t *ctx, uint16_t mask)
 {
     uint8_t channel;
@@ -2034,12 +2047,26 @@ static void RollbackDtxPwm(const product_modbus_register_context_t *ctx, uint16_
     }
 }
 
+static bool RollbackDtxDac(const product_modbus_register_context_t *ctx, uint16_t mask)
+{
+    uint8_t channel;
+    bool success = true;
+    for (channel = 0U; channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT; channel++)
+    {
+        if (((mask & (1U << channel)) != 0U) &&
+            !BspAnalogOutput_WriteCode((BspAnalogOutput_t)channel, ctx->activeDacCode[channel]))
+            success = false;
+    }
+    return success;
+}
+
 static ModbusExceptionCode_t WriteDtxRegisters(
     product_modbus_register_context_t *ctx,
     uint16_t address, const uint16_t *values, uint16_t quantity)
 {
     product_modbus_register_context_t staged = *ctx;
     uint16_t index, pwmMask = 0U, appliedMask = 0U;
+    uint16_t dacMask = 0U, appliedDacMask = 0U;
     bool writeDo = false;
     uint16_t doMask = 0U;
     uint8_t channel;
@@ -2074,6 +2101,13 @@ static ModbusExceptionCode_t WriteDtxRegisters(
         else if ((current >= 0x4910U) && (current <= 0x4913U))
         {
             channel = (uint8_t)(current - 0x4910U);
+            uint16_t code;
+            if (!DtxMvToDacCode(channel, value, &code))
+                return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            staged.activeDacCode[channel] = code;
+            staged.pendingDacCode[channel] = code;
+            staged.dacPendingMask &= (uint16_t)~(1U << channel);
+            dacMask |= (uint16_t)(1U << channel);
             staged.activePwmConfig[channel].dutyPermille = value;
             staged.pendingPwmConfig[channel].dutyPermille = value;
             pwmMask |= (uint16_t)(1U << channel);
@@ -2117,10 +2151,38 @@ static ModbusExceptionCode_t WriteDtxRegisters(
             staged.pwmPendingMask &= (uint16_t)~bit;
         else staged.pwmPendingMask |= bit;
     }
+    for (channel = 0U; channel < PRODUCT_MODBUS_DAC_CHANNEL_COUNT; channel++)
+    {
+        uint16_t bit = (uint16_t)(1U << channel);
+        if (((dacMask & bit) == 0U) ||
+            (staged.activeDacCode[channel] == ctx->activeDacCode[channel])) continue;
+        appliedDacMask |= bit;
+        if (!BspAnalogOutput_WriteCode((BspAnalogOutput_t)channel, staged.activeDacCode[channel]))
+        {
+            bool restored = RollbackDtxDac(ctx, appliedDacMask);
+            RollbackDtxPwm(ctx, appliedMask);
+            ctx->dacStatus = restored ? PRODUCT_MODBUS_DAC_STATUS_APPLY_FAILED :
+                PRODUCT_MODBUS_DAC_STATUS_ROLLBACK_FAILED;
+            ctx->dacFailedChannel = channel;
+            return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+        }
+    }
     if (writeDo && (DigitalOutputService_SetMask(doMask) != DIGITAL_OUTPUT_STATUS_OK))
     {
+        bool restored = RollbackDtxDac(ctx, appliedDacMask);
         RollbackDtxPwm(ctx, appliedMask);
+        if (!restored) ctx->dacStatus = PRODUCT_MODBUS_DAC_STATUS_ROLLBACK_FAILED;
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+    if (dacMask != 0U)
+    {
+        staged.dacStatus = PRODUCT_MODBUS_DAC_STATUS_READY;
+        staged.dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE;
+    }
+    if (appliedDacMask != 0U)
+    {
+        staged.dacConfigurationRevision++;
+        if (staged.dacConfigurationRevision == 0U) staged.dacConfigurationRevision = 1U;
     }
     if (appliedMask != 0U)
     {

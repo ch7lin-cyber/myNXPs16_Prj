@@ -444,7 +444,7 @@ unfiltered calibrated measurements; PV remains readable during range errors.
 
 ## DTX 相容區與 ADC 診斷搬移
 
-新增 0x4908～0x491F 可讀寫相容區，PV 為 int16 × 0.1，PWM／DO 不需 Apply。
+新增 0x4908～0x491F 可讀寫相容區，PV 為 int16 × 0.1，MV 同時對映 PWM／DAC，PWM／DAC／DO 不需 Apply。
 完整對照、範圍與驗證細則見 [DTX_CompatibilityRegisters.md](../Docs/DTX_CompatibilityRegisters.md)。
 ADC 診斷現為 0x4E00～0x4EFF（每顆 0x40 registers），取代 0x4820～0x491F；
 0x4C00～0x4DFF 工廠校正區保持不變。

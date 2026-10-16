@@ -34,11 +34,16 @@ suites = {
         [product_source(n) for n in ['bsp_analog_output', 'product_fram_bank_test', 'product_temperature_range_resolver',
           'product_modbus_register_adapter', 'product_factory_calibration_storage', 'test_product_modbus_register_adapter']],
 }
+suites['modbus_endpoints'] = suites['modbus']
 with tempfile.TemporaryDirectory(prefix='factory-tests-') as directory:
     for name, sources in suites.items():
         for mode in ([1, 0] if name == 'modbus' else [1]):
             output = str(Path(directory) / (name + str(mode)))
             flags = ['-DFACTORY_CALIBRATION_INPUT_COUNT=4'] if name != 'conversion' else []
+            if name == 'modbus_endpoints':
+                flags += ['-DPRODUCT_TEST_DAC_SCALED_ENDPOINTS=1',
+                          '-DPRODUCT_DAC_MV_MIN_CODES={1000U,2000U,3000U,4000U}',
+                          '-DPRODUCT_DAC_MV_MAX_CODES={11000U,22000U,33000U,44000U}']
             cmd = ['gcc', '-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-ffunction-sections',
                    '-fdata-sections', '-Wl,--gc-sections', '-DPRODUCT_ADC_DEBUG_ENABLE=' + str(mode)]
             subprocess.run(cmd + flags + ['-I' + p for p in includes] + sources + ['-lm', '-o', output], check=True)

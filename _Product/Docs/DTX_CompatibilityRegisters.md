@@ -7,7 +7,7 @@
 Pending／Apply 規則保持不變。資料不額外寫入 NVM。
 
 PV／DI 寫入只暫時改變 Modbus 監測值，下一次成功量測會覆蓋；DI 不改變實體輸入
-或 DigitalInputService 內的取樣狀態。PWM／DO 則透過現有輸出 service 操作硬體，
+或 DigitalInputService 內的取樣狀態。PWM／DAC／DO 則透過現有輸出 service 操作硬體，
 原有安全抑制仍有效，PWM 週期切換時機依原 updateMode。
 
 ## 位址與格式
@@ -20,10 +20,10 @@ PV／DI 寫入只暫時改變 Modbus 監測值，下一次成功量測會覆蓋�
 | 0x490B | CH3 PV | 0x1035～1036 | int16，0.1 單位 |
 | 0x490C | DI 狀態 | 0x1500 | bit0～3 |
 | 0x490D～490F | 保留 RAM | 無 | uint16，可讀寫，重開機歸零 |
-| 0x4910 | CH0 PWM duty | 0x1301 | 0～1000，即 0.0～100.0% |
-| 0x4911 | CH1 PWM duty | 0x1304 | 0～1000 |
-| 0x4912 | CH2 PWM duty | 0x1307 | 0～1000 |
-| 0x4913 | CH3 PWM duty | 0x130A | 0～1000 |
+| 0x4910 | CH0 MV（PWM＋DAC） | 0x1301／0x1400 | 0～1000，即 0.0～100.0% |
+| 0x4911 | CH1 MV（PWM＋DAC） | 0x1304／0x1401 | 0～1000 |
+| 0x4912 | CH2 MV（PWM＋DAC） | 0x1307／0x1402 | 0～1000 |
+| 0x4913 | CH3 MV（PWM＋DAC） | 0x130A／0x1403 | 0～1000 |
 | 0x4914 | DO 狀態 | 0x1510 | bit0～3 |
 | 0x4915～4917 | 保留 RAM | 無 | uint16，可讀寫，重開機歸零 |
 | 0x4918 | CH0 PWM period | 0x1300 | 10～10000 ms |
@@ -35,6 +35,25 @@ PV／DI 寫入只暫時改變 Modbus 監測值，下一次成功量測會覆蓋�
 例如寫入 PV=1234，標準 float32 PV 讀回 123.4；寫入 0xFB2E（int16=-1234），
 float32 PV 讀回 -123.4。讀取時四捨五入至 0.1，半值遠離零；超過 int16 範圍
 飽和至 -32768／32767（即 -3276.8～3276.7），NaN 讀回 0。原 float32 PV 不被裁切。
+
+## MV 對映 DAC
+
+0x4910～0x4913 寫入同時驅動對應的 PWM 與 DAC0～3，不需 Apply。
+DAC 使用下式（整數運算，四捨五入）：
+
+`DAC code = 最小 code + round((最大 code - 最小 code) × MV / 1000)`
+
+端點設定在 `_Product/Config/ProductDacConfig.h` 的 `PRODUCT_DAC_MV_MIN_CODES`
+及 `PRODUCT_DAC_MV_MAX_CODES`，每組依 DAC0～3 排列；目前預設四路皆為 0～65535。
+例如 MV=0 → 0、MV=250 → 16384、MV=500 → 32768、MV=750 → 49151、MV=1000 → 65535。
+若最小 code=1000、最大 code=11000，MV=500 則為 6000，包含最小值偏移。
+這些是 DAC 原始 code 端點；實際電流／電壓仍取決於 MAO_SEL、類比電路與校正。
+
+成功寫入會更新 0x1400～0x1403 的 Active／對應 Pending code，並保留其他通道
+尚未 Apply 的 raw code。原 0x1400 區的 raw code Pending／Apply 操作保持不變。
+直接寫 raw code 不反向改變 MV／PWM。只寫 PDO_period 不會改變 DAC。
+DAC 寫入失敗時回覆 0x04，嘗試還原同次命令已更新的 DAC 與 PWM；DO 失敗時
+也會嘗試還原同次更新的 DAC。連續硬體故障仍可能導致回復失敗。
 
 ## 錯誤與批次寫入
 
@@ -63,6 +82,8 @@ float32 PV 讀回 -123.4。讀取時四捨五入至 0.1，半值遠離零；超�
 5. duty／period／bit mask 範圍檢查、尾端數值錯誤時整批不變。
 6. 既有 Pending 隔離、標準 Apply 寫入後相容區反向讀回。
 7. PWM／DO 故障回覆與 PWM 回復。
-8. 搬移後四顆 ADC 診斷及既有工廠校正測項；ADC DEBUG=1／0 皆執行。
+8. 四路 MV=0／250／500／750／1000 的實際 mock DAC code 與 raw register 讀回，
+   另以四路不同非零端點重新編譯驗證公式中的最小值偏移；DAC Pending 隔離與跨通道故障回復。
+9. 搬移後四顆 ADC 診斷及既有工廠校正測項；ADC DEBUG=1／0 皆執行。
 
 Host 測試不取代 ARM 連結、RS-485 RTU／ASCII 封包及實際輸出上板驗證。
