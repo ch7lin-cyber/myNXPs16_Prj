@@ -6,29 +6,6 @@
 #ifndef _PIN_MUX_H_
 #define _PIN_MUX_H_
 
-/* GPIO mux selection for the three DTX reassigned pins. */
-#define PIO1_3_FUNC_ALT0 0U
-#define PIO0_4_FUNC_ALT0 0U
-#define PIO1_27_FUNC_ALT0 0U
-
-/* DTX analog mode and station strap inputs; mirrored from MEX. */
-#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO GPIO
-#define BOARD_INITEXTDACPINS_MAO_SEL_PORT 1U
-#define BOARD_INITEXTDACPINS_MAO_SEL_PIN 3U
-#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO_PIN_MASK (1U << 3U)
-#define BOARD_INITEXTDACPINS_MAO_SEL_PIN_MASK (1U << 3U)
-#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO GPIO
-#define BOARD_INITROTARYSWPINS_READ_PIN0_PORT 1U
-#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN 27U
-#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO_PIN_MASK (1U << 27U)
-#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN_MASK (1U << 27U)
-#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO GPIO
-#define BOARD_INITROTARYSWPINS_READ_PIN1_PORT 0U
-#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN 4U
-#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO_PIN_MASK (1U << 4U)
-#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN_MASK (1U << 4U)
-
-
 /*!
  * @addtogroup pin_mux
  * @{
@@ -81,36 +58,6 @@ void BOARD_InitBootPins(void);
  *
  */
 void BOARD_InitDEBUG_UARTPins(void); /* Function assigned for the Cortex-M33 */
-
-/*!
- * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO0_13_DIGIMODE_DIGITAL 0x01u
-/*!
- * @brief Selects pin function.: Alternative connection 5. */
-#define PIO0_13_FUNC_ALT5 0x05u
-/*!
- * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO0_14_DIGIMODE_DIGITAL 0x01u
-/*!
- * @brief Selects pin function.: Alternative connection 0. */
-#define PIO0_14_FUNC_ALT0 0x00u
-/*!
- * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO1_11_DIGIMODE_DIGITAL 0x01u
-/*!
- * @brief Selects pin function.: Alternative connection 2. */
-#define PIO1_11_FUNC_ALT2 0x02u
-
-/*! @name PIO0_14 (number 72), J13[11]/J13[12]/J18[6]/JS4[2]/FC1_I2C_SCL
-  @{ */
-
-/* Symbols to be used with GPIO driver */
-#define BOARD_INITUART2PINS_FC1_DIR_GPIO GPIO                 /*!<@brief GPIO peripheral base pointer */
-#define BOARD_INITUART2PINS_FC1_DIR_GPIO_PIN_MASK (1U << 14U) /*!<@brief GPIO pin mask */
-#define BOARD_INITUART2PINS_FC1_DIR_PORT 0U                   /*!<@brief PORT peripheral base pointer */
-#define BOARD_INITUART2PINS_FC1_DIR_PIN 14U                   /*!<@brief PORT pin number */
-#define BOARD_INITUART2PINS_FC1_DIR_PIN_MASK (1U << 14U)      /*!<@brief PORT pin mask */
-                                                              /* @} */
 
 /*!
  * @brief Route 3 UART pins: RXD, TXD, RTS; Route 5 Expand Interface GPIO pins.
@@ -166,24 +113,6 @@ void BOARD_InitUART2Pins(void); /* Function assigned for the Cortex-M33 */
  *
  */
 void BOARD_InitSWD_DEBUGPins(void); /* Function assigned for the Cortex-M33 */
-
-/*!
- * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO0_4_DIGIMODE_DIGITAL 0x01u
-/*!
- * @brief Selects pin function.: Alternative connection 1. */
-#define PIO0_4_FUNC_ALT1 0x01u
-/*!
- * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO1_27_DIGIMODE_DIGITAL 0x01u
-
-/*! @name CAN0_TD (number 85), U26[3]/CAN_TXD
-  @{ */
-/* @} */
-
-/*! @name CAN0_RD (number 86), J10[16]/U24[14]/FC3_SPI_SSEL0
-  @{ */
-/* @} */
 
 /*!
  * @brief Configures pin routing and optionally pin electrical features.
@@ -401,6 +330,12 @@ void BOARD_InitPULSEPins(void); /* Function assigned for the Cortex-M33 */
 /*!
  * @brief Selects pin function.: Alternative connection 0. */
 #define PIO1_16_FUNC_ALT0 0x00u
+/*!
+ * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
+#define PIO1_3_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 0. */
+#define PIO1_3_FUNC_ALT0 0x00u
 
 /*! @name PIO0_27 (number 27), J8[4]/J12[14]/ARD_MIK_FC2_USART_TXD
   @{ */
@@ -435,8 +370,19 @@ void BOARD_InitPULSEPins(void); /* Function assigned for the Cortex-M33 */
 #define BOARD_INITEXTDACPINS_CLR_BAR_PIN_MASK (1U << 16U)      /*!<@brief PORT pin mask */
                                                                /* @} */
 
+/*! @name PIO1_3 (number 62), up0~3_MAO_SEL
+  @{ */
+
+/* Symbols to be used with GPIO driver */
+#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO GPIO                /*!<@brief GPIO peripheral base pointer */
+#define BOARD_INITEXTDACPINS_MAO_SEL_GPIO_PIN_MASK (1U << 3U) /*!<@brief GPIO pin mask */
+#define BOARD_INITEXTDACPINS_MAO_SEL_PORT 1U                  /*!<@brief PORT peripheral base pointer */
+#define BOARD_INITEXTDACPINS_MAO_SEL_PIN 3U                   /*!<@brief PORT pin number */
+#define BOARD_INITEXTDACPINS_MAO_SEL_PIN_MASK (1U << 3U)      /*!<@brief PORT pin mask */
+                                                              /* @} */
+
 /*!
- * @brief Use 2 2-CH DAC modules; Route 5 pins: MOSI(data), SCK(clock), SSEL(/SYNC), GPIO0(/CLR), GPIO1(/LDAC)
+ * @brief DTX: two dual-channel DACs; MOSI, SCK, /SYNC0, /SYNC1, /CLR; MAO_SEL low=ACO, high=AVO for all four outputs.
  *
  */
 void BOARD_InitExtDACPins(void); /* Function assigned for the Cortex-M33 */
@@ -729,18 +675,6 @@ void BOARD_InitUSBPins(void); /* Function assigned for the Cortex-M33 */
  */
 void BOARD_InitLEDsPins(void); /* Function assigned for the Cortex-M33 */
 
-#define PIO1_1_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO1_1_FUNC_ALT5 0x05u        /*!<@brief Selects pin function.: Alternative connection 5. */
-#define PIO1_2_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO1_2_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
-#define PIO1_3_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
-#define PIO1_3_FUNC_ALT6 0x06u        /*!<@brief Selects pin function.: Alternative connection 6. */
-
-/*!
- * @brief Route 8 GPIO input pins.
- *
- */
-
 /*!
  * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
 #define PIO0_17_DIGIMODE_DIGITAL 0x01u
@@ -755,6 +689,12 @@ void BOARD_InitLEDsPins(void); /* Function assigned for the Cortex-M33 */
 #define PIO0_1_FUNC_ALT0 0x00u
 /*!
  * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
+#define PIO0_4_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 0. */
+#define PIO0_4_FUNC_ALT0 0x00u
+/*!
+ * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
 #define PIO1_13_DIGIMODE_DIGITAL 0x01u
 /*!
  * @brief Selects pin function.: Alternative connection 0. */
@@ -765,6 +705,12 @@ void BOARD_InitLEDsPins(void); /* Function assigned for the Cortex-M33 */
 /*!
  * @brief Selects pin function.: Alternative connection 0. */
 #define PIO1_18_FUNC_ALT0 0x00u
+/*!
+ * @brief Select Digital mode.: Enable Digital mode. Digital input is enabled. */
+#define PIO1_27_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 0. */
+#define PIO1_27_FUNC_ALT0 0x00u
 
 /*! @name PIO1_13 (number 2), J18[2]/J9[19]/FC6_I2S_RX
   @{ */
@@ -809,6 +755,28 @@ void BOARD_InitLEDsPins(void); /* Function assigned for the Cortex-M33 */
 #define BOARD_INITROTARYSWPINS_RR_SW_2_PIN 18U                   /*!<@brief PORT pin number */
 #define BOARD_INITROTARYSWPINS_RR_SW_2_PIN_MASK (1U << 18U)      /*!<@brief PORT pin mask */
                                                                  /* @} */
+
+/*! @name PIO1_27 (number 85), U26[3]/CAN_TXD
+  @{ */
+
+/* Symbols to be used with GPIO driver */
+#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO GPIO                 /*!<@brief GPIO peripheral base pointer */
+#define BOARD_INITROTARYSWPINS_READ_PIN0_GPIO_PIN_MASK (1U << 27U) /*!<@brief GPIO pin mask */
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PORT 1U                   /*!<@brief PORT peripheral base pointer */
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN 27U                   /*!<@brief PORT pin number */
+#define BOARD_INITROTARYSWPINS_READ_PIN0_PIN_MASK (1U << 27U)      /*!<@brief PORT pin mask */
+                                                                   /* @} */
+
+/*! @name PIO0_4 (number 86), J10[16]/U24[14]/FC3_SPI_SSEL0
+  @{ */
+
+/* Symbols to be used with GPIO driver */
+#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO GPIO                /*!<@brief GPIO peripheral base pointer */
+#define BOARD_INITROTARYSWPINS_READ_PIN1_GPIO_PIN_MASK (1U << 4U) /*!<@brief GPIO pin mask */
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PORT 0U                  /*!<@brief PORT peripheral base pointer */
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN 4U                   /*!<@brief PORT pin number */
+#define BOARD_INITROTARYSWPINS_READ_PIN1_PIN_MASK (1U << 4U)      /*!<@brief PORT pin mask */
+                                                                  /* @} */
 
 /*!
  * @brief Route 4 GPIO input pins.
@@ -1105,4 +1073,3 @@ void BOARD_InitInterBusPins(void); /* Function assigned for the Cortex-M33 */
 /***********************************************************************************************************************
  * EOF
  **********************************************************************************************************************/
-
