@@ -32,6 +32,10 @@ def driver_source(name: str) -> Path:
 
 
 suites = {
+    "dip_switch_absent": [
+        driver_source("product_dip_switch_driver"),
+        UNIT / "test_product_dip_switch_absent.c",
+    ],
     "dip_switch": [
         driver_source("product_dip_switch_driver"),
         UNIT / "test_product_dip_switch_driver.c",
@@ -65,6 +69,10 @@ suites = {
 }
 
 with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
+    absent_headers = Path(directory) / "no-dipsw"
+    absent_headers.mkdir()
+    (absent_headers / "mock_peripherals.h").write_text(
+        "/* DTX has no DIPSW_SPI_PERIPHERAL. */\n")
     for name, sources in suites.items():
         output = Path(directory) / name
         command = [
@@ -74,6 +82,7 @@ with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
             "-Wextra",
             "-Werror",
             "-DPRODUCT_HOST_TEST=1",
+            *(["-I" + str(absent_headers)] if name == "dip_switch_absent" else []),
             *["-I" + str(path) for path in include_dirs],
             *[str(path) for path in sources],
             "-o",

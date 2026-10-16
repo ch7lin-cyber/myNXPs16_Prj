@@ -129,10 +129,10 @@ static status_t ProductRs485Dma_StartMrtTimer(mrt_chnl_t channel, uint32_t timeo
 
     eventMask = 1UL << (uint32_t)channel;
     interruptMask = DisableGlobalIRQ();
-    MRT_StopTimer(MRT0_PERIPHERAL, channel);
-    MRT_ClearStatusFlags(MRT0_PERIPHERAL, channel, (uint32_t)kMRT_TimerInterruptFlag);
+    MRT_StopTimer(MRT0, channel);
+    MRT_ClearStatusFlags(MRT0, channel, (uint32_t)kMRT_TimerInterruptFlag);
     s_rs485MrtEvents &= ~eventMask;
-    MRT_StartTimer(MRT0_PERIPHERAL, channel, (uint32_t)ticks);
+    MRT_StartTimer(MRT0, channel, (uint32_t)ticks);
     EnableGlobalIRQ(interruptMask);
 
     return kStatus_Success;
@@ -186,8 +186,8 @@ static void ProductRs485Dma_StopMrtTimer(mrt_chnl_t channel)
     }
 
     interruptMask = DisableGlobalIRQ();
-    MRT_StopTimer(MRT0_PERIPHERAL, channel);
-    MRT_ClearStatusFlags(MRT0_PERIPHERAL, channel, (uint32_t)kMRT_TimerInterruptFlag);
+    MRT_StopTimer(MRT0, channel);
+    MRT_ClearStatusFlags(MRT0, channel, (uint32_t)kMRT_TimerInterruptFlag);
     s_rs485MrtEvents &= ~eventMask;
     EnableGlobalIRQ(interruptMask);
 }
@@ -209,6 +209,7 @@ static bool ProductRs485Dma_TakeMrtEvent(mrt_chnl_t channel)
 static status_t ProductRs485Dma_InitMrt(void)
 {
     uint32_t channel;
+    mrt_config_t config;
 
     s_rs485MrtClockHz = CLOCK_GetFreq(kCLOCK_BusClk);
     if (s_rs485MrtClockHz == 0U)
@@ -216,13 +217,16 @@ static status_t ProductRs485Dma_InitMrt(void)
         return kStatus_Fail;
     }
 
+    /* Communication owns MRT0 even when Config Tools has no MRT instance. */
+    MRT_GetDefaultConfig(&config);
+    MRT_Init(MRT0, &config);
     s_rs485MrtEvents = 0U;
     for (channel = 0U; channel < (uint32_t)FSL_FEATURE_MRT_NUMBER_OF_CHANNELS; channel++)
     {
-        MRT_StopTimer(MRT0_PERIPHERAL, (mrt_chnl_t)channel);
-        MRT_SetupChannelMode(MRT0_PERIPHERAL, (mrt_chnl_t)channel, kMRT_OneShotMode);
-        MRT_ClearStatusFlags(MRT0_PERIPHERAL, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptFlag);
-        MRT_EnableInterrupts(MRT0_PERIPHERAL, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptEnable);
+        MRT_StopTimer(MRT0, (mrt_chnl_t)channel);
+        MRT_SetupChannelMode(MRT0, (mrt_chnl_t)channel, kMRT_OneShotMode);
+        MRT_ClearStatusFlags(MRT0, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptFlag);
+        MRT_EnableInterrupts(MRT0, (mrt_chnl_t)channel, (uint32_t)kMRT_TimerInterruptEnable);
     }
 
     NVIC_ClearPendingIRQ(MRT0_IRQn);
@@ -248,10 +252,10 @@ void MRT0_DriverIRQHandler(void)
     {
         mrt_chnl_t mrtChannel = (mrt_chnl_t)channel;
 
-        if ((MRT_GetStatusFlags(MRT0_PERIPHERAL, mrtChannel) &
+        if ((MRT_GetStatusFlags(MRT0, mrtChannel) &
              (uint32_t)kMRT_TimerInterruptFlag) != 0U)
         {
-            MRT_ClearStatusFlags(MRT0_PERIPHERAL, mrtChannel, (uint32_t)kMRT_TimerInterruptFlag);
+            MRT_ClearStatusFlags(MRT0, mrtChannel, (uint32_t)kMRT_TimerInterruptFlag);
             s_rs485MrtEvents |= 1UL << channel;
         }
     }
