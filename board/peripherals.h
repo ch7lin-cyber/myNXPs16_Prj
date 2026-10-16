@@ -11,6 +11,7 @@
  **********************************************************************************************************************/
 #include "fsl_dma.h"
 #include "fsl_common.h"
+#include "fsl_wwdt.h"
 #include "fsl_ctimer.h"
 #include "fsl_clock.h"
 #include "fsl_reset.h"
@@ -47,6 +48,19 @@ extern "C" {
 #define UART1_FC1_IRQ_PRIORITY 2
 /* NVIC interrupt handler identifier. */
 #define UART1_FC1_IRQHANDLER FLEXCOMM1_IRQHandler
+/* BOARD_InitPeripherals defines for WWDT */
+/* Definition of peripheral ID */
+#define WWDT_PERIPHERAL ((WWDT_Type *) WWDT_BASE)
+/* Definition of the Watchdog Timer Window value */
+#define WWDT_WINDOW 16777215UL
+/* Definition of the Watchdog Timer Constant value */
+#define WWDT_TIMEOUT 8000000UL
+/* Definition of the Watchdog Timer Warning Interrupt value */
+#define WWDT_WARNING 0UL
+/* WWDT interrupt vector ID (number). */
+#define WWDT_IRQN WDT_BOD_IRQn
+/* WWDT interrupt handler identifier. */
+#define WWDT_IRQHANDLER WDT_BOD_IRQHandler
 /* Definition of peripheral ID */
 #define OUT4_CTIMER2_PERIPHERAL CTIMER2
 /* Timer tick frequency in Hz (input frequency of the timer) */
@@ -215,6 +229,7 @@ extern "C" {
 /***********************************************************************************************************************
  * Global variables
  **********************************************************************************************************************/
+extern const wwdt_config_t WWDT_config;
 extern const ctimer_config_t OUT4_CTIMER2_config;
 extern const ctimer_config_t OUT1_CTIMER0_config;
 extern const ctimer_config_t OUT2_CTIMER1_config;
