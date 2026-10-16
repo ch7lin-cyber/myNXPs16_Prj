@@ -11,7 +11,7 @@
 #include "fsl_mrt.h"
 #include "fsl_usart.h"
 #include "fsl_usart_dma.h"
-#include "peripherals.h"
+#include "product_board_peripherals.h"
 
 #define PRODUCT_RS485_MRT_IRQ_PRIORITY       (5U)
 #define PRODUCT_RS485_MRT_TURNAROUND_CHANNEL kMRT_Channel_2
