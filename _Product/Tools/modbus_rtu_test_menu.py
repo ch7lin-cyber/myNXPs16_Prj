@@ -20,6 +20,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Iterable, Sequence
 
+from product_register_addresses import (ADC_DIAGNOSTIC_BASE_ADDRESS,
+                                        ADC_DIAGNOSTIC_DEVICE_STRIDE)
+
 try:
     import serial
     from serial.tools import list_ports
@@ -38,8 +41,6 @@ CONTINUOUS_REGISTER_SLOT_COUNT = 10
 
 PV_BASE_ADDRESS = 0x1000
 PV_CHANNEL_STRIDE = 0x0010
-ADC_DIAGNOSTIC_BASE_ADDRESS = 0x4E00
-ADC_DIAGNOSTIC_DEVICE_STRIDE = 0x0040
 
 ADC_DIAGNOSTIC_NAMES = {
     0x00: "Initialized",

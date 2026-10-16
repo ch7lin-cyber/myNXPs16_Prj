@@ -67,12 +67,12 @@ class DutFake:
             return [1]
         if address == 0x1017:
             return [48]
-        if address == 0x4871:
+        if address == 0x4E51:
             self.count += 1
             return [0, self.count]
         if address == 0x1010:
             return [0x3F80, 0, 61]  # 1.0 PV, no input error
-        if address == 0x488F:
+        if address == 0x4E6F:
             return [0x80, 1, 0, 255, 0xFFFF, 0xFFFF]  # -1 uV
         raise AssertionError((hex(address), quantity))
 
@@ -189,7 +189,7 @@ class Tests(unittest.TestCase):
         dut = DutFake()
         original = dut.read_holding_registers
         dut.read_holding_registers = lambda address, quantity: (
-            [0, 5] if address == 0x4871 else original(address, quantity))
+            [0, 5] if address == 0x4E51 else original(address, quantity))
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "results.csv"
             with self.assertRaises(TimeoutError):
@@ -205,14 +205,14 @@ class Tests(unittest.TestCase):
             def __init__(self):
                 self.count = 0
             def read_holding_registers(self, address, quantity):
-                if address == 0x4831:
+                if address == 0x4E11:
                     self.count += 1
                     return [0, self.count]
                 if address == 0x1000:
                     return [0, 0, 140]  # Old bad calibration breaks PV only.
-                if address == 0x484F:
+                if address == 0x4E2F:
                     return [0x0080, 1, 0, 0, 0, 1234]
-                if address == 0x4823:
+                if address == 0x4E03:
                     return [0]
                 raise AssertionError((hex(address), quantity))
 
@@ -310,14 +310,14 @@ class Tests(unittest.TestCase):
                     return self.record
                 if address == 0x4709:
                     return self.pending
-                if address == 0x4831:
+                if address == 0x4E11:
                     self.count += 1
                     return [0, self.count]
                 if address in (0x1000, 0x1010):
                     return [0x3F80, 0, 61]
-                if address in (0x484F, 0x488F):
+                if address in (0x4E2F, 0x4E6F):
                     return [0x80, 1, 0, 255, *i32_regs(self.microvolts)]
-                if address == 0x4823:
+                if address == 0x4E03:
                     return [0]
                 raise AssertionError((hex(address), quantity))
             def write_multiple_registers(self, address, values):
@@ -362,13 +362,13 @@ class Tests(unittest.TestCase):
         client.read_holding_registers.side_effect = [
             RuntimeError("response timeout: expected 3-byte header, received 0"), [0, 50]]
         dut = loop.DutLink(client)
-        self.assertEqual(dut.read_holding_registers(0x4831, 2), [0, 50])
+        self.assertEqual(dut.read_holding_registers(0x4E11, 2), [0, 50])
         self.assertEqual(dut.read_retries, 1)
         self.assertEqual(client.read_holding_registers.call_count, 2)
         client.read_holding_registers.reset_mock()
         client.read_holding_registers.side_effect = RuntimeError("Modbus exception: code=0x02")
         with self.assertRaises(RuntimeError):
-            dut.read_holding_registers(0x4831, 2)
+            dut.read_holding_registers(0x4E11, 2)
         self.assertEqual(client.read_holding_registers.call_count, 1)
         client.write_multiple_registers.side_effect = RuntimeError("response timeout")
         with self.assertRaises(RuntimeError):
@@ -383,7 +383,7 @@ class Tests(unittest.TestCase):
         addresses = []
         def read(address, quantity):
             addresses.append(address)
-            if address == 0x4871 and addresses.count(0x4871) == 1:
+            if address == 0x4E51 and addresses.count(0x4E51) == 1:
                 raise RuntimeError("response timeout: expected 3-byte header, received 0")
             return original(address, quantity)
         client.read_holding_registers = read
@@ -396,7 +396,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(len(rows), 10)
             self.assertEqual(rows[0]["dut_read_retries"], "1")
             self.assertEqual(rows[-1]["status"], "recorded")
-            self.assertEqual(addresses.count(0x4871), 21)  # 2/point + one retry
+            self.assertEqual(addresses.count(0x4E51), 21)  # 2/point + one retry
 
     @patch.object(loop.time, "sleep")
     def test_dut_read_retry_exhausted(self, sleep):
@@ -405,7 +405,7 @@ class Tests(unittest.TestCase):
         client.read_holding_registers.side_effect = RuntimeError("response CRC error")
         dut = loop.DutLink(client)
         with self.assertRaises(RuntimeError):
-            dut.read_holding_registers(0x4831, 2)
+            dut.read_holding_registers(0x4E11, 2)
         self.assertEqual(client.read_holding_registers.call_count, 3)
         self.assertEqual(dut.read_retries, 2)
 
