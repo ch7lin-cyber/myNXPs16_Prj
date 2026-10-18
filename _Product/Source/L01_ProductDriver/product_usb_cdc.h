@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 bool ProductUsbCdc_Init(void);
+void ProductUsbCdc_Stop(void);
 void ProductUsbCdc_Process(void);
 size_t ProductUsbCdc_Read(uint8_t *buffer, size_t capacity);
 bool ProductUsbCdc_Send(const uint8_t *buffer, size_t length, uint32_t expected_session);

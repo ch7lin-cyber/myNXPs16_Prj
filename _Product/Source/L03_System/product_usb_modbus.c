@@ -1,4 +1,5 @@
 #include "product_usb_modbus.h"
+#include "product_fw_update.h"
 #include "product_usb_cdc.h"
 #include "product_modbus_register_adapter.h"
 #include "ModbusRegisterAdapter.h"
@@ -9,6 +10,7 @@
 /* USB packets are not RTU frames. Accumulate by request length, not T3.5. */
 static uint8_t stream[512], response[256];
 static size_t used, response_length;
+static bool response_inflight;
 static uint32_t last_rx_ms, session;
 static ModbusSlaveConfig_t slave;
 static void Consume(size_t n)
@@ -17,7 +19,7 @@ static void Consume(size_t n)
 }
 bool ProductUsbModbus_Init(void)
 {
-    used=0; response_length=0; last_rx_ms=0;
+    used=0; response_length=0; response_inflight=false; last_rx_ms=0;
     ProductModbusRegisterAdapter_GetInterface(&slave.registers);
     session=ProductUsbCdc_Session();
     return ProductUsbCdc_Init();
@@ -31,10 +33,11 @@ void ProductUsbModbus_Process(uint32_t now_ms)
     ProductUsbCdc_Process();
     current_session=ProductUsbCdc_Session();
     if(current_session!=session) {
-        session=current_session; used=0; response_length=0;
+        session=current_session; used=0; response_length=0;response_inflight=false;
     }
+    if(response_inflight && ProductUsbCdc_TxReady()) {response_inflight=false;ProductFwUpdate_ReplySent(1);}
     if(response_length) {
-        if(ProductUsbCdc_Send(response,response_length,session)) response_length=0;
+        if(ProductUsbCdc_Send(response,response_length,session)) {response_length=0;response_inflight=true;}
         return;
     }
     if(!ProductUsbCdc_TxReady()) return;
@@ -60,13 +63,15 @@ void ProductUsbModbus_Process(uint32_t now_ms)
         if(!ModbusCrc16_IsFrameValid(stream,frame_length)) { Consume(1); continue; }
         if(!ModbusRegisterAdapter_GetActiveSerialConfiguration(0U,&active)) return;
         slave.unit_address=(uint8_t)active.unit_id;
+        ProductFwUpdate_SetRequestContext(stream[0]?1:0,slave.unit_address);
         (void)ModbusSlave_ProcessRtuRequest(&slave,stream,frame_length,
                                            response,sizeof response,&response_length);
+        ProductFwUpdate_SetRequestContext(0,0);
         Consume(frame_length);
         if(response_length) {
             /* Never transmit a stale reply into a newly enumerated session. */
             if(ProductUsbCdc_Session()!=session) { used=0; response_length=0; return; }
-            if(ProductUsbCdc_Send(response,response_length,session)) response_length=0;
+            if(ProductUsbCdc_Send(response,response_length,session)) {response_length=0;response_inflight=true;}
             return;
         }
     }

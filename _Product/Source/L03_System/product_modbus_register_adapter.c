@@ -6,6 +6,7 @@
 #include "product_modbus_register_adapter.h"
 #include "product_temperature_input_types.h"
 #include "ProductConfig.h"
+#include "product_fw_update.h"
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
@@ -1263,6 +1264,9 @@ static ModbusExceptionCode_t ReadRegisters(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
+    if (starting_address >= 0x7000U && starting_address <= 0x7053U)
+        return (ModbusExceptionCode_t)ProductFwUpdate_Read(starting_address, quantity, values);
+
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             starting_address, &serial_information))
     {
@@ -1973,6 +1977,10 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
+    if (address == 0x7050U)
+        return (ModbusExceptionCode_t)ProductFwUpdate_Write(address, value);
+    if (ProductFwUpdate_IsPending())return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
+
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             address, &serial_information))
     {
@@ -2143,6 +2151,8 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
+
+    if (ProductFwUpdate_IsPending())return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
 
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             starting_address, &serial_information))

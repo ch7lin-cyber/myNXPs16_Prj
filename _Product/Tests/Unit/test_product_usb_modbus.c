@@ -1,4 +1,5 @@
 #include "product_usb_modbus.h"
+#include "product_fw_update.h"
 #include "product_usb_cdc.h"
 #include "product_modbus_register_adapter.h"
 #include "ModbusRegisterAdapter.h"
@@ -11,11 +12,11 @@ static size_t packet_n,reply_n;
 static uint32_t epoch;
 static uint16_t shared_value=0x4357,unit=2;
 static unsigned sends,writes;
-static bool accept_send=true;
+static bool accept_send=true, tx_ready=true;
 bool ProductUsbCdc_Init(void) {return true;}
 void ProductUsbCdc_Process(void) {}
 uint32_t ProductUsbCdc_Session(void) {return epoch;}
-bool ProductUsbCdc_TxReady(void) {return true;}
+bool ProductUsbCdc_TxReady(void) {return tx_ready;}
 size_t ProductUsbCdc_Read(uint8_t *b,size_t n) {
  assert(n>=packet_n); memcpy(b,packet,packet_n); n=packet_n;packet_n=0;return n;
 }
@@ -28,7 +29,8 @@ static ModbusExceptionCode_t Read(void *c,uint16_t a,uint16_t n,uint16_t *v) {
  *v=shared_value;return MODBUS_EXCEPTION_NONE;
 }
 static ModbusExceptionCode_t Write(void *c,uint16_t a,uint16_t v) {
- (void)c; if(a!=0x1000)return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+ (void)c; if(a==0x7050)return (ModbusExceptionCode_t)ProductFwUpdate_Write(a,v);
+ if(a!=0x1000)return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
  shared_value=v;writes++;return MODBUS_EXCEPTION_NONE;
 }
 static ModbusExceptionCode_t WriteMany(void *c,uint16_t a,const uint16_t *v,uint16_t n) {
@@ -80,5 +82,13 @@ int main(void) {
  }
  assert(sends==before+1 && reply[1]==0x90 && reply_n==5);
  puts("PASS: fragmented/coalesced RTU, shared read/write, FC10, CRC, broadcast, unit changes, timeout, session reset, TX retry");
+ ProductFwUpdate_Init();unit=2;write[0]=0;write[2]=0x70;write[3]=0x50;write[4]=0xB0;write[5]=7;Crc(write,8);
+ Feed(write,8,3000);assert(!ProductFwUpdate_IsPending());
+ write[0]=2;Crc(write,8);Feed(write,8,3001);assert(ProductFwUpdate_IsPending());
+ tx_ready=false;ProductFwUpdate_Process(3001);ProductUsbModbus_Process(3300);ProductFwUpdate_Process(3300);
+ uint16_t status[3];assert(!ProductFwUpdate_Read(0x7051,3,status) && status[0]==2);
+ tx_ready=true;ProductUsbModbus_Process(3301);ProductFwUpdate_Process(3301);
+ assert(!ProductFwUpdate_Read(0x7051,3,status) && status[0]==4); /* mock reset returned */
+ puts("USB update broadcast ignored and reset deferred until IN completion PASS");
  return 0;
 }

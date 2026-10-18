@@ -9,9 +9,12 @@ core = platform / "L03_SystemPlatform/Communication/ModbusCore"
 includes = ["-I" + str(p) for p in platform.rglob("*") if p.is_dir()]
 includes += ["-I" + str(ROOT / "_Product/Source" / name)
              for name in ("L01_ProductDriver", "L03_System")]
+includes += ["-I"+str(ROOT/"_Product/Config")]
 files = list(core.glob("*.c")) + [
     platform / "L03_SystemPlatform/Communication/ModbusSlave/ModbusSlave.c",
     ROOT / "_Product/Source/L03_System/product_usb_modbus.c",
+    ROOT / "_Product/Source/L03_System/product_fw_update.c",
+    ROOT / "_Product/Tests/Unit/mocks/mock_fw_update_board.c",
     ROOT / "_Product/Tests/Unit/test_product_usb_modbus.c"]
 with tempfile.TemporaryDirectory() as temp:
     binary = str(Path(temp) / "test_usb")
@@ -32,6 +35,8 @@ for config in project.findall(".//cconfiguration"):
         ROOT / "_Product/Source/L01_ProductDriver/product_usb_osa.c",
         ROOT / "_Product/Source/L01_ProductDriver/usb_device_descriptor.c",
         ROOT / "_Product/Source/L03_System/product_usb_modbus.c",
+        ROOT / "_Product/Source/L03_System/product_fw_update.c",
+        ROOT / "_Product/Source/L01_ProductDriver/product_fw_update_board.c",
         ROOT / "source/myNXPs16_Prj.c"]
     result = subprocess.run(["gcc", "-fsyntax-only", "-std=gnu99"] + paths + defs +
                             [str(p) for p in sdk], capture_output=True, text=True)

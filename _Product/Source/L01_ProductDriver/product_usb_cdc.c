@@ -154,3 +154,10 @@ bool ProductUsbCdc_Send(const uint8_t *buffer, size_t length, uint32_t expected_
 }
 bool ProductUsbCdc_TxReady(void) { return configured && !tx_busy; }
 uint32_t ProductUsbCdc_Session(void) { return session; }
+
+void ProductUsbCdc_Stop(void) {
+    DisableIRQ(USB0_IRQn);
+    (void)USB_DeviceStop(device);
+    (void)USB_DeviceClassDeinit(kUSB_ControllerLpcIp3511Fs0);
+    SDK_DelayAtLeastUs(100000u,SystemCoreClock);
+}

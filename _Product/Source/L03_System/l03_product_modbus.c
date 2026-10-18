@@ -1,4 +1,5 @@
 #include "l03_product_modbus.h"
+#include "product_fw_update.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -371,7 +372,11 @@ void L03_ProductModbus_Process(void)
         }
 
         s_modbus.statistics.receivedFrames++;
+        bool addressed=s_modbus.protocol==SERIAL_PROTOCOL_MODBUS_ASCII?
+                (s_modbus.rxBuffer[1]!='0' || s_modbus.rxBuffer[2]!='0'):s_modbus.rxBuffer[0]!=0;
+        ProductFwUpdate_SetRequestContext(addressed?2:0,s_modbus.slave.unit_address);
         result = ProcessFrame(rx_length, &tx_length);
+        ProductFwUpdate_SetRequestContext(0,0);
         RecordResult(result);
         if (result == MODBUS_SLAVE_RESULT_RESPONSE_READY)
         {
@@ -398,6 +403,7 @@ void L03_ProductModbus_Process(void)
     {
         if (!HalSerial_IsWriteBusy(HAL_SERIAL_PORT_0))
         {
+            ProductFwUpdate_ReplySent(2);
             if (!SynchronizeActiveConfiguration() || !StartReceive())
             {
                 s_modbus.statistics.transportErrors++;

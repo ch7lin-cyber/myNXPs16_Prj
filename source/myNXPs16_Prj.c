@@ -45,6 +45,7 @@
 #include "product_usb_modbus.h"
 #include "l03_product_modbus_master.h"
 #include "product_application.h"
+#include "product_fw_update.h"
 #include "product_pwm_driver.h"
 #include "product_dac8562_driver.h"
 #include "product_nvm_driver.h"
@@ -182,6 +183,7 @@ int main(void) {
     uint32_t processedTick100us = 0U;
     uint32_t usbTimeMs = 0U;
 
+    ProductFwUpdate_Init();
     /* Init board hardware. */
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
@@ -265,13 +267,18 @@ int main(void) {
             processedTick100us += 10U;
             usbTimeMs++;
             L03_ProductModbus_Tick1ms();
-            L03_ProductModbusMaster_Tick1ms();
-            ProductApplication_Tick1ms();
+            if(!ProductFwUpdate_IsPending()) {
+                L03_ProductModbusMaster_Tick1ms();
+                ProductApplication_Tick1ms();
+            }
         }
         ProductUsbModbus_Process(usbTimeMs);
         L03_ProductModbus_Process();
-        L03_ProductModbusMaster_Process();
-        ProductApplication_Process();
+        if(!ProductFwUpdate_IsPending()) {
+            L03_ProductModbusMaster_Process();
+            ProductApplication_Process();
+        }
+        ProductFwUpdate_Process(usbTimeMs);
 
         i++ ;
         /* 'Dummy' NOP to allow source level single stepping of
