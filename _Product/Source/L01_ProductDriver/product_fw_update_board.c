@@ -27,5 +27,9 @@ void ProductFwUpdate_Reset(uint16_t route,uint16_t unit) {
     volatile uint32_t *request=(volatile uint32_t *)BOOT_REQUEST_ADDRESS;
     request[0]=0;
     for(unsigned i=1;i<16;i++)request[i]=words[i];
-    __DSB();request[0]=words[0];__DSB();NVIC_SystemReset();
+    __DSB();request[0]=words[0];__DSB();
+    PMC->RESETCTRL |= PMC_RESETCTRL_SWRRESETENABLE_MASK;
+    __DSB();
+    SYSCON->SWR_RESET=0x5A000001u;
+    for(;;)__WFI();
 }
