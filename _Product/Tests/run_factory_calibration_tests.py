@@ -32,7 +32,8 @@ suites = {
         'DigitalOutputService', 'FactoryCalibrationService', 'ModbusRegisterAdapter', 'HalPwm', 'HalDac',
         'HalGpio', 'HalAdcMeasurement', 'FactoryModeService', 'SerialConfiguration', 'HalNvm', 'NvmService', 'HalSerial']) +
         [product_source(n) for n in ['bsp_analog_output', 'product_fram_bank_test', 'product_temperature_range_resolver',
-          'product_modbus_register_adapter', 'product_fw_update', 'mock_fw_update_board', 'product_factory_calibration_storage', 'test_product_modbus_register_adapter']],
+          'product_modbus_register_adapter', 'product_fw_update', 'mock_fw_update_board', 'product_factory_calibration_storage', 'test_product_modbus_register_adapter']] +
+        [str(ROOT / '_Modules/FwUpdateApp/src/fw_update_app.c')],
 }
 with tempfile.TemporaryDirectory(prefix='factory-tests-') as directory:
     for name, sources in suites.items():

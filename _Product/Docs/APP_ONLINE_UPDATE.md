@@ -1,4 +1,7 @@
-# APP 線上更新與 RS485 入口（Bootloader 00.01.08）
+# APP 線上更新與 RS485 入口
+
+> 2026-10-19：APP 更新入口已抽成公用庫，現行整合與重測方式見 [FW_UPDATE_APP_LIBRARY.md](FW_UPDATE_APP_LIBRARY.md)。
+> 下文保留最初 Bootloader 00.01.08 串接紀錄；啟動政策與實測狀態以現行 Bootloader 及新整合文件為準。
 
 ## 範圍與前提
 
