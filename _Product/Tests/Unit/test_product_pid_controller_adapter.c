@@ -4,6 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "cklib/inc/ck_auto_tune.h"
+#include "cklib/inc/ck_controller.h"
+#include "cklib/inc/dt_auto_tune.h"
+#include "cklib/inc/dt_on_off_controller.h"
+#include "cklib/inc/dt_pid_controller.h"
+#include "cklib/inc/dt_pid_fb_controller.h"
+
 struct _CK_CONTROLLER
 {
     ProductPidControllerMode_t mode;
@@ -67,6 +74,17 @@ CK_ERROR ckControllerSetEnumParam(CK_CONTROLLER controller,
     controller->action = (CK_CONTROL_ACTION)value;
     return CK_NO_ERR;
 }
+
+CK_ERROR ckControllerSetIntParam(CK_CONTROLLER c, CK_CONTROLLER_PARAM p, int32_t v)
+{ (void)c; (void)p; (void)v; return CK_NO_ERR; }
+CK_ERROR ckControllerSetUIntParam(CK_CONTROLLER c, CK_CONTROLLER_PARAM p, uint32_t v)
+{ (void)c; (void)p; (void)v; return CK_NO_ERR; }
+CK_ERROR ckControllerSetBoolParam(CK_CONTROLLER c, CK_CONTROLLER_PARAM p, bool v)
+{ (void)c; (void)p; (void)v; return CK_NO_ERR; }
+CK_ERROR ckAutoTuneSetUIntParam(CK_AUTO_TUNE c, CK_AUTO_TUNE_PARAM p, uint32_t v)
+{ (void)c; (void)p; (void)v; return CK_NO_ERR; }
+CK_ERROR ckAutoTuneSetBoolParam(CK_AUTO_TUNE c, CK_AUTO_TUNE_PARAM p, bool v)
+{ (void)c; (void)p; (void)v; return CK_NO_ERR; }
 
 CK_ERROR ckAutoTuneSetEnumParam(CK_AUTO_TUNE autotune,
                                 CK_AUTO_TUNE_PARAM type,
@@ -179,7 +197,7 @@ static ProductPidControllerAdapterConfig_t MakeConfig(
     (void)memset(&config, 0, sizeof(config));
     config.mode = mode;
     config.auto_tune_target_mode = PRODUCT_PID_CONTROLLER_MODE_PID_CONTROL;
-    config.control_action = CK_CONTROL_ACTION_HEAT;
+    config.control_action = FB_PID_ACTION_HEAT;
     config.max_sample_age_ms = 25U;
     config.auto_tune_period_ms = 20U;
     config.auto_tune_period_tolerance_ms = 2U;
@@ -190,14 +208,12 @@ static void TestControllerMode(ProductPidControllerMode_t mode)
 {
     ProductPidControllerAdapter_t adapter;
     ProductPidControllerAdapterConfig_t config = MakeConfig(mode);
-    CK_OUTPUT output;
+    FbPidOutput_t output;
     bool valid;
 
     assert(ProductPidControllerAdapter_Init(&adapter, &config,
                                              ReadSample, NULL));
     assert(g_controller.mode == mode);
-    assert(ProductPidControllerAdapter_GetControllerHandle(&adapter) != NULL);
-    assert(ProductPidControllerAdapter_GetAutoTuneHandle(&adapter) == NULL);
     ProductPidControllerAdapter_Process(&adapter, 20U);
     assert(ProductPidControllerAdapter_GetOutput(&adapter, &output, &valid));
     assert(valid);
@@ -207,17 +223,17 @@ static void TestControllerMode(ProductPidControllerMode_t mode)
     assert(g_controller.sv == 300);
     assert(g_controller.step_time == 2);
     assert(adapter.last_status == PRODUCT_PID_CONTROLLER_ADAPTER_OK);
-    assert(adapter.active);
+    assert(adapter.fb_pid.active);
 
     /* Reusing a sample is allowed while its configured maximum age is met. */
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.output_valid);
+    assert(adapter.output.valid);
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(!adapter.output_valid);
+    assert(!adapter.output.valid);
     assert(adapter.last_status == PRODUCT_PID_CONTROLLER_ADAPTER_INPUT_STALE);
-    assert(!adapter.active);
+    assert(!adapter.fb_pid.active);
     assert(ProductPidControllerAdapter_Reset(&adapter));
-    assert(!adapter.output_valid);
+    assert(!adapter.output.valid);
     ProductPidControllerAdapter_Deinit(&adapter);
     assert(!adapter.initialized);
 }
@@ -227,24 +243,22 @@ static void TestAutoTuneMode(void)
     ProductPidControllerAdapter_t adapter;
     ProductPidControllerAdapterConfig_t config = MakeConfig(
         PRODUCT_PID_CONTROLLER_MODE_AUTO_TUNE);
-    CK_OUTPUT output;
+    FbPidOutput_t output;
     bool valid;
     uint32_t reset_count;
 
     assert(ProductPidControllerAdapter_Init(&adapter, &config,
                                              ReadSample, NULL));
     assert(g_controller.mode == PRODUCT_PID_CONTROLLER_MODE_PID_CONTROL);
-    assert(ProductPidControllerAdapter_GetAutoTuneHandle(&adapter) != NULL);
-    assert(ProductPidControllerAdapter_GetControllerHandle(&adapter) != NULL);
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.output_valid);
+    assert(adapter.output.valid);
     assert(adapter.output.mv[0] == 500);
-    assert(!adapter.auto_tune_completed);
+    assert(!adapter.fb_pid.auto_tune_completed);
 
     reset_count = g_auto_tune_reset_count;
     g_sample.enable = false;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(!adapter.active && !adapter.output_valid);
+    assert(!adapter.fb_pid.active && !adapter.output.valid);
     assert(g_auto_tune_reset_count == (reset_count + 1U));
     ProductPidControllerAdapter_Process(&adapter, 20U);
     assert(g_auto_tune_reset_count == (reset_count + 1U));
@@ -252,20 +266,20 @@ static void TestAutoTuneMode(void)
     g_sample.enable = true;
     g_sample.sample_sequence++;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.active && adapter.output_valid);
+    assert(adapter.fb_pid.active && adapter.output.valid);
     assert(adapter.output.mv[0] == 500);
 
     ProductPidControllerAdapter_Process(&adapter, 25U);
     assert(adapter.last_status ==
            PRODUCT_PID_CONTROLLER_ADAPTER_INVALID_TIMING);
-    assert(!adapter.output_valid);
+    assert(!adapter.output.valid);
 
     g_sample.sample_sequence++;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.output_valid && !adapter.auto_tune_completed);
+    assert(adapter.output.valid && !adapter.fb_pid.auto_tune_completed);
     g_sample.sample_sequence++;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.auto_tune_completed);
+    assert(adapter.fb_pid.auto_tune_completed);
     assert(g_apply_count == 1U);
     assert(ProductPidControllerAdapter_GetOutput(&adapter, &output, &valid));
     assert(valid);
@@ -273,7 +287,7 @@ static void TestAutoTuneMode(void)
     assert(output.mv[0] == 550);
 
     assert(ProductPidControllerAdapter_Reset(&adapter));
-    assert(!adapter.auto_tune_completed);
+    assert(!adapter.fb_pid.auto_tune_completed);
     ProductPidControllerAdapter_Deinit(&adapter);
 }
 
@@ -287,7 +301,7 @@ static void TestInvalidInput(void)
     assert(ProductPidControllerAdapter_Init(&adapter, &config,
                                              ReadSample, NULL));
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(!adapter.output_valid);
+    assert(!adapter.output.valid);
     assert(adapter.last_status ==
            PRODUCT_PID_CONTROLLER_ADAPTER_INPUT_UNAVAILABLE);
     ProductPidControllerAdapter_Deinit(&adapter);
@@ -309,13 +323,13 @@ static void TestEnableResetPins(void)
     assert(ProductPidControllerAdapter_Init(&adapter, &config,
                                              ReadSample, NULL));
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.active && adapter.output_valid);
+    assert(adapter.fb_pid.active && adapter.output.valid);
     control_count = g_controller_control_count;
     reset_count = g_controller_reset_count;
 
     g_sample.enable = false;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(!adapter.active && !adapter.output_valid);
+    assert(!adapter.fb_pid.active && !adapter.output.valid);
     assert(adapter.last_status == PRODUCT_PID_CONTROLLER_ADAPTER_DISABLED);
     assert(g_controller_control_count == control_count);
     assert(g_controller_reset_count == (reset_count + 1U));
@@ -329,18 +343,18 @@ static void TestEnableResetPins(void)
     g_sample.enable = true;
     g_sample.sample_sequence++;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.active && adapter.output_valid);
+    assert(adapter.fb_pid.active && adapter.output.valid);
     assert(g_controller_control_count == (control_count + 1U));
 
     /* RESET is rising-edge triggered and suppresses output for that scan. */
     g_sample.reset = true;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.active && !adapter.output_valid);
+    assert(adapter.fb_pid.active && !adapter.output.valid);
     assert(g_controller_reset_count == (reset_count + 2U));
     g_sample.reset = false;
     g_sample.sample_sequence++;
     ProductPidControllerAdapter_Process(&adapter, 20U);
-    assert(adapter.active && adapter.output_valid);
+    assert(adapter.fb_pid.active && adapter.output.valid);
     assert(g_controller_reset_count == (reset_count + 2U));
     ProductPidControllerAdapter_Deinit(&adapter);
 }
