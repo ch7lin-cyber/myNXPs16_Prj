@@ -102,6 +102,7 @@ static bool ProductRs485Dma_IsBaudRateSupported(uint32_t baudRate)
            (baudRate == 57600UL) ||
            (baudRate == 115200UL) ||
            (baudRate == 230400UL) ||
+           (baudRate == 460800UL) ||
            (baudRate == 921600UL);
 }
 

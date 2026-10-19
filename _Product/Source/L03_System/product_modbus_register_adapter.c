@@ -1977,7 +1977,7 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
     }
 
-    if (address == 0x7050U)
+    if (address == 0x7050U || address == 0x7052U)
         return (ModbusExceptionCode_t)ProductFwUpdate_Write(address, value);
     if (ProductFwUpdate_IsPending())return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
 

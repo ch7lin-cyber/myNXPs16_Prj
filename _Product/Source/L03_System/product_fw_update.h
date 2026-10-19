@@ -12,5 +12,5 @@ void ProductFwUpdate_ReplySent(uint16_t route);
 void ProductFwUpdate_Process(uint32_t now_ms);
 /* Board adapter: synchronous safe outputs, then reset from foreground only. */
 bool ProductFwUpdate_Quiesce(void);
-void ProductFwUpdate_Reset(uint16_t route,uint16_t unit);
+void ProductFwUpdate_Reset(uint16_t route,uint16_t unit,uint32_t baud);
 #endif

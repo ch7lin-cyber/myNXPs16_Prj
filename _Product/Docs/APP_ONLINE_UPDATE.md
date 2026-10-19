@@ -30,6 +30,8 @@ APP 目前改成其他 baud／ASCII／站號時，須先用既有診斷工具切
 | APP 版本 | 03 | 0x2000 / 3 regs | APP 既有 major/sub1/sub2 |
 | APP 進 USB updater | 06 | 0x7050 | 0xB007，僅 USB callback 可接受 |
 | APP 進 RS485 updater | 06 | 0x7050 | 0xB008，僅 FC0 callback 可接受 |
+
+RS485 速率先以 FC06 寫入 `0x7052`，值 0–5 依序代表 38400、57600、115200、230400、460800、921600 baud，再寫 `0x7050=0xB008`。預設 115200。
 | APP 切換狀態 | 03 | 0x7051 / 3 regs | state、route、station |
 | Boot 啟動 APP | 06 | 0x7020 | command=5，排程後驗證及等待 TX drain |
 

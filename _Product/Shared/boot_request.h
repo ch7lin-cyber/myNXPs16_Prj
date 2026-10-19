@@ -24,12 +24,14 @@ static inline uint32_t BootRequest_Crc(const uint32_t *v) {
 }
 static inline bool BootRequest_Valid(const uint32_t *v) {
     if(v[0]!=BOOT_REQUEST_MAGIC || v[1]!=1u || v[2]<1u || v[2]>3u ||
-       v[3]<1u || v[3]>247u || v[4]!=115200u || v[15]!=BootRequest_Crc(v))return false;
+       v[3]<1u || v[3]>247u || v[15]!=BootRequest_Crc(v))return false;
+    if(v[4]!=38400u && v[4]!=57600u && v[4]!=115200u && v[4]!=230400u &&
+       v[4]!=460800u && v[4]!=921600u)return false;
     for(unsigned i=5;i<15;i++)if(v[i])return false;
     return true;
 }
-static inline void BootRequest_Encode(uint32_t *v,uint32_t mode,uint32_t unit) {
+static inline void BootRequest_Encode(uint32_t *v,uint32_t mode,uint32_t unit,uint32_t baud) {
     for(unsigned i=0;i<16;i++)v[i]=0;
-    v[1]=1;v[2]=mode;v[3]=unit;v[4]=115200;v[15]=BootRequest_Crc(v);v[0]=BOOT_REQUEST_MAGIC;
+    v[1]=1;v[2]=mode;v[3]=unit;v[4]=baud;v[15]=BootRequest_Crc(v);v[0]=BOOT_REQUEST_MAGIC;
 }
 #endif

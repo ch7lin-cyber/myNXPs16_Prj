@@ -20,8 +20,8 @@ bool ProductFwUpdate_Quiesce(void) {
     for(unsigned i=0;i<4;i++)ok=BspAnalogOutput_WriteCode((BspAnalogOutput_t)i,0u)&&ok;
     return ok;
 }
-void ProductFwUpdate_Reset(uint16_t route,uint16_t unit) {
-    uint32_t words[16];BootRequest_Encode(words,route,unit);
+void ProductFwUpdate_Reset(uint16_t route,uint16_t unit,uint32_t baud) {
+    uint32_t words[16];BootRequest_Encode(words,route,unit,baud);
     /* Force an actual detach while IRQs/tick still work, before boot re-enumerates. */
     if(route==BOOT_REQUEST_USB)ProductUsbCdc_Stop();
     volatile uint32_t *request=(volatile uint32_t *)BOOT_REQUEST_ADDRESS;
