@@ -39,7 +39,7 @@ include/source path 亦已加入 `.cproject`，供 `FbMovingAverage` 編譯及�
 
 產品提供 tasks[]、states[] 與 ProductFbSchedule_t；Init 完成後，主迴圈以
 單調遞增的毫秒 now_ms 呼叫 Process。呼叫頻率決定排程解析度與最大釋放延遲。
-目前尚未建立正式產品 task table 實例，設定巨集可展開成表供後續接入。
+CH0 整合層已將設定巨集展開成固定 task table，其餘項目維持停用。
 
 同一表內任務依表順序執行。多迴路可使用多個 context 或多張表，不將通道數寫死在排程器。
 不同產品可使用自己的設定表與週期，不需改動 L04 方塊。
@@ -91,3 +91,9 @@ gcc -std=c99 -Wall -Wextra -Werror -pedantic \
 | IT-08 延遲合併 | 220 ms 後直接處理 280 ms | 單次 callback，回報實際 `elapsed_ms=60`，不補跑 | PASS |
 | IT-09 快照讀取失敗 | Provider 回傳 false 後再恢復 | 清窗後可重新納入有效資料 | PASS |
 | IT-10 狀態重設 | 再次 Init 並於週期內處理 | callback 計數、週期相位及 FB 視窗重設 | PASS |
+
+## MCU 驗證支援
+
+操作、資料匯出及判定方式見 [L05_CH0_MCU_VALIDATION.md](L05_CH0_MCU_VALIDATION.md)。
+Trace 預設停用；啟用時固定記憶體記錄且滿後停止，不改變 PWM/DAC。
+Host 測試通過不代表 MCU 實測通過；MCU 執行時間及實機整合仍為 NOT RUN。
