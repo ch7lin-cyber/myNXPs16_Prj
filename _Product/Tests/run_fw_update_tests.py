@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 P = ROOT / '_Product'
-LIB = ROOT / '_Modules/FwUpdateApp'
+LIB = ROOT / '_Modules/PlatformCore/FwUpdateApp'
 with tempfile.TemporaryDirectory() as directory:
     common = ['gcc', '-std=c99', '-Wall', '-Wextra', '-Werror',
               '-I' + str(P / 'Config'), '-I' + str(P / 'Shared'),
@@ -31,6 +31,6 @@ assert 'id="SRAMX" location="0x4000000" size="0x3fc0"' in config
 source_entries = ET.fromstring(config).findall('.//sourceEntries')
 assert len(source_entries) == 2
 for entries in source_entries:
-    assert len([e for e in entries if e.get('name') == '_Modules/FwUpdateApp/src']) == 1
+    assert len([e for e in entries if e.get('name') == '_Modules/PlatformCore/FwUpdateApp/src']) == 1
 print('Debug/Release library source, APP Flash 0x8000/96KiB and reserved SRAMX mailbox: PASS')
 

@@ -1,7 +1,7 @@
 # APP 更新入口公用庫整合與重測
 
-本次將已定版功能抽成 `_Modules/FwUpdateApp`，在 `branch2_ver1` 透過原 `ProductFwUpdate_*` API 接回。
-詳細新 project 接法見 [FwUpdateApp README](../../_Modules/FwUpdateApp/README.md)。
+本次將已定版功能移入現有 PlatformCore submodule： `_Modules/PlatformCore/FwUpdateApp`，在 `branch2_ver1` 透過原 `ProductFwUpdate_*` API 接回。
+詳細新 project 接法見 [FwUpdateApp README](https://github.com/ch7lin-cyber/platForm/blob/branch1_systemPlatform/FwUpdateApp/README.md)。
 
 ## 本產品變更
 
@@ -33,3 +33,11 @@ UI 與 Bootloader 沿用這次已定版版本；三個 U16 APP 版本、更新 r
 5. APP 安裝完成後重新上電，確認既有 Bootloader 啟動政策及 APP 行為與定版一致。
 
 PENDING 續裝／安裝途中斷電恢復仍依之前的獨立驗證計畫執行；本次公用庫重構不代表已完成那些實測。
+
+## Submodule 同步
+
+公用庫實際儲存在 `platForm/branch1_systemPlatform/FwUpdateApp`，本產品固定 `_Modules/PlatformCore` gitlink 的 commit。
+更新主專案後執行 `git submodule update --init --recursive`，再於 IDE Refresh、Clean/Rebuild。
+`git submodule status _Modules/PlatformCore` 應不帶 `+` 或 `-`，代表已取得主專案指定的版本。
+原 `_Modules/FwUpdateApp` 已移除；請勿同時將舊目錄與新目錄加入 source，避免重複符號。
+新 project 沿用同一個 PlatformCore submodule 及所驗證的 commit，不需新增 repository 或另一個 submodule。

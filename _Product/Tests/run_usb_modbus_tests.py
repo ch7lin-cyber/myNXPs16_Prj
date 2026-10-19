@@ -14,7 +14,7 @@ files = list(core.glob("*.c")) + [
     platform / "L03_SystemPlatform/Communication/ModbusSlave/ModbusSlave.c",
     ROOT / "_Product/Source/L03_System/product_usb_modbus.c",
     ROOT / "_Product/Source/L03_System/product_fw_update.c",
-    ROOT / "_Modules/FwUpdateApp/src/fw_update_app.c",
+    ROOT / "_Modules/PlatformCore/FwUpdateApp/src/fw_update_app.c",
     ROOT / "_Product/Tests/Unit/mocks/mock_fw_update_board.c",
     ROOT / "_Product/Tests/Unit/test_product_usb_modbus.c"]
 with tempfile.TemporaryDirectory() as temp:

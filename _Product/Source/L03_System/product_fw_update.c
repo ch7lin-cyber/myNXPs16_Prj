@@ -1,5 +1,5 @@
 #include "product_fw_update.h"
-#include "../../../_Modules/FwUpdateApp/include/fw_update_app.h"
+#include "../../../_Modules/PlatformCore/FwUpdateApp/include/fw_update_app.h"
 #include "ProductFwUpdateConfig.h"
 
 static FwUpdateApp_t update;
