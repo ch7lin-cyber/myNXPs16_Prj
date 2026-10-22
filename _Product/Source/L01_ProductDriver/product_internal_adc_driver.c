@@ -25,6 +25,12 @@ typedef struct
     volatile bool mcu_pending;
     volatile uint8_t requested_conversions;
     volatile bool conversion_active;
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+    volatile bool mcu_test_override_enabled;
+    volatile bool mcu_test_sample_valid;
+    volatile int32_t mcu_test_temperature_centi_c;
+    volatile bool mcu_test_sample_pending;
+#endif
     ProductInternalAdcSnapshot_t snapshot;
     bool initialized;
 } ProductInternalAdcContext_t;
@@ -96,6 +102,26 @@ static int32_t ProductTmp20MicrovoltsToCentiC(uint32_t microvolts)
         numerator -= PRODUCT_TMP20_SLOPE_UV_PER_DEGREE / 2L;
     }
     return (int32_t)(numerator / PRODUCT_TMP20_SLOPE_UV_PER_DEGREE);
+}
+
+static void UpdateMcuOvertemperatureState(
+    ProductMcuTemperatureSample_t *sample,
+    int32_t temperature_centi_c)
+{
+    if (temperature_centi_c >= PRODUCT_MCU_OVERTEMPERATURE_CENTI_C)
+    {
+        if (sample->overtemperature_count <
+            PRODUCT_MCU_OVERTEMPERATURE_CONFIRM_COUNT)
+        {
+            sample->overtemperature_count++;
+        }
+    }
+    else
+    {
+        sample->overtemperature_count = 0U;
+    }
+    sample->overtemperature = sample->overtemperature_count >=
+        PRODUCT_MCU_OVERTEMPERATURE_CONFIRM_COUNT;
 }
 
 static bool ProductInternalAdcCalculateMcuTemperature(
@@ -174,6 +200,14 @@ bool ProductInternalAdcDriver_RequestMcuTemperature(void)
         return false;
     }
     interrupt_mask = DisableGlobalIRQ();
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+    if (g_internal_adc.mcu_test_override_enabled)
+    {
+        g_internal_adc.mcu_test_sample_pending = true;
+        EnableGlobalIRQ(interrupt_mask);
+        return true;
+    }
+#endif
     g_internal_adc.requested_conversions |=
         PRODUCT_INTERNAL_ADC_REQUEST_MCU_TEMP;
     EnableGlobalIRQ(interrupt_mask);
@@ -186,6 +220,11 @@ void ProductInternalAdcDriver_Process(void)
     uint16_t mcu_raw[2];
     uint8_t cjc_pending_mask;
     bool mcu_pending;
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+    bool mcu_test_pending;
+    bool mcu_test_sample_valid;
+    int32_t mcu_test_temperature_centi_c;
+#endif
     uint32_t interrupt_mask = DisableGlobalIRQ();
 
     cjc_raw[0] = g_internal_adc.cjc_raw[0];
@@ -196,6 +235,13 @@ void ProductInternalAdcDriver_Process(void)
     mcu_raw[1] = g_internal_adc.mcu_raw[1];
     mcu_pending = g_internal_adc.mcu_pending;
     g_internal_adc.mcu_pending = false;
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+    mcu_test_pending = g_internal_adc.mcu_test_sample_pending;
+    g_internal_adc.mcu_test_sample_pending = false;
+    mcu_test_sample_valid = g_internal_adc.mcu_test_sample_valid;
+    mcu_test_temperature_centi_c =
+        g_internal_adc.mcu_test_temperature_centi_c;
+#endif
     EnableGlobalIRQ(interrupt_mask);
 
     for (uint8_t index = 0U;
@@ -219,36 +265,42 @@ void ProductInternalAdcDriver_Process(void)
         }
     }
 
-    if (mcu_pending)
+    if (mcu_pending
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+        || mcu_test_pending
+#endif
+        )
     {
         ProductMcuTemperatureSample_t *sample =
             &g_internal_adc.snapshot.mcu_temperature;
         int32_t temperature_centi_c;
 
-        sample->raw_vbe1 = mcu_raw[0];
-        sample->raw_vbe8 = mcu_raw[1];
-        sample->valid = ProductInternalAdcCalculateMcuTemperature(
-            mcu_raw[0], mcu_raw[1], &temperature_centi_c);
-        if (sample->valid)
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+        if (mcu_test_pending)
         {
-            sample->temperature_centi_c = temperature_centi_c;
-            sample->sequence++;
-            if (temperature_centi_c >=
-                PRODUCT_MCU_OVERTEMPERATURE_CENTI_C)
+            sample->valid = mcu_test_sample_valid;
+            if (sample->valid)
             {
-                if (sample->overtemperature_count <
-                    PRODUCT_MCU_OVERTEMPERATURE_CONFIRM_COUNT)
-                {
-                    sample->overtemperature_count++;
-                }
+                sample->temperature_centi_c =
+                    mcu_test_temperature_centi_c;
+                sample->sequence++;
+                UpdateMcuOvertemperatureState(
+                    sample, mcu_test_temperature_centi_c);
             }
-            else
+        }
+        else
+#endif
+        {
+            sample->raw_vbe1 = mcu_raw[0];
+            sample->raw_vbe8 = mcu_raw[1];
+            sample->valid = ProductInternalAdcCalculateMcuTemperature(
+                mcu_raw[0], mcu_raw[1], &temperature_centi_c);
+            if (sample->valid)
             {
-                sample->overtemperature_count = 0U;
+                sample->temperature_centi_c = temperature_centi_c;
+                sample->sequence++;
+                UpdateMcuOvertemperatureState(sample, temperature_centi_c);
             }
-            sample->overtemperature =
-                sample->overtemperature_count >=
-                PRODUCT_MCU_OVERTEMPERATURE_CONFIRM_COUNT;
         }
     }
     ProductInternalAdcStartNextConversion();
@@ -268,6 +320,35 @@ bool ProductInternalAdcDriver_GetSnapshot(
     EnableGlobalIRQ(interrupt_mask);
     return true;
 }
+
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+bool ProductInternalAdcDriver_SetMcuTemperatureTestOverride(
+    bool enabled,
+    bool sample_valid,
+    int32_t temperature_centi_c)
+{
+    uint32_t interrupt_mask;
+
+    if (!g_internal_adc.initialized)
+    {
+        return false;
+    }
+
+    interrupt_mask = DisableGlobalIRQ();
+    g_internal_adc.mcu_test_override_enabled = enabled;
+    g_internal_adc.mcu_test_sample_valid = sample_valid;
+    g_internal_adc.mcu_test_temperature_centi_c = temperature_centi_c;
+    if (!enabled)
+    {
+        g_internal_adc.mcu_test_sample_pending = false;
+        g_internal_adc.snapshot.mcu_temperature.overtemperature_count = 0U;
+        g_internal_adc.snapshot.mcu_temperature.overtemperature = false;
+        g_internal_adc.snapshot.mcu_temperature.valid = false;
+    }
+    EnableGlobalIRQ(interrupt_mask);
+    return true;
+}
+#endif
 
 void CJC_ADC0_IRQHANDLER(void)
 {

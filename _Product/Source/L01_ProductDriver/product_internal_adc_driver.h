@@ -4,6 +4,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#if defined(PRODUCT_SAFETY_TEST_BUILD) && \
+    !defined(PRODUCT_HOST_TEST) && !defined(PRODUCT_SAFETY_TEST_TARGET)
+#error "Safety test API requires a Host test or dedicated target test build"
+#endif
+
 #define PRODUCT_INTERNAL_ADC_CJC_COUNT (2U)
 
 typedef struct
@@ -43,5 +48,13 @@ bool ProductInternalAdcDriver_RequestMcuTemperature(void);
 void ProductInternalAdcDriver_Process(void);
 bool ProductInternalAdcDriver_GetSnapshot(
     ProductInternalAdcSnapshot_t *snapshot);
+
+#if defined(PRODUCT_SAFETY_TEST_BUILD)
+/* Test-build only: the normal 1 s request cadence consumes this value. */
+bool ProductInternalAdcDriver_SetMcuTemperatureTestOverride(
+    bool enabled,
+    bool sample_valid,
+    int32_t temperature_centi_c);
+#endif
 
 #endif /* PRODUCT_INTERNAL_ADC_DRIVER_H */

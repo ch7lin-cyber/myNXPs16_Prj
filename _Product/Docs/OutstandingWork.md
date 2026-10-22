@@ -1,10 +1,10 @@
 # 尚未完成工作清單
 
-更新日期：2026-10-16
+更新日期：2026-10-22
 
-主專案基準：`14cbccd`
+主專案基準：`d501b38`
 
-PlatformCore 基準：`21c06e7`
+PlatformCore 基準：`80081ed`
 
 本文件記錄目前尚未完成、已實作但仍待硬體驗證，以及明確保留給後續版本的工作。
 主機單元測試通過不等同於目標板整合與產品驗證完成。
@@ -145,12 +145,24 @@ PlatformCore 基準：`21c06e7`
 
 ### 板上輸入與 Safety
 
+- [x] 建立不需實際加熱 MCU 或降低整板電壓的 Safety 驗證方法：[`SystemSafetyVerification.md`](SystemSafetyVerification.md)。
+- [x] 加入 MCU 溫度測試注入介面與 ADC driver 門檻 Host test；API 受 `PRODUCT_SAFETY_TEST_BUILD` 保護，且需同時定義 `PRODUCT_HOST_TEST` 或專用 `PRODUCT_SAFETY_TEST_TARGET`。Host 測試已驗證 production 編譯不帶測試 macro 時不會生成注入介面。
 - [ ] 驗證 DIP Switch bit-packed Register。
 - [ ] 驗證 SW2 Rotary Switch Register。
 - [ ] 驗證 Low Voltage Detect 門檻、去抖、恢復及輸出禁止。
 - [ ] 驗證 MCU 溫度超過 85°C 且連續三次成立的保護流程。
+  - [x] Host ADC driver 邊界測試：84.99°C、85.00°C 連續三次、低溫重置、無效樣本不計數。
+  - [ ] 在 MCUXpresso 複製 Debug 建立獨立 `SafetyTest` 組態；僅此組態定義 `PRODUCT_SAFETY_TEST_BUILD=1` 與 `PRODUCT_SAFETY_TEST_TARGET=1`。
+  - [ ] Clean/Rebuild/燒錄 `SafetyTest`，確認一般 Debug／Release 未定義 safety test macro，正式 Release 不含注入 API。
+  - [ ] 目標板注入 85.00°C 三次，驗證完整 SystemRoutine → Fault `0x0201` → Safety inhibit → Event/Snapshot → PWM／DO 安全輸出流程。
+  - [ ] 目標板注入 84.99°C，確認不觸發過溫 Fault；降回門檻以下後驗證 Fault Reset 與解除流程。
+- [ ] 目標板以安全方式模擬 Low Voltage detector 的 `PIO1_31` 輸入，不降低 MCU 電源；驗證 3 次 assert、100 次 release、Fault `0x0202`、Safety inhibit 與 reset 條件。
 - [ ] 執行 Fault／Event／Warning／Snapshot 故障注入測試。
+  - [x] Host 整合測試：告警觸發、Fault/Safety trip、輸出抑制、恢復與 reset；涵蓋 monitor 失敗及安全輸出動作失敗後重試。
+  - [ ] 目標板注入 MCU 過溫、低電壓、感測器與輸出故障，確認實際安全狀態及事件紀錄。
 - [ ] 執行長時間運行與錯誤恢復測試。
+  - [x] Host 壓力測試：連續 1,000 次 Fault/Safety trip 與 recovery/reset，確認輸出可反覆恢復，Event/Snapshot ring buffer 滿載後仍保留最新完整記錄。
+  - [ ] 目標板長時間運行，記錄故障注入、恢復時間、輸出狀態與資源穩定性。
 
 ## P2：通訊完整驗證
 

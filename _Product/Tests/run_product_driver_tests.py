@@ -62,6 +62,10 @@ suites = {
         driver_source("product_dac8562_driver"),
         UNIT / "test_product_dac8562_driver.c",
     ],
+    "mcu_temperature_injection": [
+        driver_source("product_internal_adc_driver"),
+        UNIT / "test_product_internal_adc_temperature_injection.c",
+    ],
 }
 
 with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
@@ -74,6 +78,8 @@ with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
             "-Wextra",
             "-Werror",
             "-DPRODUCT_HOST_TEST=1",
+            *(["-DPRODUCT_SAFETY_TEST_BUILD=1"]
+              if name == "mcu_temperature_injection" else []),
             *["-I" + str(path) for path in include_dirs],
             *[str(path) for path in sources],
             "-o",
