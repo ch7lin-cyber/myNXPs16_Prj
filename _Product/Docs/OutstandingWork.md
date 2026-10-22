@@ -166,6 +166,10 @@ PlatformCore 基準：`80081ed`
 
 ## P2：通訊完整驗證
 
+- [ ] 規劃多機台內部 CAN 資料交換：節點身分／拓樸、Run/Stop 與通道狀態、Alarm/Fault/Safety 摘要、PV/SV、DI/DO 能力及資料有效性。
+- [ ] 定義 CAN 資料來源、方向、更新期限／優先級、逾時與節點失聯行為；參考 [`DTDM04_RegisterMap_Reference.md`](DTDM04_RegisterMap_Reference.md)，不可直接沿用舊位址與語意。
+- [ ] CAN PDO／訊息與正式 Register Map 定案後，更新通訊規格及 Register Map CSV。
+
 - [ ] 完成 FC0 Modbus RTU 的 FC03／FC04／FC06／FC10 測試矩陣。
 - [ ] 完成 FC0 Modbus ASCII 的 FC03／FC04／FC06／FC10 測試矩陣。
 - [ ] 驗證 4800～921600 baud 支援範圍。
@@ -213,6 +217,7 @@ PlatformCore 基準：`80081ed`
 ### L05 串接
 
 - [x] 固定記憶體週期排程器及主機單元測試已完成。
+- [ ] 依 L04 FbAlarm／L05 Alarm adapter 契約設計正式 Alarm Register、設定套用／保存、狀態讀回與 Reset／清峰值命令；DTDM04 舊表只供參考，不直接沿用位址或語意。
 - [ ] 建立正式產品 task table。
 - [ ] 建立 L05 callback adapter。
 - [ ] 實作新樣本、資料有效性及重複樣本判斷。

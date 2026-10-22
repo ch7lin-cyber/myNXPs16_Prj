@@ -5,6 +5,16 @@ FC10; individual values and Apply Keys may use FC06. PWM period and duty writes
 are staged as Pending values and do not affect hardware until the PWM Apply Key
 is accepted.
 
+The user-provided legacy DTDM04 Register Map is recorded only as a future
+multi-machine/CAN requirements reference in
+[`DTDM04_RegisterMap_Reference.md`](../Docs/DTDM04_RegisterMap_Reference.md).
+Those addresses and behaviors are not part of this product map; in particular,
+the legacy `0x2000` block conflicts with the current product-version registers.
+The legacy Alarm table is also reference-only; design constraints and its
+relationship to the existing L04/L05 Alarm implementation are noted in the
+Alarm section of that reference document. Product Alarm Registers are not yet
+defined.
+
 ## Register persistence metadata
 
 `_Product/RegisterMap/register_map.csv` classifies persistence explicitly; it
