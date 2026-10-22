@@ -28,14 +28,29 @@ codes, and hardware input states remain runtime-only.
 
 ## Four-channel temperature input configuration
 
-Each AD7124 has an independent 10-register block. The offsets are identical:
+Each AD7124 has an independent 12-register block (offsets `+0x00..+0x0B`). The offsets are identical:
 
 | Input | Register block | Sensor Type | CJC source | Apply Key |
 |---|---|---|---|---|
-| CH0 / AD7124 #0 | `0x1000..0x1009` | `0x1007` | `0x1008` | `0x1009` |
-| CH1 / AD7124 #1 | `0x1010..0x1019` | `0x1017` | `0x1018` | `0x1019` |
-| CH2 / AD7124 #2 | `0x1020..0x1029` | `0x1027` | `0x1028` | `0x1029` |
-| CH3 / AD7124 #3 | `0x1030..0x1039` | `0x1037` | `0x1038` | `0x1039` |
+| CH0 / AD7124 #0 | `0x1000..0x100B` | `0x1007` | `0x1008` | `0x1009` |
+| CH1 / AD7124 #1 | `0x1010..0x101B` | `0x1017` | `0x1018` | `0x1019` |
+| CH2 / AD7124 #2 | `0x1020..0x102B` | `0x1027` | `0x1028` | `0x1029` |
+| CH3 / AD7124 #3 | `0x1030..0x103B` | `0x1037` | `0x1038` | `0x1039` |
+
+### UI 顯示小數位數
+
+各通道以 `+0x0B` 的 U16 Register 設定顯示位數：CH0 `0x100B`、CH1
+`0x101B`、CH2 `0x102B`、CH3 `0x103B`。允許值為 `0..3`，預設 `3`。
+例如 PV 為 `25.123`，設定 0、1、2、3 時，UI 分別顯示 `25`、`25.1`、
+`25.12`、`25.123`；UI 應依設定格式化並補足尾端零。
+
+FC03／FC04 可讀取；FC06 或 FC10 單一 Register 寫入立即生效，不需要 Apply Key。
+超出範圍回傳例外 `0x03`；不支援將 CJC Offset 與顯示位數合併寫入。
+設定目前僅存 RAM，重新上電回到三位，不寫入 FRAM。
+
+此欄位提供 UI 格式設定，UI 端須讀取並套用；韌體不產生顯示字串。
+顯示設定不會改寫 Float32 PV、不改變 Sensor 配置或 FB 計算刻度。
+本次未修改外部 UI 程式。L04 FbAlarm 已改為 0.001°C 整數刻度，L05 Alarm／Logic adapter 已建立；Alarm Register 尚未建立。
 
 Thermocouple types are part of the single Sensor Type enumeration; for example,
 K=`48`, J=`46`, and B=`11`. The factory default is K (`Sensor Type=48`). The

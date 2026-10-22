@@ -57,6 +57,8 @@ typedef struct _product_modbus_register_context
     uint16_t systemEventIndex;
     uint16_t snapshotIndex;
     bool pendingDirty[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
+    /* UI formatting only: immediate RAM settings, independent of sensor Apply. */
+    uint16_t displayDecimals[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     product_pwm_output_config_t
         activePwmConfig[PRODUCT_MODBUS_PWM_CHANNEL_COUNT];
     product_pwm_output_config_t
@@ -96,6 +98,13 @@ static product_modbus_register_context_t s_registerContext =
         {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
         {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0},
         {0.5F, PRODUCT_SENSOR_TYPE_TC_K, EVENT_CJC_SOURCE_INTERNAL_TMP20, 0}
+    },
+    .displayDecimals =
+    {
+        PRODUCT_MODBUS_DISPLAY_DECIMALS_DEFAULT,
+        PRODUCT_MODBUS_DISPLAY_DECIMALS_DEFAULT,
+        PRODUCT_MODBUS_DISPLAY_DECIMALS_DEFAULT,
+        PRODUCT_MODBUS_DISPLAY_DECIMALS_DEFAULT
     },
     .activePwmConfig =
     {
@@ -220,8 +229,9 @@ static bool ResolveTemperatureRegisterRange(
     localOffset = (uint16_t)(relative %
                              PRODUCT_MODBUS_TEMPERATURE_INPUT_INSTANCE_STRIDE);
     if ((input >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) ||
-        (localOffset > 10U) ||
-        (((uint32_t)localOffset + quantity) > 11UL))
+        (localOffset >= PRODUCT_MODBUS_TEMPERATURE_INPUT_REGISTER_COUNT) ||
+        (((uint32_t)localOffset + quantity) >
+         PRODUCT_MODBUS_TEMPERATURE_INPUT_REGISTER_COUNT))
     {
         return false;
     }
@@ -1096,6 +1106,7 @@ static void BuildRegisterImage(
     registers[9] = 0U;
     registers[10] =
         (uint16_t)registerContext->activeConfig[channel].cjcOffsetCentiC;
+    registers[11] = registerContext->displayDecimals[channel];
 }
 
 static void BuildPwmRegisterImage(
@@ -1239,7 +1250,7 @@ static ModbusExceptionCode_t ReadRegisters(
 {
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
-    uint16_t registerImage[11];
+    uint16_t registerImage[PRODUCT_MODBUS_TEMPERATURE_INPUT_REGISTER_COUNT];
     uint16_t versionImage[9];
     uint16_t factoryImage[14];
     uint16_t diagnosticsImage[15];
@@ -2088,6 +2099,14 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
 
+    if (temperatureOffset == 11U)
+    {
+        if (value > PRODUCT_MODBUS_DISPLAY_DECIMALS_MAX)
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        registerContext->displayDecimals[temperatureChannel] = value;
+        return MODBUS_EXCEPTION_NONE;
+    }
+
     if (temperatureOffset == 7U)
     {
         if (!IsSensorTypeValid(value))
@@ -2437,6 +2456,13 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
                                          &temperatureOffset))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+    if ((temperatureOffset == 11U) && (quantity == 1U))
+    {
+        if (values[0] > PRODUCT_MODBUS_DISPLAY_DECIMALS_MAX)
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+        registerContext->displayDecimals[temperatureChannel] = values[0];
+        return MODBUS_EXCEPTION_NONE;
     }
     pendingConfig = registerContext->pendingConfig[temperatureChannel];
 

@@ -5,8 +5,47 @@
 #include "product_fb_moving_average_adapter.h"
 #include "product_fb_schedule.h"
 #include "product_sensor_measurement_service.h"
+#include "product_temperature_input_types.h"
+#include "DigitalInputService.h"
 
-#define PRODUCT_FB_SCHEDULE_TASK_COUNT (18U)
+#define PRODUCT_FB_SCHEDULE_TASK_COUNT (19U)
+
+static ProductAlarmLogicAdapter_t g_alarm_logic;
+
+static bool ReadAlarmSample(void *context, uint8_t channel, ProductAlSample_t *sample)
+{
+    ProductSensorMeasurementSnapshot_t snapshot;
+    (void)context;
+    if (!ProductSensorMeasurementService_GetSnapshot(channel, &snapshot)) return false;
+    sample->pv = snapshot.engineering_value;
+    sample->sequence = snapshot.sample_sequence;
+    sample->valid = snapshot.valid;
+    switch (snapshot.sensor_type)
+    {
+        case PRODUCT_SENSOR_TYPE_TC_B: case PRODUCT_SENSOR_TYPE_TC_C:
+        case PRODUCT_SENSOR_TYPE_TC_D: case PRODUCT_SENSOR_TYPE_TC_E:
+        case PRODUCT_SENSOR_TYPE_TC_J: case PRODUCT_SENSOR_TYPE_TC_K:
+        case PRODUCT_SENSOR_TYPE_TC_N: case PRODUCT_SENSOR_TYPE_TC_R:
+        case PRODUCT_SENSOR_TYPE_TC_S: case PRODUCT_SENSOR_TYPE_TC_T:
+        case PRODUCT_SENSOR_TYPE_TC_L: case PRODUCT_SENSOR_TYPE_TC_U:
+        case PRODUCT_SENSOR_TYPE_TC_TXK: case PRODUCT_SENSOR_TYPE_RTD_100_OHM:
+        case PRODUCT_SENSOR_TYPE_RTD_1000_OHM: case PRODUCT_SENSOR_TYPE_RTD_JPT100:
+        case PRODUCT_SENSOR_TYPE_RTD_NI120: case PRODUCT_SENSOR_TYPE_RTD_CU50:
+            break;
+        default: sample->valid = false; break;
+    }
+    return true;
+}
+
+static bool ReadLogicDi(void *context, uint8_t index, bool *value)
+{
+    DigitalInputSnapshot_t snapshot;
+    (void)context;
+    if (index >= 16U || !DigitalInputService_GetSnapshot(&snapshot) ||
+        (snapshot.valid_mask & (uint16_t)(1UL << index)) == 0U) return false;
+    *value = (snapshot.state_mask & (uint16_t)(1UL << index)) != 0U;
+    return true;
+}
 
 static ProductFbMovingAverageAdapter_t g_ch0_moving_average_adapter;
 static ProductFbSchedule_t g_schedule;
@@ -123,6 +162,7 @@ static void TraceCh0Process(void *context, uint32_t elapsed_ms)
     {enabled_value, period_value, callback_value, context_value},
 static const ProductFbScheduleTask_t g_tasks[] =
 {
+    {true, PRODUCT_AL_PERIOD_MS, ProductAlarmLogicAdapter_Process, &g_alarm_logic},
     PRODUCT_FB_SCHEDULE_TASKS(MAKE_TASK)
 };
 #undef MAKE_TASK
@@ -132,6 +172,8 @@ static const ProductFbScheduleTask_t g_tasks[] =
 
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
 {
+    if (!ProductAlarmLogicAdapter_Init(&g_alarm_logic, ReadAlarmSample, ReadLogicDi, NULL))
+        return false;
 #if PRODUCT_FB_CH0_TRACE_ENABLED
     g_product_fb_ch0_trace.capture = 0U;
     g_product_fb_ch0_trace.schema_version = 1U;
@@ -147,6 +189,11 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
     return ProductFbSchedule_Init(
         &g_schedule, g_tasks, g_task_states,
         sizeof(g_tasks) / sizeof(g_tasks[0]), now_ms);
+}
+
+ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(void)
+{
+    return &g_alarm_logic;
 }
 
 void ProductFbScheduleIntegration_Process(uint32_t now_ms)

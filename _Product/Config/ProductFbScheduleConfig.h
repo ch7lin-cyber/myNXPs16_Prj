@@ -9,7 +9,8 @@
 
 /* Product-owned recommendations, not L04 constants. Units: milliseconds.
  * CH0 MovingAverage is enabled by the L05 integration table as a read-only
- * L03-to-L04 validation chain. Remaining tasks are disabled placeholders.
+ * L03-to-L04 validation chain. Remaining tasks here are disabled placeholders.
+ * Alarm/Logic has a separate ordered-chain entry in the integration table.
  * No PWM/DAC or ISR is involved. Mathematical blocks normally run inline with
  * their consuming control chain; their entries are planning slots.
  * X(name, enabled, period_ms, callback, context) */

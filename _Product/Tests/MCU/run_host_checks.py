@@ -16,12 +16,15 @@ with tempfile.TemporaryDirectory() as tmp:
         cmd = ['gcc','-std=c99','-Wall','-Wextra','-Werror','-pedantic',
                '-DPRODUCT_FB_CH0_TRACE_ENABLED=%d' % enabled]
         for inc in (root/'_Product/Tests/Integration/Mocks',root/'_Product/Config',source,
-                    root/'_Product/Source/L03_System',utility):
+                    root/'_Product/Source/L03_System',utility,
+                    utility.parent/'Alarm',
+                    root/'_Modules/PlatformCore/L03_SystemPlatform/SystemService/DigitalInputService'):
             cmd += ['-I',str(inc)]
         cmd += [str(test)] + [str(source / name) for name in (
             'product_fb_schedule.c','product_fb_moving_average_adapter.c',
-            'product_fb_schedule_integration.c')]
-        cmd += [str(utility/'FbMovingAverage.c'),'-lm','-o',str(exe)]
+            'product_fb_schedule_integration.c','product_alarm_logic_adapter.c')]
+        cmd += [str(utility/'FbMovingAverage.c'),str(utility/'FbLogic.c'),
+                str(utility.parent/'Alarm/FbAlarm.c'),'-lm','-o',str(exe)]
         subprocess.run(cmd,check=True)
         csv = Path(tmp) / 'host_only.csv'
         subprocess.run([str(exe)] + ([str(csv)] if enabled else []),check=True)

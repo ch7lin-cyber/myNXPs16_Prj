@@ -37,7 +37,7 @@ void ProductFbMovingAverageAdapter_Process(void *context,
     ProductFbMovingAverageAdapter_t *adapter =
         (ProductFbMovingAverageAdapter_t *)context;
     ProductFbMovingAverageSample_t sample;
-    FbMovingAverageInput input;
+    FbMovingAverageInput input = {0};
 
     if (adapter == NULL)
     {
@@ -47,6 +47,7 @@ void ProductFbMovingAverageAdapter_Process(void *context,
     adapter->callback_count++;
     adapter->last_elapsed_ms = elapsed_ms;
     input.sample = 0.0;
+    input.enable = 1;
     input.sample_valid = 0;
     input.reset = 0;
 

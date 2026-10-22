@@ -5,9 +5,16 @@
 #include <stdio.h>
 
 #include "product_sensor_measurement_service.h"
+#include "DigitalInputService.h"
 
 static ProductSensorMeasurementSnapshot_t g_snapshot;
 static bool g_snapshot_available = true;
+
+bool DigitalInputService_GetSnapshot(DigitalInputSnapshot_t *snapshot)
+{
+    (void)snapshot;
+    return false;
+}
 
 bool ProductSensorMeasurementService_GetSnapshot(
     uint8_t channel,

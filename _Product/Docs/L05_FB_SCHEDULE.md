@@ -12,7 +12,7 @@
 - [ ] 整合其他 L04 FB 與產品控制／輸出鏈。
 - [ ] 量測 MCU 執行時間、最大延遲與產品整合驗證。
 
-目前只啟用 MovingAverage 驗證項目，其餘 17 個排程項目仍停用。
+2026-10-22：另新增 Alarm／Logic 功能鏈排程，共 19 個排程項目；原表 18 項中仍只有 MovingAverage 啟用，其餘 17 項停用。Alarm／Logic 鏈固定執行，但其中各 FB 實例預設停用，詳見 [L05_ALARM_LOGIC.md](L05_ALARM_LOGIC.md)。
 測試視窗為 5 筆；週期 20 ms。輸入為 CH0 snapshot 的 `engineering_value`，
 FB 結果只保留在 L05 記憶體中供驗證，不寫 PWM／DAC、不改變 SafetyService。
 新增 L05 原始檔已納入 MCUXpresso source path；PlatformCore 的 Utility
@@ -39,7 +39,7 @@ include/source path 亦已加入 `.cproject`，供 `FbMovingAverage` 編譯及�
 
 產品提供 tasks[]、states[] 與 ProductFbSchedule_t；Init 完成後，主迴圈以
 單調遞增的毫秒 now_ms 呼叫 Process。呼叫頻率決定排程解析度與最大釋放延遲。
-CH0 整合層已將設定巨集展開成固定 task table，其餘項目維持停用。
+正式產品 task table 已由設定巨集展開，並於最前面加入 Alarm／Logic 功能鏈。
 
 同一表內任務依表順序執行。多迴路可使用多個 context 或多張表，不將通道數寫死在排程器。
 不同產品可使用自己的設定表與週期，不需改動 L04 方塊。
@@ -64,17 +64,8 @@ callback 必須短小、不阻塞，不在 Tick ISR 呼叫，不使用動態記�
 重現方式（在 `myNXPs16_Prj` 根目錄執行）：
 
 ```sh
-gcc -std=c99 -Wall -Wextra -Werror -pedantic \
-  -I _Product/Tests/Integration/Mocks -I _Product/Config \
-  -I _Product/Source/L05_Application -I _Product/Source/L03_System \
-  -I _Modules/PlatformCore/L04_FunctionBlock/Utility \
-  _Product/Tests/Integration/test_product_fb_schedule_integration.c \
-  _Product/Source/L05_Application/product_fb_schedule.c \
-  _Product/Source/L05_Application/product_fb_moving_average_adapter.c \
-  _Product/Source/L05_Application/product_fb_schedule_integration.c \
-  _Modules/PlatformCore/L04_FunctionBlock/Utility/FbMovingAverage.c \
-  -lm -o /tmp/test_product_fb_schedule_integration
-/tmp/test_product_fb_schedule_integration
+python3 _Product/Tests/run_alarm_logic_tests.py
+python3 _Product/Tests/run_alarm_logic_tests.py --sanitize
 ```
 
 ### Integration 測項

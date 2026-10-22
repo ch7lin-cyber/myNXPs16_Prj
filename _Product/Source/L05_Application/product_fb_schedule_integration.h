@@ -6,6 +6,7 @@
 
 #include "FbMovingAverage.h"
 #include "product_fb_moving_average_adapter.h"
+#include "product_alarm_logic_adapter.h"
 
 /* Debug-only observation; disabled builds allocate no trace storage. */
 #ifndef PRODUCT_FB_CH0_TRACE_ENABLED
@@ -39,6 +40,8 @@ extern "C" {
 
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms);
 void ProductFbScheduleIntegration_Process(uint32_t now_ms);
+/* Main-loop configuration and command APIs are on this product-owned adapter. */
+ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(void);
 bool ProductFbScheduleIntegration_GetCh0MovingAverage(
     FbMovingAverageOutput *output);
 bool ProductFbScheduleIntegration_GetCh0Diagnostics(

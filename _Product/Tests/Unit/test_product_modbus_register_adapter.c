@@ -463,6 +463,47 @@ static void TestFourIndependentTemperatureInputs(void)
         event.event_id, EVENT_ACK_TEMPERATURE_INPUT_REQUIRED_DEFAULT));
 }
 
+static void TestDisplayDecimals(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t before[12], after[12], value, digits;
+    uint8_t channel;
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    for (channel = 0U; channel < 4U; ++channel)
+    {
+        uint16_t base = (uint16_t)(0x1000U + channel * 0x10U);
+        uint16_t revision = ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(channel);
+        assert(interface.read_holding_registers(interface.context, base, 12U, before) == MODBUS_EXCEPTION_NONE);
+        assert(before[11] == 3U);
+        assert(!ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(channel));
+        for (digits = 0U; digits <= 3U; ++digits)
+        {
+            assert(interface.write_single_register(interface.context, base + 11U, digits) == MODBUS_EXCEPTION_NONE);
+            assert(interface.read_input_registers(interface.context, base + 11U, 1U, &value) == MODBUS_EXCEPTION_NONE);
+            assert(value == digits);
+        }
+        digits = channel;
+        assert(interface.write_multiple_registers(interface.context, base + 11U, &digits, 1U) == MODBUS_EXCEPTION_NONE);
+        assert(interface.write_single_register(interface.context, base + 11U, 4U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+        value = 0xFFFFU;
+        assert(interface.write_multiple_registers(interface.context, base + 11U, &value, 1U) == MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
+        assert(interface.read_holding_registers(interface.context, base, 12U, after) == MODBUS_EXCEPTION_NONE);
+        assert(memcmp(before, after, 11U * sizeof(uint16_t)) == 0);
+        assert(after[11] == channel);
+        assert(ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(channel) == revision);
+        assert(!ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(channel));
+        assert(interface.write_multiple_registers(interface.context, base + 10U, before, 2U) == MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(!ProductModbusRegisterAdapter_HasPendingTemperatureInputConfigForChannel(channel));
+    }
+    for (channel = 0U; channel < 4U; ++channel)
+    {
+        uint16_t address = (uint16_t)(0x100BU + channel * 0x10U);
+        assert(interface.read_holding_registers(interface.context, address, 1U, &value) == MODBUS_EXCEPTION_NONE);
+        assert(value == channel);
+        assert(interface.write_single_register(interface.context, address, 3U) == MODBUS_EXCEPTION_NONE);
+    }
+}
+
 static void TestInvalidRanges(void)
 {
     ModbusSlaveRegisterInterface_t interface;
@@ -473,7 +514,7 @@ static void TestInvalidRanges(void)
                interface.context, 0x0FFFU, 1U, &value) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     assert(interface.read_holding_registers(
-               interface.context, 0x100AU, 2U, &value) ==
+               interface.context, 0x100BU, 2U, &value) ==
            MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     assert(interface.write_single_register(
                interface.context, 0x1007U, 0U) ==
@@ -1472,6 +1513,7 @@ int main(void)
     assert(DigitalOutputService_Initialize(PRODUCT_MODBUS_DO_CHANNEL_COUNT) ==
            DIGITAL_OUTPUT_STATUS_OK);
     TestDefaultRegisterImage();
+    TestDisplayDecimals();
     TestFactoryFramRegistersRequireFactoryMode();
     TestMonitorAndReadOnlyRegisters();
     TestSingleWriteIsPending();

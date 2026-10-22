@@ -402,11 +402,12 @@
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/FactoryModeService"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/SerialConfigurationApplyService"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/src"/>
+						<entry excluding="FbAlarm" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Alarm"/>
 						<entry excluding="FbCascadeCoordinator.c|FbPowerVoltageCompensation.c|FbProfileSequencer.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Control"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
-					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbLogic.c|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
+					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
@@ -806,11 +807,12 @@
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/FactoryModeService"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L03_SystemPlatform/SystemService/SerialConfigurationApplyService"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/src"/>
+						<entry excluding="FbAlarm" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Alarm"/>
 						<entry excluding="FbCascadeCoordinator.c|FbPowerVoltageCompensation.c|FbProfileSequencer.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Control"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
-					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbLogic.c|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
+					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>

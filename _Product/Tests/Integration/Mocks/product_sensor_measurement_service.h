@@ -8,6 +8,7 @@ typedef struct
 {
     int32_t engineering_value;
     uint32_t sample_sequence;
+    uint16_t sensor_type;
     bool valid;
 } ProductSensorMeasurementSnapshot_t;
 
