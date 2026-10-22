@@ -167,7 +167,7 @@ PlatformCore 基準：`80081ed`
 ## P2：通訊完整驗證
 
 - [ ] 規劃多機台內部 CAN 資料交換：節點身分／拓樸、Run/Stop 與通道狀態、Alarm/Fault/Safety 摘要、PV/SV、DI/DO 能力及資料有效性。
-- [ ] 定義 CAN 資料來源、方向、更新期限／優先級、逾時與節點失聯行為；參考 [`DTDM04_RegisterMap_Reference.md`](DTDM04_RegisterMap_Reference.md)，不可直接沿用舊位址與語意。
+- [ ] 定義 CAN 資料來源、方向、更新期限／優先級、逾時與節點失聯行為；新設計需依目前產品架構定義，不直接沿用舊位址與語意。
 - [ ] CAN PDO／訊息與正式 Register Map 定案後，更新通訊規格及 Register Map CSV。
 
 - [ ] 完成 FC0 Modbus RTU 的 FC03／FC04／FC06／FC10 測試矩陣。
