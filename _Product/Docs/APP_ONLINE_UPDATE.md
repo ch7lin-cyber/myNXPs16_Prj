@@ -1,5 +1,7 @@
 # APP 線上更新與 RS485 入口
 
+> 2026-10-23：目前 APP／staging 改為各 104 KiB，須搭配 Bootloader 00.01.11 以上；下方 96 KiB 表格為歷史紀錄。新配置與遷移步驟以 [104 KiB 分區調整](FLASH_LAYOUT_104K.md) 為準。
+
 > 2026-10-19：APP 更新入口已抽成公用庫，現行整合與重測方式見 [FW_UPDATE_APP_LIBRARY.md](FW_UPDATE_APP_LIBRARY.md)。
 > 下文保留最初 Bootloader 00.01.08 串接紀錄；啟動政策與實測狀態以現行 Bootloader 及新整合文件為準。
 

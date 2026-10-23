@@ -26,11 +26,14 @@ with tempfile.TemporaryDirectory() as directory:
         subprocess.run([output], check=True)
 
 config = (ROOT / '.cproject').read_text()
-assert 'id="PROGRAM_FLASH" location="0x8000" size="0x18000"' in config
+assert 'id="PROGRAM_FLASH" location="0x8000" size="0x1a000"' in config
+linker = (P / 'linker/app_update_assert.ld').read_text()
+assert 'LENGTH(PROGRAM_FLASH) == 0x1A000' in linker
+assert '_image_end <= 0x8000 + 0x1A000 - 48' in linker
 assert 'id="SRAMX" location="0x4000000" size="0x3fc0"' in config
 source_entries = ET.fromstring(config).findall('.//sourceEntries')
 assert len(source_entries) == 2
 for entries in source_entries:
     assert len([e for e in entries if e.get('name') == '_Modules/PlatformCore/FwUpdateApp/src']) == 1
-print('Debug/Release library source, APP Flash 0x8000/96KiB and reserved SRAMX mailbox: PASS')
+print('Debug/Release library source, APP Flash 0x8000/104KiB and reserved SRAMX mailbox: PASS')
 
