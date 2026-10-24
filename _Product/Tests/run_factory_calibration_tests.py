@@ -35,11 +35,17 @@ suites = {
           'product_modbus_register_adapter', 'product_fw_update', 'mock_fw_update_board', 'product_factory_calibration_storage', 'test_product_modbus_register_adapter']] +
         [str(ROOT / '_Modules/PlatformCore/FwUpdateApp/src/fw_update_app.c')],
 }
+suites['safety_pwm'] = [p for p in suites['modbus']
+                        if Path(p).name != 'test_product_modbus_register_adapter.c'] + [
+                            product_source('test_product_safety_pwm_diagnostics')]
 with tempfile.TemporaryDirectory(prefix='factory-tests-') as directory:
     for name, sources in suites.items():
         for mode in ([1, 0] if name == 'modbus' else [1]):
             output = str(Path(directory) / (name + str(mode)))
             flags = ['-DFACTORY_CALIBRATION_INPUT_COUNT=4'] if name != 'conversion' else []
+            if name == 'safety_pwm':
+                flags += ['-DPRODUCT_SAFETY_TEST_BUILD=1', '-DPRODUCT_SAFETY_TEST_TARGET=1',
+                          '-DPRODUCT_SAFETY_TEST_EVK=1']
             cmd = ['gcc', '-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-ffunction-sections',
                    '-fdata-sections', '-Wl,--gc-sections', '-DPRODUCT_ADC_DEBUG_ENABLE=' + str(mode)]
             subprocess.run(cmd + flags + ['-I' + p for p in includes] + sources + ['-lm', '-o', output], check=True)

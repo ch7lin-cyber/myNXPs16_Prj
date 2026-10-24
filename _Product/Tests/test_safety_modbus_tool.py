@@ -292,6 +292,46 @@ class BroadcastBoard(InjectionGuardBoard):
             super().write_multiple(address, values)
 
 
+class PwmBoard(MultiFaultBoard):
+    def __init__(self, ignore_inhibit=False, premature_resume=False, no_resume=False,
+                 fail_pwm_cleanup=False, evk=1, initial_duty=0):
+        super().__init__()
+        self.periods, self.duties, self.modes = [10] * 4, [initial_duty] * 4, [0] * 4
+        self.ignore_inhibit, self.premature_resume = ignore_inhibit, premature_resume
+        self.no_resume, self.fail_pwm_cleanup, self.evk = no_resume, fail_pwm_cleanup, evk
+        self.zero_calls = self.revision = 0
+        self.ever_inhibited = False
+    def read(self, address, count):
+        if address == 0x1300:
+            return [v for triple in zip(self.periods, self.duties, self.modes) for v in triple] + [0, self.revision, 0]
+        if address == 0x4980:
+            state = super().read(0x4810, 16)
+            inhibited = bool(state[3] or state[5])
+            self.ever_inhibited |= inhibited
+            off = inhibited
+            if self.ignore_inhibit:
+                off = False
+            elif self.premature_resume:
+                off = bool(state[3])
+            elif self.no_resume and self.ever_inhibited:
+                off = True
+            return [v for i in range(4) for v in (
+                self.duties[i], 0 if off else self.duties[i], int(inhibited),
+                0, self.periods[i], self.modes[i], 1, self.evk)]
+        return super().read(address, count)
+    def write_multiple(self, address, values):
+        if address == 0x1300:
+            assert len(values) == 13 and values[-1] == 0xA5A5
+            if values[1:12:3] == [0] * 4:
+                self.zero_calls += 1
+                if self.fail_pwm_cleanup and self.zero_calls >= 3:
+                    raise TimeoutError('zero PWM ACK lost')
+            self.periods, self.duties, self.modes = values[:12:3], values[1:12:3], values[2:12:3]
+            self.revision += 1
+            return
+        super().write_multiple(address, values)
+
+
 class SilentPort:
     def __init__(self, echo=False):
         self.timeout = 0.7
@@ -698,6 +738,59 @@ class Tests(unittest.TestCase):
             tool.broadcast_guard_cycle(board)
         self.assertEqual(board.disable_calls, {0x4960: 2, 0x4970: 2})
         self.assertFalse(any(e['event'] == 'broadcast_guard_software_cycle_pass' for e in board.entries))
+
+    def test_pwm_inhibit_both_sources_restore_zero(self):
+        board = PwmBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.pwm_inhibit_cycle(board)
+        self.assertEqual([e['code'] for e in board.entries if e['event'] == 'pwm_inhibit_source_pass'],
+                         ['0x0201', '0x0202'])
+        self.assertEqual(board.duties, [0] * 4)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+        self.assertTrue(any(e['event'] == 'pwm_inhibit_software_cycle_pass' for e in board.entries))
+
+    def test_pwm_inhibit_catches_nonzero_applied_during_fault(self):
+        board = PwmBoard(ignore_inhibit=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.pwm_inhibit_cycle(board)
+        self.assertEqual(board.duties, [0] * 4)
+        self.assertTrue(board.temperature.fault)
+
+    def test_pwm_inhibit_catches_premature_resume(self):
+        board = PwmBoard(premature_resume=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.pwm_inhibit_cycle(board)
+        self.assertEqual(board.duties, [0] * 4)
+
+    def test_pwm_inhibit_catches_missing_resume_after_reset(self):
+        board = PwmBoard(no_resume=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.pwm_inhibit_cycle(board)
+
+    def test_pwm_inhibit_refuses_non_evk_before_writes(self):
+        board = PwmBoard(evk=0)
+        with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '只允許'):
+            tool.pwm_inhibit_cycle(board)
+        write.assert_not_called()
+
+    def test_pwm_inhibit_refuses_existing_nonzero_output(self):
+        board = PwmBoard(initial_duty=100)
+        with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '初始必須為零'):
+            tool.pwm_inhibit_cycle(board)
+        write.assert_not_called()
+
+    def test_pwm_cleanup_failure_still_disables_both_injections(self):
+        board = PwmBoard(fail_pwm_cleanup=True)
+        with patch.object(tool.time, 'sleep', return_value=None), self.assertRaisesRegex(RuntimeError, '安全清理'):
+            tool.pwm_inhibit_cycle(board)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertFalse(any(e['event'] == 'pwm_inhibit_software_cycle_pass' for e in board.entries))
 
 
 if __name__ == '__main__':

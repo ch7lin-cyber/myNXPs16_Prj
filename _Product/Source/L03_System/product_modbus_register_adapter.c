@@ -8,6 +8,7 @@
 #include "ProductConfig.h"
 #include "product_fw_update.h"
 #include "product_safety_test.h"
+#include "ProductSafetyTestConfig.h"
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
@@ -1280,6 +1281,30 @@ static ModbusExceptionCode_t ReadRegisters(
         return (ModbusExceptionCode_t)ProductFwUpdate_Read(starting_address, quantity, values);
 
 #ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    if (starting_address >= 0x4980U && starting_address <= 0x499FU)
+    {
+        if (quantity == 0U || quantity > 0x49A0U - starting_address)
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+        for (uint16_t i = 0U; i < quantity; i++)
+        {
+            uint16_t offset = (uint16_t)(starting_address - 0x4980U + i);
+            PwmOutputState_t pwm;
+            uint8_t channel = (uint8_t)(offset / 8U);
+            uint16_t image[8];
+            if (!PwmOutputService_GetState(channel, &pwm))
+                return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+            image[0] = pwm.requested_duty_permille;
+            image[1] = pwm.applied_duty_permille;
+            image[2] = pwm.inhibited ? 1U : 0U;
+            image[3] = (uint16_t)(pwm.requested_period_ms >> 16);
+            image[4] = (uint16_t)pwm.requested_period_ms;
+            image[5] = (uint16_t)pwm.period_update_mode;
+            image[6] = HalPwm_IsInitialized(channel) ? 1U : 0U;
+            image[7] = PRODUCT_SAFETY_TEST_EVK ? 1U : 0U;
+            values[i] = image[offset % 8U];
+        }
+        return MODBUS_EXCEPTION_NONE;
+    }
     if (starting_address >= 0x4960U && starting_address <= 0x497FU)
         return (ModbusExceptionCode_t)ProductSafetyTest_Read(starting_address, quantity, values);
 #endif
@@ -1998,7 +2023,7 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return (ModbusExceptionCode_t)ProductFwUpdate_Write(address, value);
     if (ProductFwUpdate_IsPending())return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
 
-    if (address >= 0x4960U && address <= 0x497FU)
+    if (address >= 0x4960U && address <= 0x499FU)
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
 
     if (ModbusRegisterAdapter_ResolveSerialAddress(
@@ -2167,7 +2192,7 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     const uint16_t *values,
     uint16_t quantity)
 {
-    if (starting_address >= 0x4960U && starting_address <= 0x497FU) {
+    if (starting_address >= 0x4960U && starting_address <= 0x499FU) {
 #ifdef PRODUCT_SAFETY_COMMAND_ENABLED
         if (ProductFwUpdate_IsPending()) return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
         return (ModbusExceptionCode_t)ProductSafetyTest_Write(starting_address, values, quantity);

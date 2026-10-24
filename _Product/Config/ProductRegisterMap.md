@@ -271,7 +271,7 @@ returns exception 04.
 
 ## SystemRoutine diagnostic summary
 
-SafetyTest 專用注入／診斷區為 `0x4960..0x497F`：過溫命令 `0x4960`、低電壓命令 `0x4970`（均限 FC10 四個 word），實際 ADC valid／最後有效值／有效序號為 `0x4964..0x4967`，其餘診斷為 `0x4968..0x496F`、`0x4974..0x497F`。一般 Debug／Release 不提供此區；詳細命令、組態限制及 Python 操作見 [安全測試工具](../Docs/SAFETY_PYTHON_TEST.md)。
+SafetyTest 專用注入／診斷區為 `0x4960..0x499F`：過溫命令 `0x4960`、低電壓命令 `0x4970`（均限 FC10 四個 word），實際 ADC valid／最後有效值／有效序號為 `0x4964..0x4967`，其餘注入診斷為 `0x4968..0x496F`、`0x4974..0x497F`。四路 PWM 服務唯讀診斷為 `0x4980..0x499F`，每通道 8 words（要求／套用 Duty、inhibited、U32 週期、模式、HAL initialized、EVK flag）。一般 Debug／Release 不提供此區；詳細命令、組態限制及 Python 操作見 [安全測試工具](../Docs/SAFETY_PYTHON_TEST.md)。
 
 All 32-bit values use high-word first. These registers are read-only.
 

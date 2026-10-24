@@ -70,6 +70,29 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 四路 PWM 服務抑制（新增，EVK 待實測）
+
+本次新增唯讀 PWM 服務診斷 `0x4980..0x499F`，需更新程式、Clean／Build **SafetyTestEVK** 並用更新工具下載同次 BIN；三個測試巨集不變。啟動 APP 後執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 pwm-inhibit-cycle
+```
+
+此案例會在 EVK 的四路 PWM 腳位產生非零輸出（先 10／20／30／40%，再 20／30／40／50%），只供無產品負載的 EVK 測試。腳本檢查韌體 EVK flag=1、四路 HAL 已初始化、全域及通道均無抑制、Duty 要求值／套用值原本均為 0、沒有未套用 PWM Pending 與既有 Fault，才開始寫入；非 EVK 或不支援新診斷的韌體會在寫入前停止。
+
+過溫及低電壓各測一輪，透過既有 FC10 `0x1300` 一次 Stage 四通道及 Apply key A5A5：
+
+1. 正常狀態要求值與套用值均為 100／200／300／400 permille。
+2. 觸發既有過溫或低電壓，要求全域 Safety 成立，四路服務 inhibited=1、套用值皆為 0，要求值保留。
+3. 保護期間改要求值為 200／300／400／500，四路套用值仍須為 0。
+4. 有效降溫／電壓恢復後，live 解除但 latch 保持，四路仍為 0。
+5. 正確 Fault Reset 後，四路才解除抑制，套用最後要求值 200／300／400／500（現有服務的恢復契約）。
+6. 每輪結束將 Duty 歸零；最後先以 immediate 模式確認四路要求／套用值歸零，再還原原週期及模式，Duty 保持零，最後獨立關閉兩種注入。失敗時也嘗試上述清理，不自動重置故障；任一清理失敗最終 FAIL。
+
+`PwmOutputService` 在 `HalPwm_SetDutyPermille` 成功後才提交 applied 值，因此這項比只讀全域 inhibit 更接近輸出路徑；但讀值仍為軟體狀態，不能代替腳位波形、輸出級電位或功率量測。四個通道的實體波形及 DO 保護另列正式板待測。
+
+每個來源顯示 `pwm_nonzero_pass`、`pwm_inhibited_pass`、`pwm_write_while_inhibited_pass` 與 `pwm_inhibit_source_pass`，兩輪及清理全部成功後才顯示 `pwm_inhibit_software_cycle_pass`。
+
 ### 廣播注入防護（EVK 本次 COM3 路徑已通過）
 
 只更新 Python，沿用目前無效樣本版韌體，不需重新燒錄。請使用目前單台 EVK 的獨立測試線，執行：
@@ -209,6 +232,7 @@ Register 判定通過只代表軟體保護鏈驗證通過；PWM／DO 實際電�
 | 497B | bit0=目前 confirmed；bit1=本段曾 confirmed；bit2=目前 raw；bit3=有限異常樣本已耗盡 |
 | 497C～497D | 低電壓服務取樣呼叫序號，U32 高 word 在前 |
 | 497E／497F | 正式成立／恢復門檻，目前 3／100 |
+| 4980／4988／4990／4998 起各 8 words | 四通道 PWM 服務唯讀診斷：offset 0 要求 Duty、1 套用 Duty（permille）、2 inhibited、3～4 要求週期（U32 ms）、5 更新模式、6 HAL initialized、7 EVK build flag |
 
 命令透過目前的 USB／RS485 request context 區分 addressed／broadcast；廣播不執行，Modbus 規則下也不回覆。部分寫入、FC06 測試寫入、錯誤確認碼及忙碌請求均拒絕。命令只更新 RAM，不寫 NVM；重新上電恢復真實溫度。正式 Debug／Release 的該區回覆 Illegal Data Address。
 
@@ -223,6 +247,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+PWM 服務抑制新增回歸後共 46 項 Python 離線測試通過，涵蓋兩個來源、四通道、保護期間改寫、提早恢復／未抑制／不恢復的偵測、拒絕非 EVK 與既有非零輸出、PWM 清理失敗仍清理兩項注入。Host 實際 Modbus adapter＋PwmOutputService＋HalPwm＋mock driver 測試確認診斷與 HAL Duty 一致、抑制時四路歸零、解除後恢復、讀取邊界及唯讀限制；正式 DEBUG=1／0 Modbus 仍不公開此區。靜態測試狀態仍為 48 bytes SRAMX，無新增靜態 RAM；目標 ARM 建置與 PWM EVK 實測尚未完成。
 
 廣播防護新增回歸後共 39 項 Python 離線測試通過：新增實際站號 0 RTU frame／CRC／TX 排空、靜默觀察、回覆或 Echo 時失敗且還原 timeout、禁止廣播其他產品位址、六種命令參數不變、抓出廣播被套用，以及清理失敗不得通過。無 MCU 程式變更。
 

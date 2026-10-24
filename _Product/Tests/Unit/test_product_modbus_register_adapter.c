@@ -25,6 +25,7 @@
 #include "product_sensor_configuration_consumer.h"
 #include "product_rotary_switch_driver.h"
 #include "product_temperature_input_types.h"
+#include "product_safety_test.h"
 
 typedef struct
 {
@@ -1485,6 +1486,14 @@ int main(void)
         assert(testInterface.write_single_register(testInterface.context,0x4970,1)==
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
         assert(testInterface.write_multiple_registers(testInterface.context,0x4970,data,4)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+#ifndef PRODUCT_SAFETY_COMMAND_ENABLED
+        assert(testInterface.read_holding_registers(testInterface.context,0x4980,8,data)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+#endif
+        assert(testInterface.write_single_register(testInterface.context,0x4980,1)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.write_multiple_registers(testInterface.context,0x4980,data,4)==
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
     static const HalPwmDriverOps_t pwmOps =
