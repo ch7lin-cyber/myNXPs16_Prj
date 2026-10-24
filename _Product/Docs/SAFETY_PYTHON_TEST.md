@@ -4,7 +4,7 @@
 
 ## 首次準備
 
-1. 更新 `branch2_ver1`，保持既有 PlatformCore 子模組版本。
+1. 更新 `branch2_ver1`，執行 `git submodule sync --recursive`、`git submodule update --init --recursive`。本版本固定 PlatformCore `843cc36`，將 TC-B／C／D 執行期表格移至 SRAMX，避免 SafetyTest 主 SRAM 溢位。
 2. SafetyTest 組態的 C compiler 同時定義 `PRODUCT_SAFETY_TEST_BUILD=1`、`PRODUCT_SAFETY_TEST_TARGET=1`。一般 Debug／Release 不定義。已有的測試函式 `--undefined` 連結選項可移除，現在正常程式流程會引用該函式。
 3. Clean／Build SafetyTest，透過更新工具下載同次產生的 SafetyTest BIN，並啟動 APP。Bootloader 需為 00.01.11 或後續相容版本，APP 保持 104 KiB 分區。
 4. 電腦執行一次 `python -m pip install pyserial`。關閉其他占用 DUT COM 埠的工具，結束 SWD 除錯連線。
@@ -65,3 +65,5 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 新增命令入口與真實 ADC driver 的 Host 邊界／三次計數測試，以及 Python 通訊、正常循環、失敗判定與清理的離線測試。上板結果尚待使用者執行本腳本確認，不能將離線模擬結果當成上板成功。
+
+2026-10-24：使用者的 SafetyTest 連結報表為主 SRAM 66900 bytes／64 KiB，溢位 1364 bytes，SRAMX 為零。子模組更新只移動六組表格、共預期 8640 bytes 至既有 `.bss.$SRAMX`，不擴大主 SRAM 或改動 heap／stack。既有 managed linker 的 `.bss_RAM3` 與 startup section table 負責初始化，保留末端 64-byte Bootloader mailbox。若其他編譯設定一致，主 SRAM 預期約降至 58260 bytes；最終大小必須以新的 MCUXpresso MAP 為準。

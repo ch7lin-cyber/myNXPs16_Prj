@@ -158,6 +158,9 @@ PlatformCore 基準：`80081ed`
 
 ### 板上輸入與 Safety
 
+- [x] 2026-10-24：固定 PlatformCore `843cc36`，只將 TC-B／C／D 六組執行期表格移至 SRAMX，以解決 SafetyTest 主 SRAM 溢位。
+- [ ] 更新子模組後 Clean／Build SafetyTest，確認主 SRAM 不超過 64 KiB，SRAMX 表格約 8640 bytes 且未碰到末端 Bootloader mailbox。
+
 - [x] 2026-10-24：新增 SafetyTest 專用 Modbus 過溫注入入口及 [Python 自動測試循環](SAFETY_PYTHON_TEST.md)，改由正常主迴圈處理，避免 debugger call／暫停 MCU。
 - [x] 命令原子寫入、確認碼、廣播拒絕、忙碌、正常三次計數及 Python 成敗判定／失敗清理的 Host 測試。
 - [ ] 更新並燒錄 SafetyTest BIN，執行 `python _Product/Tools/safety_modbus_test.py`，保存真實上板 JSONL 結果。
