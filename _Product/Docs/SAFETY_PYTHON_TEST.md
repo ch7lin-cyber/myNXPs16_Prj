@@ -307,6 +307,13 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:04:03～21:04:07（台灣時間）：沿用目前 Release APP，使用者上傳 `貼上的文字 (1)(20261024-130420).txt`。清單顯示 COM8「USB 序列裝置」、COM3「USB-SERIAL CH340」，這次選擇第 2 項，`start.port=COM8`，確定與先前 CH340 COM3 路徑不同。
+
+已逐筆解析 `production-guard-cycle`：FC03 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 4 筆、FC10 5 筆，全部 exception=2；`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定前後 Fault count／Safety／Event／Snapshot 不變。站號 2、工具設定 115200／8N1（USB CDC 實際傳輸速率不由此 baud 決定），JSONL 位於 `C:\Users\ch\safety_test_results\20261024_210403_620501.jsonl`。
+
+本次記為 Release USB CDC 路徑測試 Register 封鎖通過。21:00:56～21:01:01 的前一次上傳 `貼上的文字 (1)(20261024-130114).txt` 雖同樣 73 項 PASS，但選的是第 3 項 COM3，只是 CH340 路徑重測，未計入 USB CDC。本次已審核終端輸出，完整 JSONL 未取得；不推定 Debug USB CDC 及其他注入循環亦已在 USB 路徑完成。
+
+
 2026-10-24 20:57:25～20:57:40（台灣時間）：使用者依前一步 Release 組態測試流程，上傳 `貼上的文字 (1)(20261024-125751).txt`，內容為 COM3 `production-guard-cycle` 及 Release 路徑 `production-symbol-check` 的終端輸出。
 
 已逐筆解析核對 73 筆拒絕：FC03 的 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 共 4 筆、FC10 共 5 筆，全部 exception=2，`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定，前後 Fault count／Safety／Event／Snapshot 狀態不變。COM3、115200／8N1、站號 2；JSONL 位於 `C:\Users\ch\safety_test_results\20261024_205725_863328.jsonl`。
