@@ -307,6 +307,32 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+### 本階段彙整（2026-10-24 21:41）
+
+| 既有 EVK 循環 | CH340 COM3 | USB CDC COM8 |
+|---|---|---|
+| 過溫 | PASS | PASS（repeat-cycle） |
+| 低電壓 | PASS | PASS（repeat-cycle） |
+| 雙重故障互鎖 | PASS | PASS（repeat-cycle） |
+| 重置命令防護 | PASS | PASS（repeat-cycle） |
+| 連續循環與紀錄覆寫 | PASS | PASS |
+| 無效溫度樣本 | PASS | PASS |
+| 注入命令防誤寫 | PASS | PASS |
+| 廣播注入防護 | PASS | PASS |
+| 四路 PWM 單一故障抑制 | PASS | PASS |
+| 四路 PWM 雙重故障互鎖 | PASS | PASS |
+
+表中 PASS 為本次使用者終端結果與腳本判定；原始 TX／RX 完整 JSONL 尚未取得。一般 Debug／Release 在 COM3／COM8 的測試入口封鎖與兩組 AXF 具名符號亦已有獨立結果，見下方紀錄。現有 EVK 循環及 USB 補測清單已完成，不再把以上案例列為待補測；仍待 APP → Updater 回歸、目標板忙碌時序、建置巨集及映像對應審核、正式板故障鏈與實體 PWM／DO 量測。
+
+### USB CDC 雙重故障 PWM 結果
+
+2026-10-24 21:41:45～21:41:57（台灣時間）：使用者執行 `--port COM8 pwm-multi-fault-cycle`，SafetyTestEVK、USB CDC、站號 2，工具設定 115200／8N1。先清過溫及先清低電壓各有一筆 `pwm_multi_fault_trip_pass`、`pwm_remaining_fault_pass` 及 `pwm_multi_fault_order_pass`。
+
+兩輪雙故障與僅重置第一項後，四路 requested=100／200／300／400 permille，applied 全為 0、inhibited=1；依腳本判定剩餘故障期間改寫要求值及最後鎖存期間均保持抑制。最後正確 Reset 後，四路 requested／applied=200／300／400／500、inhibited=0；period=10、mode=0、hal_initialized=1、evk=1。
+
+清理完成四路 Duty=0、原週期／模式還原，兩項注入 disabled；`pwm_multi_fault_software_cycle_pass` channels=4、sources=2，最終 `complete` PASS。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_214145_808261.jsonl`，證據為貼出的終端輸出，完整 JSONL 未取得。本次記為 USB CDC 雙重故障四路 PWM 服務互鎖通過；套用值代表 HAL 成功回覆，實際波形、短暫脈衝及 DO 電位仍待儀器量測。
+
+
 2026-10-24 21:35:53～21:35:59（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 pwm-inhibit-cycle`，USB CDC、站號 2，工具設定 115200／8N1。兩項來源 0x0201（過溫）及 0x0202（低電壓）各回報 `pwm_nonzero_pass`、`pwm_inhibited_pass`、`pwm_write_while_inhibited_pass` 及 `pwm_inhibit_source_pass`，最終 `pwm_inhibit_software_cycle_pass`（channels=4、sources=2）及 `complete` PASS。
 
 每項來源的四路起始要求／套用 Duty=100／200／300／400 permille；故障後套用值全為 0、inhibited=1。保護期間要求值改寫為 200／300／400／500，套用值仍為 0；依腳本判定條件恢復後鎖存保持，最後正確 Reset 後套用值才恢復最新要求值、inhibited=0。各通道 period=10、mode=0、hal_initialized=1、evk=1。

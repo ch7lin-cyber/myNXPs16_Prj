@@ -279,6 +279,9 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+- [x] SafetyTestEVK USB CDC 雙重故障四路 PWM 互鎖（COM8）：2026-10-24 21:41:45～21:41:57（台灣時間），使用者執行 `pwm-multi-fault-cycle` 回報 PASS；先清過溫／先清低電壓兩輪均確認雙故障及第一項 Reset 後四路套用 Duty=0，最後 Reset 後才恢復最新要求值 200／300／400／500 permille。結束 Duty=0、原週期／模式還原、兩項注入 disabled。站號 2，JSONL 檔名 `20261024_214145_808261.jsonl`；證據為終端輸出，完整 JSONL 未取得，實體波形仍待量測。
+- 目前 10 組既有 EVK Python 安全循環均已在 COM3 與 USB CDC COM8 取得 PASS（USB 過溫／低電壓／雙故障／重置由 repeat-cycle 覆蓋），不需為了補齊此清單重跑。仍待 APP → Updater 回歸、目標板 busy 時序、正式板／實體輸出與建置及原始紀錄歸檔；本階段完成不代表整機安全驗收完成。
+
 - [x] SafetyTestEVK USB CDC 四路 PWM 服務抑制（COM8）：2026-10-24 21:35:53～21:35:59（台灣時間），使用者執行 `pwm-inhibit-cycle` 回報 PASS；過溫 0x0201／低電壓 0x0202 各自使四路套用 Duty=0，抑制期間改寫僅更新要求值，正確 Reset 後恢復最後要求值 200／300／400／500 permille。結束四路 Duty=0、原週期／模式還原、兩項注入 disabled。站號 2，JSONL 檔名 `20261024_213553_546318.jsonl`；證據為終端輸出，完整 JSONL 未取得。套用值為服務取得 HAL 成功回覆，實體波形仍待量測，USB 雙重故障 PWM 案例仍待補測。
 
 - [x] SafetyTestEVK USB CDC 廣播注入防護（COM8）：2026-10-24 21:32:07～21:32:21（台灣時間），使用者執行 `broadcast-guard-cycle`，6 種站號 0 FC06／FC10 命令各觀察 2 秒無回覆，站號 2 讀回檢查通過，兩項注入 disabled，最終 PASS。依腳本判定注入參數與 Fault／Safety／Event／Snapshot 不變。JSONL 檔名 `20261024_213207_065904.jsonl`；證據為終端輸出，完整 JSONL 未取得；目標板忙碌時序、USB PWM 單／雙故障案例及實體輸出仍待測。
