@@ -279,7 +279,8 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
-- [ ] 一般 Debug／Release 測試入口封鎖：新增 Python `production-guard-cycle`，57 項離線回歸及 Host 正式 DEBUG=1／0 全區 FC03／06／10 拒絕通過。待切換一般組態（不定義三個測試／EVK 巨集）、Clean／Build 並下載該 BIN，驗證 64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項 exception=2，前後 Fault／Safety／紀錄不變；各組態／傳輸介面分別記錄，AXF 符號排除另行確認。
+- [x] 本次韌體映像的測試入口封鎖（COM3）：2026-10-24 20:45:13～20:45:18（台灣時間），使用者上傳 `production-guard-cycle` 終端紀錄，64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項均 exception=2，最終 PASS；依腳本判定 Fault／Safety／紀錄前後不變。115200／8N1、站號 2，JSONL 檔名 `20261024_204513_967980.jsonl`；已審核上傳終端輸出，完整 JSONL 尚未取得。
+- [ ] 正式組態封鎖補驗：補上本次 Debug／Release 組態與映像識別、建置報表；另一組態／另一傳輸介面分別重測 `production-guard-cycle`，AXF 測試符號排除另行確認。單次通訊封鎖 PASS 不代表兩種組態及所有介面均已完成。
 
 - [x] SafetyTestEVK 雙重故障四路 PWM 互鎖：2026-10-24 20:34:29～20:34:41（台灣時間），使用者執行 `pwm-multi-fault-cycle` 回報 PASS；先清過溫／先清低電壓兩種順序均通過，雙故障及第一項 Reset 後四路套用 Duty=0，剩餘故障及最後鎖存保持抑制，最後 Reset 才恢復最新要求值 200／300／400／500 permille。結束四路 Duty=0、原週期／模式還原、兩項注入關閉。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_203429_623912.jsonl`；證據為終端輸出，完整 JSONL 尚未取得。實體波形與正式板仍待測。
 

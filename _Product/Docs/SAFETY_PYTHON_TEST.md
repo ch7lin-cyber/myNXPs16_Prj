@@ -71,7 +71,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
-### 一般 Debug／Release 測試入口封鎖（新增，待上板）
+### 一般 Debug／Release 測試入口封鎖（本次映像／COM3 已通過）
 
 此案例需要切換韌體，不能沿用目前的 SafetyTestEVK BIN：
 
@@ -91,7 +91,7 @@ python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3
 
 結果僅證明該次韌體、通訊路徑上的測試 Register 不可存取，不等於確認 AXF 中所有測試符號均不存在。Debug／Release 與另一傳輸路徑須分別記錄；之後執行原有注入循環需重新下載 SafetyTestEVK BIN。
 
-新增後共 **57 項 Python 離線回歸通過**，包含 73 項拒絕、既有 Fault 保留、誤載測試版時不寫測試區、寫入被接受立即失敗、錯誤 exception／timeout 不算通過，以及狀態變化偵測。Host 真實 Modbus adapter 的 DEBUG=1／0 均驗證整區 64 位址 FC03／06／10 拒絕，其他校正與 Safety PWM 回歸亦通過。本次只修改 Python、Host 測試與文件，沒有修改 MCU 執行程式；正式組態建置報表及上板結果仍待取得。
+新增後共 **57 項 Python 離線回歸通過**，包含 73 項拒絕、既有 Fault 保留、誤載測試版時不寫測試區、寫入被接受立即失敗、錯誤 exception／timeout 不算通過，以及狀態變化偵測。Host 真實 Modbus adapter 的 DEBUG=1／0 均驗證整區 64 位址 FC03／06／10 拒絕，其他校正與 Safety PWM 回歸亦通過。本次只修改 Python、Host 測試與文件，沒有修改 MCU 執行程式；本次映像／COM3 上板結果如下；正式組態建置報表及其他組態／介面結果仍待取得。
 
 ### 雙重故障下的四路 PWM 互鎖（EVK 軟體流程已通過）
 
@@ -286,6 +286,13 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+
+2026-10-24 20:45:13～20:45:18（台灣時間）：使用者上傳 `貼上的文字 (1)(20261024-124533).txt`，為執行 `production-guard-cycle` 的終端輸出，COM3、115200／8N1、站號 2。已逐筆解析並核對：FC03 恰有 64 筆，位址連續涵蓋 `0x4960..0x499F`；FC06 為 4 筆，FC10 為 5 筆，全部 exception=2；`production_guard_cycle_pass` 的 rejected_cases=73，最終 `complete` PASS，沒有錯誤或清理失敗。
+
+依腳本判定，正常 Safety／Fault count 可讀取且讀寫檢查前後 Fault count、Safety live／latch／state／inhibit、Event／Snapshot 計數及序號保持不變。此案例未啟用注入、未更動產品輸出、未清除 Fault。JSONL 位於使用者電腦 `C:\Users\ch\safety_test_results\20261024_204513_967980.jsonl`；已收到並審核終端輸出，但未取得含原始 TX／RX 的完整 JSONL。
+
+本次記為「當次下載映像及 COM3 通訊路徑的測試 Register 封鎖通過」。終端輸出未包含 Debug／Release 組態、映像雜湊或建置報表，不能據此將兩種組態與所有介面一併判定完成，也未證明 AXF 不含測試符號；其餘仍列待驗證。
 
 
 2026-10-24 20:34:29～20:34:41（台灣時間）：使用者在 EVK 執行 `pwm-multi-fault-cycle`，COM3、115200／8N1、站號 2。先清過溫及先清低電壓兩種順序，各回報 `pwm_multi_fault_trip_pass`、`pwm_remaining_fault_pass` 及 `pwm_multi_fault_order_pass`；最終 `pwm_multi_fault_software_cycle_pass`（channels=4、sources=2）及 `complete` PASS。
