@@ -5,6 +5,7 @@
 
 #include "FaultService.h"
 #include "ProductLowVoltageConfig.h"
+#include "ProductSafetyTestConfig.h"
 #include "product_low_voltage_safety.h"
 #include "product_modbus_register_adapter.h"
 
@@ -45,6 +46,18 @@ int main(void)
 
     g_low_voltage_active = true;
     g_interrupt_count = 1U;
+#if PRODUCT_SAFETY_TEST_EVK
+    /* An asserted fake hardware input must never enter EVK safety state. */
+    for (sample = 0U; sample < 100U; sample++)
+    {
+        ProductLowVoltageSafety_Process(sample);
+    }
+    assert(ProductLowVoltageSafety_GetSnapshot(&snapshot));
+    assert(!snapshot.raw_active && !snapshot.confirmed_active);
+    assert(!snapshot.fault_active && snapshot.interrupt_count == 0U);
+    assert(FaultService_GetActiveCount() == 0U);
+    return 0;
+#endif
     for (sample = 1U; sample < PRODUCT_LOW_VOLTAGE_ASSERT_SAMPLES; sample++)
     {
         ProductLowVoltageSafety_Process(sample);

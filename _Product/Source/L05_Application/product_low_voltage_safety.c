@@ -4,6 +4,7 @@
 
 #include "FaultService.h"
 #include "ProductLowVoltageConfig.h"
+#include "ProductSafetyTestConfig.h"
 #include "SystemFaultService.h"
 #include "product_low_voltage_driver.h"
 #include "product_modbus_register_adapter.h"
@@ -27,7 +28,9 @@ static void PublishMonitor(void)
 
 void ProductLowVoltageSafety_Initialize(void)
 {
+#if !PRODUCT_SAFETY_TEST_EVK
     ProductLowVoltageDriver_Initialize();
+#endif
     g_snapshot.interrupt_count = 0U;
     g_snapshot.revision = 0U;
     g_snapshot.raw_active = false;
@@ -42,9 +45,15 @@ void ProductLowVoltageSafety_Process(uint32_t timestamp_ms)
 {
     bool previous_confirmed = g_snapshot.confirmed_active;
 
+#if PRODUCT_SAFETY_TEST_EVK
+    /* EVK has no product voltage detector. Keep the real safety logic. */
+    g_snapshot.raw_active = false;
+    g_snapshot.interrupt_count = 0U;
+#else
     g_snapshot.raw_active = ProductLowVoltageDriver_IsActive();
     g_snapshot.interrupt_count =
         ProductLowVoltageDriver_GetInterruptCount();
+#endif
 
     if (g_snapshot.raw_active)
     {

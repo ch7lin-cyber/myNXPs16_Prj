@@ -277,3 +277,8 @@ PlatformCore 基準：`80081ed`
 6. 完成通訊、FRAM、DAC、PWM、DI、DO 的硬體驗收。
 7. 串接 L04／L05 應用功能。
 8. 完成五份簡報與維護文件。
+# EVK 過溫驗證補充（2026-10-24）
+
+- [ ] SafetyTestEVK：下載專用 BIN，透過 Python 完成 MCU 過溫三次判定、Fault／Event／Snapshot／Safety 鎖定與重置的 EVK 實測，尚未完成。
+- [ ] 正式板：關閉 `PRODUCT_SAFETY_TEST_EVK`，驗證 FRAM／NVM、四顆 AD7124、低電壓實體輸入、PV Alarm／L05 FB，以及實際 PWM／DO 安全輸出，尚未完成。
+- EVK 模式的隔離範圍與三個編譯定義見 `SAFETY_PYTHON_TEST.md`。EVK 軟體流程通過不得取代正式板硬體驗證。

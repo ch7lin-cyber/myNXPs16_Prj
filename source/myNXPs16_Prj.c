@@ -41,6 +41,7 @@
 #include "fsl_pint.h"
 #include "fsl_debug_console.h"
 #include "ProductFeatureConfig.h"
+#include "ProductSafetyTestConfig.h"
 #include "l03_product_modbus.h"
 #include "product_usb_modbus.h"
 #include "l03_product_modbus_master.h"
@@ -199,21 +200,25 @@ int main(void) {
         ProductBootHalt(kProductBootErrorPwm);
     }
     g_productBootStage = (uint32_t)kProductBootStagePwmInitialized;
+#if !PRODUCT_SAFETY_TEST_EVK
     if (!ProductDac8562Driver_Init() || !BspAnalogOutput_Initialize())
     {
         ProductBootHalt(kProductBootErrorDac);
     }
     g_productBootStage = (uint32_t)kProductBootStageDacInitialized;
+#endif
     if (!ProductDigitalIoDriver_Init())
     {
         ProductBootHalt(kProductBootErrorDigitalIo);
     }
     g_productBootStage = (uint32_t)kProductBootStageDigitalIoInitialized;
+#if !PRODUCT_SAFETY_TEST_EVK
     if (!ProductNvmDriver_Init())
     {
         ProductBootHalt(kProductBootErrorNvm);
     }
     g_productBootStage = (uint32_t)kProductBootStageNvmInitialized;
+#endif
     if (!ProductApplication_Init())
     {
         ProductBootHalt(kProductBootErrorApplication);

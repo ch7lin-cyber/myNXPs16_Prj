@@ -34,6 +34,7 @@
 #include "ProductLowVoltageConfig.h"
 #include "ProductRotarySwitchConfig.h"
 #include "ProductSafetyConfig.h"
+#include "ProductSafetyTestConfig.h"
 #include "product_low_voltage_safety.h"
 #include "product_mcu_temperature_safety.h"
 #include "product_fram_bank_test.h"
@@ -107,6 +108,7 @@ static bool UpdateSystemSafetySource(
         0U, 0U, values);
 }
 
+#if !PRODUCT_SAFETY_TEST_EVK
 static uint8_t FoldAdcErrorRegister(uint32_t error_register)
 {
     return (uint8_t)(error_register ^ (error_register >> 8U) ^
@@ -251,6 +253,8 @@ static bool ProcessAdcFaults(void)
     return result;
 }
 
+#endif
+
 static bool ProcessMcuTemperatureSafety(void)
 {
     BspInternalAdcMcuTemperature_t temperature;
@@ -322,7 +326,11 @@ static bool ProductSystemControlMonitor(uint32_t timestamp_ms, void *context)
 {
     (void)timestamp_ms;
     (void)context;
+#if PRODUCT_SAFETY_TEST_EVK
+    return true;
+#else
     return ProcessAdcFaults();
+#endif
 }
 
 static bool ConfigureAdcWarnings(void)
@@ -349,11 +357,13 @@ static bool IsPwmOutputInhibited(uint8_t channel, void *context)
 
 bool ProductApplication_Init(void)
 {
-    AnalogInputStatus_t adc_status;
     SystemRoutineConfiguration_t system_routine_configuration;
+#if !PRODUCT_SAFETY_TEST_EVK
+    AnalogInputStatus_t adc_status;
     uint8_t adc_device;
     uint8_t adc_route_count;
     const AnalogInputRoute_t *adc_routes;
+#endif
 
     (void)memset(&system_routine_configuration, 0,
                  sizeof(system_routine_configuration));
@@ -388,14 +398,17 @@ bool ProductApplication_Init(void)
         return false;
     }
 
+#if !PRODUCT_SAFETY_TEST_EVK
     if (!ProductAdcDriver_Init())
     {
         return false;
     }
+#endif
     if (!BspInternalAdc_Initialize())
     {
         return false;
     }
+#if !PRODUCT_SAFETY_TEST_EVK
     for (adc_device = 0U; adc_device < HAL_ADC_DEVICE_COUNT; adc_device++)
     {
         if (AnalogInputService_SetDeviceConfiguration(
@@ -421,10 +434,15 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
+#endif
 
     if (!EventService_ConfigureTemperatureInputRequiredAckMask(
+#if PRODUCT_SAFETY_TEST_EVK
+            EVENT_ACK_ALARM | EVENT_ACK_SAFETY))
+#else
             EVENT_ACK_ANALOG_INPUT | EVENT_ACK_ALARM |
             EVENT_ACK_SAFETY | EVENT_ACK_NVM))
+#endif
     {
         return false;
     }
@@ -443,6 +461,7 @@ bool ProductApplication_Init(void)
     ProductMcuTemperatureSafety_Initialize();
     ProductLowVoltageSafety_Initialize();
     ProductLowVoltageSafety_Process(0U);
+#if !PRODUCT_SAFETY_TEST_EVK
     ProductSensorConfigurationConsumer_Initialize();
     ProductSensorMeasurementService_Initialize();
     ProductDipSwitchDriver_Initialize();
@@ -456,6 +475,7 @@ bool ProductApplication_Init(void)
     }
     ProductFramBankTest_Initialize();
     (void)ProductFactoryCalibrationStorage_Initialize();
+#endif
 
     {
         uint8_t channel;
@@ -466,8 +486,12 @@ bool ProductApplication_Init(void)
             EventTemperatureInputConfiguration_t stored;
             product_temperature_input_config_t product_config;
             uint16_t stored_revision;
+#if PRODUCT_SAFETY_TEST_EVK
+            /* RAM defaults only; no simulated successful persistence. */
+#else
             if (!NvmService_GetLoadedTemperatureInputConfigurationForChannel(
                     channel, &stored_revision, &stored))
+#endif
             {
                 stored.filter_time_constant_seconds = 0.5F;
                 stored.sensor_type = PRODUCT_SENSOR_TYPE_TC_K;
@@ -523,12 +547,16 @@ bool ProductApplication_Init(void)
                  sizeof(g_adc_last_fault_device_mask));
     g_adc_fault_event_id = 0U;
     g_system_timestamp_ms = 0U;
+#if !PRODUCT_SAFETY_TEST_EVK
     (void)BspInternalAdc_RequestCjcSamples();
+#endif
     (void)BspInternalAdc_RequestMcuTemperature();
+#if !PRODUCT_SAFETY_TEST_EVK
     if (!ProductFbScheduleIntegration_Init(g_system_timestamp_ms))
     {
         return false;
     }
+#endif
     return true;
 }
 
@@ -589,6 +617,7 @@ void ProductApplication_Process(void)
     uint8_t input;
 
     ProductStatusLed_Process();
+#if !PRODUCT_SAFETY_TEST_EVK
     if (g_digital_input_due)
     {
         g_digital_input_due = false;
@@ -604,22 +633,26 @@ void ProductApplication_Process(void)
         g_rotary_switch_due = false;
         ProductRotarySwitchDriver_Process();
     }
+#endif
     BspInternalAdc_Process();
 #ifdef PRODUCT_SAFETY_COMMAND_ENABLED
     ProductSafetyTest_Process();
 #endif
     (void)SystemRoutine_ExecuteFast(g_system_timestamp_ms);
+#if !PRODUCT_SAFETY_TEST_EVK
     if (g_cjc_due)
     {
         g_cjc_due = false;
         (void)BspInternalAdc_RequestCjcSamples();
     }
+#endif
     if (g_mcu_temperature_due)
     {
         g_mcu_temperature_due = false;
         (void)BspInternalAdc_RequestMcuTemperature();
     }
 
+#if !PRODUCT_SAFETY_TEST_EVK
     if (g_adc_poll_due)
     {
         uint8_t device;
@@ -670,7 +703,9 @@ void ProductApplication_Process(void)
             }
         }
     }
+#endif
     (void)SystemRoutine_ExecuteControl(g_system_timestamp_ms);
+#if !PRODUCT_SAFETY_TEST_EVK
     for (input = 0U; input < FACTORY_CALIBRATION_INPUT_COUNT; input++)
     {
         AnalogInputSample_t sample;
@@ -680,16 +715,20 @@ void ProductApplication_Process(void)
                 input, sample.microvolts);
         }
     }
+#endif
     for (input = 0U;
          input < PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT;
          input++)
     {
+#if !PRODUCT_SAFETY_TEST_EVK
         (void)ProductSensorConfigurationConsumer_Process(
             input, g_system_timestamp_ms);
         (void)ProductSensorMeasurementService_Process(input);
+#endif
         (void)AlarmConfigurationEventConsumer_Process(input);
         (void)SafetyConfigurationEventConsumer_Process(input);
     }
+#if !PRODUCT_SAFETY_TEST_EVK
     ProductFbScheduleIntegration_Process(g_system_timestamp_ms);
     ProductFramBankTest_Process();
     if (!ProductFramBankTest_IsBusy())
@@ -702,6 +741,7 @@ void ProductApplication_Process(void)
                 input, g_system_timestamp_ms);
         }
     }
+#endif
 
     for (input = 0U; input < 4U; input++)
     {

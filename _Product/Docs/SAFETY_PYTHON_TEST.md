@@ -12,6 +12,26 @@
 
 ## 直接執行
 
+### EVK 專用組態（沒有產品周邊時）
+
+複製 SafetyTest 組態為 `SafetyTestEVK`，在該組態的 **C Compiler → Preprocessor → Defined symbols** 加入以下三個定義，並套用至整個專案：
+
+```text
+PRODUCT_SAFETY_TEST_BUILD=1
+PRODUCT_SAFETY_TEST_TARGET=1
+PRODUCT_SAFETY_TEST_EVK=1
+```
+
+EVK 開關位於 `_Product/Config/ProductSafetyTestConfig.h`，預設為 0。缺少任一 SafetyTest 定義，或其值不為 1，EVK 建置會報錯。一般 Debug／Release 不加入上述定義；正式板 SafetyTest 只保留前兩個定義。
+
+EVK 模式跳過 DAC／FRAM 初始化、NVM 讀取及持久化、外部 AD7124 初始化／取樣／復原／故障判斷、外部感測器配置及 L05 FB 排程、CJC 取樣與 DIP／旋鈕讀取。低電壓服務固定讀入正常狀態，不讀取 PIO1_31。溫度輸入使用 RAM 預設配置，配置事件僅要求 Alarm／Safety 消費者確認，不假裝 NVM 已儲存。保留 MCU 內溫取樣、Watchdog、通訊、正式過溫／Fault／Event／Snapshot／Safety 與 PWM 抑制流程。
+
+Clean／Build **SafetyTestEVK**，下載此組態輸出的 BIN，重新啟動 APP 後執行下列同一支 Python；不需手動清除前一個韌體執行時產生的四筆 Fault。不要混用 SafetyTest／Debug 資料夾中的舊 BIN。
+
+此模式通過只能記為「EVK MCU 過溫軟體流程通過」。外部低電壓偵測、FRAM、AD7124、PV Alarm、L05 FB 及實際 PWM／DO 電位仍須正式板實測；不在 EVK 此次驗證範圍內。若仍有 Fault，腳本照常停止，不會略過故障繼續測試。
+
+### 執行命令
+
 ```powershell
 python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py
 ```
@@ -65,6 +85,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+2026-10-24 EVK 隔離變更：Host 已確認 EVK application object 不再引用外部 ADC、感測器設定及 NVM 路徑，正式模式保留引用；低電壓服務在 EVK 忽略外部輸入、正式模式保留三次判定；不合法的 EVK 巨集組合會拒絕編譯。產品 driver、Python 四項離線案例與校正／正式 Modbus 回歸通過。尚未執行 MCUXpresso ARM 連結或 EVK 實機循環。
 
 新增命令入口與真實 ADC driver 的 Host 邊界／三次計數測試，以及 Python 通訊、正常循環、失敗判定與清理的離線測試。上板結果尚待使用者執行本腳本確認，不能將離線模擬結果當成上板成功。
 
