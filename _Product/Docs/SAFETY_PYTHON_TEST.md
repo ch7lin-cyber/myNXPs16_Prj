@@ -1,6 +1,6 @@
 # Python 系統安全上板測試
 
-2026-10-24：改用 FC03／06／10 測試工具，MCU 正常運行並餵 Watchdog，不需 debugger call。已提供 MCU 過溫及低電壓注入循環；過溫 EVK 實測通過，低電壓 EVK 實測待執行，其他故障及實體輸出量測尚未加入自動循環。
+2026-10-24：改用 FC03／06／10 測試工具，MCU 正常運行並餵 Watchdog，不需 debugger call。已提供 MCU 過溫及低電壓注入循環，兩項 EVK 軟體流程實測均通過；其他故障及實體輸出量測尚未加入自動循環。
 
 ## 首次準備
 
@@ -116,7 +116,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-低電壓注入新增 Host 整合測試，連結真實測試命令、低電壓服務及 Fault 程式，在 EVK 與一般 SafetyTest 模式均通過 1／2／3 次成立邊界、99／100 次恢復邊界、命令 key／長度／忙碌／廣播限制與停用後來源恢復；正式 Modbus 對低電壓測試區回覆 Illegal Data Address。Python 離線案例共 8 項通過，包含低電壓成功、Safety 傳播失敗、清理失敗及不支援舊韌體時不寫入。低電壓 EVK 實測與目標 ARM 連結報表尚待使用者執行確認。
+低電壓注入新增 Host 整合測試，連結真實測試命令、低電壓服務及 Fault 程式，在 EVK 與一般 SafetyTest 模式均通過 1／2／3 次成立邊界、99／100 次恢復邊界、命令 key／長度／忙碌／廣播限制與停用後來源恢復；正式 Modbus 對低電壓測試區回覆 Illegal Data Address。Python 離線案例共 8 項通過，包含低電壓成功、Safety 傳播失敗、清理失敗及不支援舊韌體時不寫入。目標 ARM 連結報表尚未取得。
+
+2026-10-24 18:36:53～18:36:55（台灣時間）：使用者在 EVK 執行 `low-voltage-cycle`，COM3、115200／8N1、站號 2，終端輸出回報 1 次／2 次短脈衝通過（peak=1／2）、`low_voltage_software_cycle_pass`、注入 `disabled`、最終 `PASS`。依腳本判定，此次通過三次成立、Fault `0x0202`／detail 1、低電壓異常持續時拒絕重置、連續正常 100 次恢復後鎖存保持，以及 Reset 回復正常。
+
+低電壓觸發時 Safety live=2、latch=2、state=1、inhibit=1；Event／Snapshot 各 2 筆、最新序號各 2。紀錄位於使用者電腦 `C:\safety_test_results\20261024_183653_570297.jsonl`。證據為使用者貼出的終端輸出，完整 JSONL 尚未取得；EVK 低電壓軟體流程記為通過，外部偵測電路與實際 PWM／DO 仍為正式板待測。
 
 2026-10-24 EVK 隔離變更：Host 已確認 EVK application object 不再引用外部 ADC、感測器設定及 NVM 路徑，正式模式保留引用；低電壓服務在 EVK 忽略外部輸入、正式模式保留三次判定；不合法的 EVK 巨集組合會拒絕編譯。產品 driver、Python 四項離線案例與校正／正式 Modbus 回歸通過。
 
