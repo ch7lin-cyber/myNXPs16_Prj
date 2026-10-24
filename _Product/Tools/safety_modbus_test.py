@@ -524,6 +524,74 @@ def reset_guard_cycle(client):
                physical_outputs='EVK 重置命令防護；實際 PWM／DO 待正式板量測')
 
 
+def sequence_distance(before, after):
+    distance = (after - before) & 0xFFFFFFFF
+    # Firmware wraps UINT32_MAX to 1, skipping zero.
+    if before and after and after < before:
+        distance -= 1
+    return distance
+
+
+def verify_retained_history(client, state):
+    for name, base, count, latest, capacity, words in (
+            ('event', 0x4920, state['events'], state['event_sequence'], 32, 12),
+            ('snapshot', 0x4940, state['snapshots'], state['snapshot_sequence'], 16, 27)):
+        require(0 < count <= capacity and latest != 0, f'{name} 保留筆數／最新序號不符')
+        actual = []
+        for index in range(count):
+            client.write_single(base, index)
+            record = client.read(base, words)
+            require(record[0] == index, f'{name} 索引讀回不符')
+            sequence = (record[1] << 16) | record[2]
+            actual.append(sequence)
+            require(1 <= record[5] <= (4 if name == 'event' else 5), f'{name} 紀錄類別無效')
+            if name == 'event':
+                require(1 <= record[6] <= 4, 'Event 紀錄狀態無效')
+            client.log(event='retained_record', kind=name, index=index, registers=record)
+        expected = [((latest - count + index) % 0xFFFFFFFF) + 1 for index in range(count)]
+        require(actual == expected, f'{name} 環形紀錄順序／覆寫結果不符')
+    after = safety(client)
+    require(all(after[k] == state[k] for k in state), '讀取環形紀錄期間系統狀態改變')
+
+
+def repeat_cycle(client, cycles=3):
+    require(2 <= cycles <= 100, '連續測試輪數必須為 2..100')
+    diagnostic(client)
+    low_voltage_diagnostic(client)
+    require(not fault_records(client), '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['live'] == 0 and initial['latch'] == 0 and
+            initial['state'] == 0 and initial['inhibit'] == 0, '初始 Safety 不是正常狀態')
+    previous = initial
+    for round_number in range(1, cycles + 1):
+        for name, run in (('temperature', temperature_cycle), ('low_voltage', low_voltage_cycle),
+                          ('multi_fault', multi_fault_cycle), ('reset_guard', reset_guard_cycle)):
+            client.log(event='repeat_case_start', round=round_number, total=cycles, case=name)
+            run(client)  # Each case owns its injection cleanup, including failure/Ctrl+C.
+            wait_safety(client, 0, 0, '連續測試案例結束')
+            require(not fault_records(client), f'第 {round_number} 輪 {name} 結束仍有 Fault')
+            require(diagnostic(client)['enabled'] == 0 and low_voltage_diagnostic(client)['enabled'] == 0,
+                    f'第 {round_number} 輪 {name} 結束仍有注入')
+            client.log(event='repeat_case_pass', round=round_number, case=name)
+        state = wait_safety(client, 0, 0, '本輪結束')
+        for count, sequence, capacity in (('events', 'event_sequence', 32),
+                                          ('snapshots', 'snapshot_sequence', 16)):
+            added = sequence_distance(previous[sequence], state[sequence])
+            require(0 < added < 0x80000000, f'{count} 序號未前進或疑似重啟／清除')
+            require(state[count] == min(capacity, previous[count] + added),
+                    f'{count} 保留筆數不符／可能重啟或遺失紀錄')
+        verify_retained_history(client, state)
+        client.log(event='repeat_round_pass', round=round_number, total=cycles, **state)
+        previous = state
+    require(sequence_distance(initial['event_sequence'], previous['event_sequence']) > 32 and
+            sequence_distance(initial['snapshot_sequence'], previous['snapshot_sequence']) > 16,
+            '本次新增紀錄不足以驗證兩個環形緩衝區覆寫')
+    require(previous['events'] == 32 and previous['snapshots'] == 16,
+            '紀錄達容量後保留筆數不符')
+    client.log(event='repeat_software_cycle_pass', rounds=cycles, cases=cycles * 4,
+               physical_outputs='EVK 連續軟體測試及紀錄覆寫；實際 PWM／DO 待正式板量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -538,6 +606,8 @@ def main():
     sub.add_parser('low-voltage-cycle', help='執行一次低電壓測試循環')
     sub.add_parser('multi-fault-cycle', help='雙重故障互鎖，測試兩種解除順序')
     sub.add_parser('reset-guard-cycle', help='故障重置確認碼、代碼與重複命令防護')
+    repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
+    repeat.add_argument('--cycles', type=int, choices=range(2, 101), default=3, metavar='2..100')
     for action in ['read', 'write06', 'write10']:
         p = sub.add_parser(action)
         p.add_argument('address', type=number, help='HEX 請加 0x 前綴')
@@ -581,7 +651,7 @@ def main():
         def log(**entry):
             entry['time'] = datetime.datetime.now().astimezone().isoformat()
             file.write(json.dumps(entry, ensure_ascii=False)+'\n'); file.flush()
-            if entry.get('event') not in ('TX', 'RX', 'sample'):
+            if entry.get('event') not in ('TX', 'RX', 'sample', 'retained_record'):
                 print(json.dumps(entry, ensure_ascii=False))
         log(event='start', action=args.action, port=args.port, baud=args.baud, station=args.station)
         try:
@@ -596,6 +666,8 @@ def main():
                     multi_fault_cycle(c)
                 elif args.action == 'reset-guard-cycle':
                     reset_guard_cycle(c)
+                elif args.action == 'repeat-cycle':
+                    repeat_cycle(c, args.cycles)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -605,7 +677,7 @@ def main():
             log(event='complete', result='PASS')
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
-                   'reset-guard-cycle') else '操作成功。')
+                   'reset-guard-cycle', 'repeat-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')

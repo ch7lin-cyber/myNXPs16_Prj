@@ -279,6 +279,7 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+- [ ] SafetyTestEVK 連續循環與紀錄覆寫：Python `repeat-cycle` 已完成，24 項離線回歸通過；待 EVK 執行預設 3 輪／12 案例，確認每次結束無殘留 Fault／Safety／注入，以及 Event 32／Snapshot 16 筆滿載後的覆寫、序號前進與全部保留紀錄可讀。現有韌體可沿用，實機尚未完成。
 - [x] SafetyTestEVK 重置命令防護：2026-10-24 18:58～18:59（台灣時間），使用者執行 `reset-guard-cycle` 回報 PASS。過溫／低電壓共 22 次預期拒絕與 2 次正確重置通過，拒絕時 Fault／Safety／Event／Snapshot 不變，兩項注入均關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_185848_987746.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體 PWM／DO 仍待量測。
 - [x] SafetyTestEVK 雙重故障互鎖：2026-10-24 18:45（台灣時間），使用者執行 Python `multi-fault-cycle` 回報 PASS。兩項 Fault 同時成立時 live／latch=3；先清過溫後剩低電壓 live／latch=2，先清低電壓後剩過溫 live／latch=1，兩者 state／inhibit 均保持 1；兩輪重置與兩項注入清理通過。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_184509_797979.jsonl`；依據使用者終端輸出，完整 JSONL 尚未取得。實體 PWM／DO 仍待正式板量測。
 - [ ] EVK APP → Updater 回歸：已修正停用 DAC 初始化後仍要求 DAC 歸零而阻擋切換的路徑；Host 真實 quiesce 與正式 DAC 失敗保護通過，待實機確認更新工具可切入 Updater。

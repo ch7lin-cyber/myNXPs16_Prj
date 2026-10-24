@@ -236,6 +236,42 @@ class MultiFaultBoard:
         child.fault = child.latch = 0
 
 
+class HistoryBoard:
+    def __init__(self, corrupt=False):
+        self.event_sequence = self.snapshot_sequence = 0
+        self.indices = {0x4920: 0, 0x4940: 0}
+        self.entries = []
+        self.corrupt = corrupt
+    def log(self, **entry):
+        self.entries.append(entry)
+    def read(self, address, count):
+        if address == 0x4800:
+            return [0]
+        if address == 0x4968:
+            return [2, 0, 0, 0, 0, 0, 0, 0]
+        if address == 0x4974:
+            return [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 100]
+        if address == 0x4810:
+            return [0, 0, 0, 0, 0, 0, 0, 0, min(32, self.event_sequence),
+                    min(16, self.snapshot_sequence), self.event_sequence >> 16,
+                    self.event_sequence & 0xFFFF, self.snapshot_sequence >> 16,
+                    self.snapshot_sequence & 0xFFFF, 0, 0]
+        assert address in self.indices
+        index = self.indices[address]
+        latest = self.event_sequence if address == 0x4920 else self.snapshot_sequence
+        retained = min(32 if address == 0x4920 else 16, latest)
+        sequence = latest - retained + 1 + index
+        if self.corrupt and index == 1:
+            sequence -= 1  # Duplicate record after ring wrap.
+        record = [0] * count
+        record[0], record[1], record[2] = index, sequence >> 16, sequence & 0xFFFF
+        record[5], record[6] = 2, 1
+        return record
+    def write_single(self, address, value):
+        assert address in self.indices
+        self.indices[address] = value
+
+
 class Tests(unittest.TestCase):
     def test_crc_fragmented_and_ack(self):
         self.assertEqual(tool.crc16(b'123456789'), 0x4B37)
@@ -394,6 +430,66 @@ class Tests(unittest.TestCase):
         with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '已有 Fault'):
             tool.reset_guard_cycle(board)
         write.assert_not_called()
+
+    def test_repeat_all_cases_and_ring_overwrite(self):
+        board = HistoryBoard()
+        def run(client):
+            client.event_sequence += 9
+            client.snapshot_sequence += 3
+        with patch.multiple(tool, temperature_cycle=run, low_voltage_cycle=run,
+                            multi_fault_cycle=run, reset_guard_cycle=run):
+            tool.repeat_cycle(board, 2)
+        self.assertEqual(len([e for e in board.entries if e['event'] == 'repeat_case_pass']), 8)
+        self.assertEqual(len([e for e in board.entries if e['event'] == 'repeat_round_pass']), 2)
+        self.assertTrue(any(e['event'] == 'repeat_software_cycle_pass' for e in board.entries))
+        self.assertTrue(any(e['event'] == 'retained_record' for e in board.entries))
+
+    def test_repeat_detects_duplicate_history(self):
+        board = HistoryBoard(corrupt=True)
+        def run(client):
+            client.event_sequence += 9
+            client.snapshot_sequence += 3
+        with patch.multiple(tool, temperature_cycle=run, low_voltage_cycle=run,
+                            multi_fault_cycle=run, reset_guard_cycle=run), \
+             self.assertRaisesRegex(AssertionError, '環形紀錄'):
+            tool.repeat_cycle(board, 2)
+        self.assertFalse(any(e['event'] == 'repeat_software_cycle_pass' for e in board.entries))
+
+    def test_repeat_detects_sequence_reset(self):
+        board = HistoryBoard()
+        calls = []
+        def run(client):
+            calls.append(1)
+            client.event_sequence += 9
+            client.snapshot_sequence += 3
+            if len(calls) == 8:
+                client.event_sequence = 1
+        with patch.multiple(tool, temperature_cycle=run, low_voltage_cycle=run,
+                            multi_fault_cycle=run, reset_guard_cycle=run), \
+             self.assertRaisesRegex(AssertionError, '序號未前進'):
+            tool.repeat_cycle(board, 2)
+
+    def test_repeat_stops_at_first_case_failure(self):
+        board = HistoryBoard()
+        calls = []
+        def run(client):
+            calls.append(1)
+            if len(calls) == 2:
+                raise RuntimeError('case failed after cleanup')
+        with patch.multiple(tool, temperature_cycle=run, low_voltage_cycle=run,
+                            multi_fault_cycle=run, reset_guard_cycle=run), \
+             self.assertRaisesRegex(RuntimeError, 'case failed'):
+            tool.repeat_cycle(board, 2)
+        self.assertEqual(len(calls), 2)
+
+    def test_repeat_invalid_rounds_no_io(self):
+        for cycles in (0, 1, 101):
+            with self.assertRaisesRegex(AssertionError, '輪數'):
+                tool.repeat_cycle(None, cycles)
+
+    def test_sequence_wrap_skips_zero(self):
+        self.assertEqual(tool.sequence_distance(0xFFFFFFFE, 1), 2)
+        self.assertEqual(tool.sequence_distance(0, 10), 10)
 
 
 if __name__ == '__main__':

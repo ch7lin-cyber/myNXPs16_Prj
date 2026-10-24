@@ -70,6 +70,20 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 連續循環與環形紀錄覆寫（EVK 待實測）
+
+沿用現有韌體，只更新 Python，不需重新燒錄。預設連續 3 輪，每輪執行過溫、低電壓、雙重故障、重置命令防護四項既有案例，共 12 個案例，需數分鐘：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 repeat-cycle
+```
+
+也可指定 `repeat-cycle --cycles 5`，允許 2～100 輪；至少兩輪才能在本次測試中產生足夠紀錄以驗證覆寫。每項案例成功後都要求 Fault=0、Safety live／latch／state／inhibit=0，過溫及低電壓兩項注入均已關閉。任一失敗即停止後續案例，注入清理由該案例的 finally 負責，不自動清除失敗故障。
+
+每輪檢查 Event 最新序號與 Snapshot 最新序號都前進，保留筆數符合新增數量及容量上限（目前 Event 32、Snapshot 16）。接著透過 FC06 索引／FC03 讀取全部保留紀錄（Event `0x4920`／12 words，Snapshot `0x4940`／27 words），驗證索引、類別、Event 狀態、由舊至新的連續序號，及最後一筆符合最新序號；因此可檢查容量滿後最舊紀錄被覆寫、保留順序正確且可讀。支援 U32 序號由 FFFFFFFF 回到 1、跳過 0 的既有規則。
+
+完整紀錄讀入 JSONL 的 `retained_record`，畫面只顯示案例及輪次進度。讀取期間若 Safety 或紀錄最新狀態改變會停止；測試全程新增序號須超過 Event 32／Snapshot 16，最終保留筆數須為 32／16，才顯示 `repeat_software_cycle_pass`。此處驗證紀錄可讀、序號與覆寫順序，並非所有紀錄內容的逐筆語義核對，也不代表實體輸出量測或長期可靠性驗收已完成。
+
 ### 重置命令防護循環（EVK 軟體流程已通過）
 
 沿用既有已通過過溫／低電壓的 SafetyTestEVK 韌體，只更新 Python，無需重新燒錄：
@@ -155,6 +169,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+連續循環新增離線回歸後共 24 項 Python 測試通過，新增案例覆蓋兩輪八案例的排程、紀錄滿載與覆寫、重複序號偵測、序號倒退／疑似重啟偵測、首個失敗立即停止、輪數限制與 U32 跳零規則。各既有案例仍跑原本的 18 項回歸；連續循環 EVK 實測尚未完成，無 MCU 程式變更。
 
 重置防護新增離線回歸後共 18 項 Python 測試通過，新增案例確認兩項來源及 22 次拒絕、抓出錯誤 key 被接受的回歸、清理失敗不得回報通過，以及既有 Fault 時不寫入。未修改 MCU 程式，實體輸出仍須正式板量測。
 
