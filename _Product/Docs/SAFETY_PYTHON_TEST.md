@@ -86,8 +86,12 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-2026-10-24 EVK 隔離變更：Host 已確認 EVK application object 不再引用外部 ADC、感測器設定及 NVM 路徑，正式模式保留引用；低電壓服務在 EVK 忽略外部輸入、正式模式保留三次判定；不合法的 EVK 巨集組合會拒絕編譯。產品 driver、Python 四項離線案例與校正／正式 Modbus 回歸通過。尚未執行 MCUXpresso ARM 連結或 EVK 實機循環。
+2026-10-24 EVK 隔離變更：Host 已確認 EVK application object 不再引用外部 ADC、感測器設定及 NVM 路徑，正式模式保留引用；低電壓服務在 EVK 忽略外部輸入、正式模式保留三次判定；不合法的 EVK 巨集組合會拒絕編譯。產品 driver、Python 四項離線案例與校正／正式 Modbus 回歸通過。
 
-新增命令入口與真實 ADC driver 的 Host 邊界／三次計數測試，以及 Python 通訊、正常循環、失敗判定與清理的離線測試。上板結果尚待使用者執行本腳本確認，不能將離線模擬結果當成上板成功。
+新增命令入口與真實 ADC driver 的 Host 邊界／三次計數測試，以及 Python 通訊、正常循環、失敗判定與清理的離線測試，均與實機結果分別記錄。
+
+2026-10-24 17:57:25～17:57:33（台灣時間）：使用者於 EVK 執行 `python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3`，115200／8N1、站號 2，終端輸出回報 `software_cycle_pass`、注入 `disabled`、最終 `PASS`。依腳本判定，此次通過 84.99°C 不觸發、85°C 三次成立、Fault detail、高溫拒絕重置、降溫後鎖定保持及重置恢復正常。
+
+觸發時回報 Safety live=1、latch=1、state=1、inhibit=1；Event／Snapshot 各 2 筆、最新序號各 2。紀錄位於使用者電腦 `C:\safety_test_results\20261024_175725_721874.jsonl`。本次證據為使用者貼出的終端輸出，完整 JSONL 尚未取得；未另行取得 MCUXpresso 建置報表。EVK 過溫軟體流程記為通過，正式板與實體 PWM／DO 量測仍為待測。
 
 2026-10-24：使用者的 SafetyTest 連結報表為主 SRAM 66900 bytes／64 KiB，溢位 1364 bytes，SRAMX 為零。子模組更新只移動六組表格、共預期 8640 bytes 至既有 `.bss.$SRAMX`，不擴大主 SRAM 或改動 heap／stack。既有 managed linker 的 `.bss_RAM3` 與 startup section table 負責初始化，保留末端 64-byte Bootloader mailbox。若其他編譯設定一致，主 SRAM 預期約降至 58260 bytes；最終大小必須以新的 MCUXpresso MAP 為準。

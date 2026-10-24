@@ -279,6 +279,6 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
-- [ ] SafetyTestEVK：下載專用 BIN，透過 Python 完成 MCU 過溫三次判定、Fault／Event／Snapshot／Safety 鎖定與重置的 EVK 實測，尚未完成。
+- [x] SafetyTestEVK：2026-10-24 17:57（台灣時間），使用者於 EVK 執行 Python MCU 過溫循環回報 PASS；三次判定、Fault／Event／Snapshot／Safety 鎖定與重置通過，注入成功關閉。COM3、115200／8N1、站號 2。紀錄檔名 `20261024_175725_721874.jsonl`；依據使用者貼出的終端輸出，完整 JSONL 尚未取得。
 - [ ] 正式板：關閉 `PRODUCT_SAFETY_TEST_EVK`，驗證 FRAM／NVM、四顆 AD7124、低電壓實體輸入、PV Alarm／L05 FB，以及實際 PWM／DO 安全輸出，尚未完成。
 - EVK 模式的隔離範圍與三個編譯定義見 `SAFETY_PYTHON_TEST.md`。EVK 軟體流程通過不得取代正式板硬體驗證。
