@@ -279,6 +279,8 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+- [x] SafetyTestEVK USB CDC 廣播注入防護（COM8）：2026-10-24 21:32:07～21:32:21（台灣時間），使用者執行 `broadcast-guard-cycle`，6 種站號 0 FC06／FC10 命令各觀察 2 秒無回覆，站號 2 讀回檢查通過，兩項注入 disabled，最終 PASS。依腳本判定注入參數與 Fault／Safety／Event／Snapshot 不變。JSONL 檔名 `20261024_213207_065904.jsonl`；證據為終端輸出，完整 JSONL 未取得；目標板忙碌時序、USB PWM 單／雙故障案例及實體輸出仍待測。
+
 - [x] SafetyTestEVK USB CDC 注入命令防誤寫（COM8）：2026-10-24 21:27:46～21:27:53（台灣時間），使用者執行 `injection-guard-cycle`，26 項拒絕全部通過（10 項錯誤 key／非法參數 exception=3，16 項長度／FC06／唯讀／跨界誤寫 exception=2），最終 PASS；依腳本判定注入參數與 Fault／Safety／Event／Snapshot 不變，兩項注入 disabled。站號 2，JSONL 檔名 `20261024_212746_156073.jsonl`；證據為終端輸出，完整 JSONL 未取得，實體 PWM／DO 仍待量測。
 
 - [x] SafetyTestEVK USB CDC 無效 MCU 溫度樣本（COM8）：2026-10-24 21:22:29～21:22:43（台灣時間），使用者執行 `invalid-sample-cycle` 回報 PASS；無效 8500 實際 valid=false、count=0、trip=false；已過溫後無效 8499 實際 valid=false、count=3、trip=true，兩段各保持至少 3.2 秒。依腳本判定有效降溫／Reset 恢復正常，最後注入 disabled。站號 2，JSONL 檔名 `20261024_212229_960208.jsonl`；證據為貼出的終端輸出，完整 JSONL 未取得，實際 PWM／DO 仍待量測。
