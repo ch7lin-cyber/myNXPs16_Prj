@@ -71,7 +71,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
-### APP → USB Updater → APP 回歸（新增，待實測）
+### APP → USB Updater → APP 回歸（EVK／USB 已通過）
 
 沿用目前 SafetyTestEVK BIN，更新 Python 即可，不需重新燒錄；本案例會安全停機並重啟 MCU，因此 RAM Event／Snapshot 等揮發狀態會重新開始。先保存需要保留的舊測試紀錄，關閉更新工具等 COM 連線，再執行：
 
@@ -93,7 +93,7 @@ python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM8
 
 上例 COM9 只為示範，需換成實際埠。只重試開埠／讀取識別，兩筆切換命令不重送。ACK 遺失、版本不同、正式硬體非 EVK、無法確認模式或其他異常皆 FAIL；失敗／中斷時可能已停留 Updater，不自動重置 Fault 或重新下載。可使用既有更新工具選 USB CDC，連線實際 Updater COM，檢查狀態後啟動已驗證 APP；若 metadata／CRC 無效，依既有更新流程重新下載有效 BIN，不以 SWD 單獨改寫 APP 取代 metadata 更新。
 
-71 項 Python 離線回歸通過，新增雙模式識別、COM 重新開啟、暫時開埠失敗、仍在 APP 時不得誤判成功、PENDING／錯誤 Target 禁止 RUN、RUN ACK 遺失不重送、返回版本改變失敗及 EVK／PWM 起始防護。本次未修改 MCU 程式，上板切換與實體安全輸出仍待驗證。
+71 項 Python 離線回歸通過，新增雙模式識別、COM 重新開啟、暫時開埠失敗、仍在 APP 時不得誤判成功、PENDING／錯誤 Target 禁止 RUN、RUN ACK 遺失不重送、返回版本改變失敗及 EVK／PWM 起始防護。本次未修改 MCU 程式；EVK／USB 上板切換結果如下，實體安全輸出仍待驗證。
 
 
 ### 正式 AXF 具名測試符號檢查（本次 Debug／Release AXF 均已通過）
@@ -332,6 +332,24 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+### EVK APP → USB Updater → APP 結果
+
+2026-10-24 22:15:51～22:15:54（台灣時間）：使用者執行 `--port COM8 updater-cycle`，站號 2，工具設定 115200／8N1。終端結果完整顯示七個成功階段：`updater_preflight_pass`、`updater_request_ack`、`updater_mode_pass`、`updater_run_app_ack`、`updater_app_return_pass`、`updater_cycle_pass` 及最終 `complete` PASS。
+
+| 階段 | 結果 |
+|---|---|
+| 初始 APP | identity=0xA016、schema=1、mode=1，版本 01.00.00 |
+| 進入 USB Updater | 請求 ACK 成功，重連 COM8 取得 identity=0xB016、mode=2 |
+| Bootloader | 00.01.11，依腳本檢查 Target 符合 0x00160001 |
+| Updater 狀態 | `[0,0,0,0,0,0,224,0]`，Idle、無錯誤及待執行命令 |
+| 返回 APP | RUN ACK 成功，重連 COM8，原完整識別及版本 01.00.00 一致 |
+| 映像下載 | `flash_download=false`，未下載新映像 |
+
+依腳本判定，切換前與返回後均無 Fault／Safety 抑制，兩項注入關閉、四路 PWM 已初始化且 requested／applied=0。COM8 在兩次模式切換後均可重新開啟，本次不需指定其他 COM。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_221551_789606.jsonl`；證據為貼出的終端輸出，完整 TX／RX JSONL 未取得。
+
+本次將 EVK／USB 模式切換回歸記為通過，包含原先 EVK 跳過 DAC 初始化後的 quiesce 切換路徑。正式板 DAC 歸零失敗保護、其他更新傳輸路徑、實際 PWM／DO 停機電位及短暫脈衝不由此推定通過。重啟會重新初始化 RAM 紀錄，不能將其解讀為原 Event／Snapshot 跨重啟保存。
+
+
 ### 本階段彙整（2026-10-24 21:41）
 
 | 既有 EVK 循環 | CH340 COM3 | USB CDC COM8 |
@@ -347,7 +365,7 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 | 四路 PWM 單一故障抑制 | PASS | PASS |
 | 四路 PWM 雙重故障互鎖 | PASS | PASS |
 
-表中 PASS 為本次使用者終端結果與腳本判定；原始 TX／RX 完整 JSONL 尚未取得。一般 Debug／Release 在 COM3／COM8 的測試入口封鎖與兩組 AXF 具名符號亦已有獨立結果，見下方紀錄。現有 EVK 循環及 USB 補測清單已完成，不再把以上案例列為待補測；仍待 APP → Updater 回歸、目標板忙碌時序、建置巨集及映像對應審核、正式板故障鏈與實體 PWM／DO 量測。
+表中 PASS 為本次使用者終端結果與腳本判定；原始 TX／RX 完整 JSONL 尚未取得。一般 Debug／Release 在 COM3／COM8 的測試入口封鎖與兩組 AXF 具名符號亦已有獨立結果，見下方紀錄。現有 EVK 循環及 USB 補測清單已完成，不再把以上案例列為待補測；APP → USB Updater → APP 回歸亦已通過；仍待目標板忙碌時序、建置巨集及映像對應審核、正式板故障鏈與實體 PWM／DO 量測。
 
 ### USB CDC 雙重故障 PWM 結果
 

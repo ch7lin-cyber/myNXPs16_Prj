@@ -280,7 +280,7 @@ PlatformCore 基準：`80081ed`
 # EVK 過溫驗證補充（2026-10-24）
 
 - [x] SafetyTestEVK USB CDC 雙重故障四路 PWM 互鎖（COM8）：2026-10-24 21:41:45～21:41:57（台灣時間），使用者執行 `pwm-multi-fault-cycle` 回報 PASS；先清過溫／先清低電壓兩輪均確認雙故障及第一項 Reset 後四路套用 Duty=0，最後 Reset 後才恢復最新要求值 200／300／400／500 permille。結束 Duty=0、原週期／模式還原、兩項注入 disabled。站號 2，JSONL 檔名 `20261024_214145_808261.jsonl`；證據為終端輸出，完整 JSONL 未取得，實體波形仍待量測。
-- 目前 10 組既有 EVK Python 安全循環均已在 COM3 與 USB CDC COM8 取得 PASS（USB 過溫／低電壓／雙故障／重置由 repeat-cycle 覆蓋），不需為了補齊此清單重跑。仍待 APP → Updater 回歸、目標板 busy 時序、正式板／實體輸出與建置及原始紀錄歸檔；本階段完成不代表整機安全驗收完成。
+- 目前 10 組既有 EVK Python 安全循環均已在 COM3 與 USB CDC COM8 取得 PASS（USB 過溫／低電壓／雙故障／重置由 repeat-cycle 覆蓋），不需為了補齊此清單重跑。APP → USB Updater → APP 回歸亦已通過；仍待目標板 busy 時序、正式板／實體輸出與建置及原始紀錄歸檔；本階段完成不代表整機安全驗收完成。
 
 - [x] SafetyTestEVK USB CDC 四路 PWM 服務抑制（COM8）：2026-10-24 21:35:53～21:35:59（台灣時間），使用者執行 `pwm-inhibit-cycle` 回報 PASS；過溫 0x0201／低電壓 0x0202 各自使四路套用 Duty=0，抑制期間改寫僅更新要求值，正確 Reset 後恢復最後要求值 200／300／400／500 permille。結束四路 Duty=0、原週期／模式還原、兩項注入 disabled。站號 2，JSONL 檔名 `20261024_213553_546318.jsonl`；證據為終端輸出，完整 JSONL 未取得。套用值為服務取得 HAL 成功回覆，實體波形仍待量測，USB 雙重故障 PWM 案例仍待補測。
 
@@ -312,7 +312,7 @@ PlatformCore 基準：`80081ed`
 - [x] SafetyTestEVK 連續循環與紀錄覆寫：2026-10-24 19:20:44～19:23:08（台灣時間），使用者上傳 `repeat-cycle` 終端紀錄，3 輪／12 案例全部 PASS；每項結束無殘留 Fault／Safety／注入，每輪 Event／Snapshot 保留 32／16 筆，最新序號依序 75／30、115／46、155／62，覆寫及全部保留紀錄索引／序號讀取檢查通過。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_192044_582132.jsonl`；已取得終端輸出，尚未取得含原始 TX／RX 與 retained_record 的完整 JSONL。實體 PWM／DO 仍待量測。
 - [x] SafetyTestEVK 重置命令防護：2026-10-24 18:58～18:59（台灣時間），使用者執行 `reset-guard-cycle` 回報 PASS。過溫／低電壓共 22 次預期拒絕與 2 次正確重置通過，拒絕時 Fault／Safety／Event／Snapshot 不變，兩項注入均關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_185848_987746.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體 PWM／DO 仍待量測。
 - [x] SafetyTestEVK 雙重故障互鎖：2026-10-24 18:45（台灣時間），使用者執行 Python `multi-fault-cycle` 回報 PASS。兩項 Fault 同時成立時 live／latch=3；先清過溫後剩低電壓 live／latch=2，先清低電壓後剩過溫 live／latch=1，兩者 state／inhibit 均保持 1；兩輪重置與兩項注入清理通過。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_184509_797979.jsonl`；依據使用者終端輸出，完整 JSONL 尚未取得。實體 PWM／DO 仍待正式板量測。
-- [ ] EVK APP → USB Updater → APP 回歸：已新增 Python `--port COM8 updater-cycle`，71 項離線回歸通過；沿用現有 SafetyTestEVK BIN，不需重新燒錄，會重啟且 RAM 紀錄重新開始。待實測 APP／Updater 模式識別、Boot 版本／Target、Idle 後驗證啟動 Active APP、返回同版本及安全初始狀態。只切換模式、不下載映像、切換命令不重送；COM 改變可指定 `--updater-port`／`--app-port`。原 EVK DAC quiesce 修正與 Host 正式 DAC 失敗保護已通過，實體安全輸出仍待量測。
+- [x] EVK APP → USB Updater → APP 回歸（COM8）：2026-10-24 22:15:51～22:15:54（台灣時間），使用者執行 `updater-cycle` 回報 PASS。APP 識別 0xA016／mode=1，收到進入更新 ACK 後確認 Updater 0xB016／mode=2、Boot 00.01.11、Idle 無錯誤；收到 RUN ACK 後返回原 APP 01.00.00，前後識別及版本一致。依腳本判定重啟後 Fault／Safety 正常、兩項注入關閉、四路 PWM 要求／套用值為零。未下載映像，JSONL 檔名 `20261024_221551_789606.jsonl`；證據為貼出的終端輸出，完整 JSONL 未取得。此項驗證 EVK／USB 路徑，正式板 DAC 停機及實體安全電位仍待測。
 - [x] SafetyTestEVK 低電壓：2026-10-24 18:36（台灣時間），使用者於 EVK 執行 Python `low-voltage-cycle` 回報 PASS；1／2 次短脈衝不成立、3 次成立、100 次正常恢復、Fault／Safety／Event／Snapshot 及重置檢查通過，注入成功關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_183653_570297.jsonl`；依據使用者貼出的終端輸出，完整 JSONL 尚未取得。
 - [x] SafetyTestEVK：2026-10-24 17:57（台灣時間），使用者於 EVK 執行 Python MCU 過溫循環回報 PASS；三次判定、Fault／Event／Snapshot／Safety 鎖定與重置通過，注入成功關閉。COM3、115200／8N1、站號 2。紀錄檔名 `20261024_175725_721874.jsonl`；依據使用者貼出的終端輸出，完整 JSONL 尚未取得。
 - [ ] 正式板：關閉 `PRODUCT_SAFETY_TEST_EVK`，驗證 FRAM／NVM、四顆 AD7124、低電壓實體輸入、PV Alarm／L05 FB，以及實際 PWM／DO 安全輸出，尚未完成。
