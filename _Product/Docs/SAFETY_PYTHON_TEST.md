@@ -307,6 +307,13 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:35:53～21:35:59（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 pwm-inhibit-cycle`，USB CDC、站號 2，工具設定 115200／8N1。兩項來源 0x0201（過溫）及 0x0202（低電壓）各回報 `pwm_nonzero_pass`、`pwm_inhibited_pass`、`pwm_write_while_inhibited_pass` 及 `pwm_inhibit_source_pass`，最終 `pwm_inhibit_software_cycle_pass`（channels=4、sources=2）及 `complete` PASS。
+
+每項來源的四路起始要求／套用 Duty=100／200／300／400 permille；故障後套用值全為 0、inhibited=1。保護期間要求值改寫為 200／300／400／500，套用值仍為 0；依腳本判定條件恢復後鎖存保持，最後正確 Reset 後套用值才恢復最新要求值、inhibited=0。各通道 period=10、mode=0、hal_initialized=1、evk=1。
+
+清理回報四路歸零、原週期／模式還原，溫度及低電壓注入均 disabled。本次記為 USB CDC COM8 四路 PWM 服務抑制通過；JSONL 位於 `C:\Users\ch\safety_test_results\20261024_213553_546318.jsonl`，證據為貼出的終端輸出，完整 JSONL 未取得。套用值代表服務取得 HAL 成功回覆，實體 PWM 波形與 DO 電位仍待量測；USB 雙重故障 PWM 案例仍待獨立測試。
+
+
 2026-10-24 21:32:07～21:32:21（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 broadcast-guard-cycle`，USB CDC、站號 2，工具設定 115200／8N1。終端顯示 6 筆 `broadcast_silence_pass`（每筆 observation_seconds=2）及 6 筆 `broadcast_guard_case_pass`：過溫／低電壓完整 FC10、兩項 enable 的 FC06、兩項 key 的 FC06，均 broadcast_station=0、readback_station=2。
 
 依腳本判定，廣播命令無回覆、未啟用注入且讀回參數與 Fault／Safety／Event／Snapshot 保持不變。兩項 cleanup 均 disabled，`broadcast_guard_software_cycle_pass` cases=6，最終 `complete` PASS。本次記為 USB CDC COM8 廣播注入防護通過。
