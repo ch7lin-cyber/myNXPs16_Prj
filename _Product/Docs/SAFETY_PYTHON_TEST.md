@@ -2,6 +2,21 @@
 
 2026-10-24：改用 FC03／06／10 測試工具，MCU 正常運行並餵 Watchdog，不需 debugger call。已提供 MCU 過溫及低電壓注入循環，兩項 EVK 軟體流程實測均通過；其他故障及實體輸出量測尚未加入自動循環。
 
+## 本階段結束與切回 Debug（2026-10-24）
+
+既有 EVK 安全循環、USB 補測及 APP → USB Updater → APP 回歸已取得本次軟體流程 PASS。使用者目前沒有示波器或邏輯分析儀，**實體 PWM／DO 電位、波形及短暫脈衝仍為待測、未完成**；等儀器可用再接續，不重跑軟體循環充當硬體驗收。
+
+一般開發建議切回一般 **Debug**，不是退回舊 commit。依序：
+
+1. 在 MCUXpresso 選擇一般 Debug 組態，確認整個專案與各來源檔皆沒有定義 `PRODUCT_SAFETY_TEST_BUILD`、`PRODUCT_SAFETY_TEST_TARGET`、`PRODUCT_SAFETY_TEST_EVK`，也沒有 `PRODUCT_HOST_TEST`。
+2. 請移除測試巨集，**不要只設定為 0**。ADC driver 的部分測試欄位及 API 使用 `#if defined(PRODUCT_SAFETY_TEST_BUILD)`，只要有定義仍會納入；`ProductSafetyTestConfig.h` 的 EVK 預設值維持 0 即可，不需修改此預設。
+3. Clean／Build Debug；若要讓板上也回到一般版本，使用既有更新工具下載同次 **Debug BIN** 並啟動 APP。只在 IDE 切換組態不會替換目前 MCU 內的 SafetyTestEVK 韌體。勿僅用 SWD 改 APP 卻留下舊 metadata／CRC。
+4. 保留獨立 SafetyTest／SafetyTestEVK 組態與測試來源，下次需要注入時再切換並下載相應 BIN。一般 Debug 會恢復外部 FRAM／DAC／AD7124 等產品硬體路徑，缺少周邊的 EVK 可能出現相應 Fault；這與測試入口是否關閉是不同檢查。
+
+**新增測試 CODE 不需刪除或手動整段註解。** 保留既有條件編譯、測試專用 Modbus 診斷、Python 與 Host 回歸。測試入口及 EVK 隔離僅供獨立測試組態啟用；一般 Debug／Release 不啟用上述巨集。若日後更動建置設定，可重用 `production-guard-cycle` 與 `production-symbol-check` 檢查；具名符號檢查仍不取代巨集審核。
+
+目前尚未取得使用者切回一般 Debug／重新下載的完成回報，維持待辦；本次僅補充文件，未回退或移除 MCU 程式。
+
 ## 首次準備
 
 1. 更新 `branch2_ver1`，執行 `git submodule sync --recursive`、`git submodule update --init --recursive`。本版本固定 PlatformCore `843cc36`，將 TC-B／C／D 執行期表格移至 SRAMX，避免 SafetyTest 主 SRAM 溢位。

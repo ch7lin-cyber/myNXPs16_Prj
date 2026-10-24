@@ -279,6 +279,15 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+
+## 本階段暫停與一般開發恢復（2026-10-24）
+
+- [ ] **待測、未完成：實體 PWM／DO 安全輸出。** 使用者確認目前沒有示波器或邏輯分析儀，因此暫停量測；不得將現有 Register／HAL 套用值及 Python PASS 視為實體波形通過。待有儀器後確認正常 PWM、故障／鎖存期間停止、Reset 後恢復、最終歸零與短暫脈衝；DO 電位及正式板輸出另行驗證。僅為此項不需重跑已通過的軟體循環。
+- [ ] **使用者本機恢復一般 Debug 組態／韌體，尚未回報完成。** 不退版、不移除本次功能。選擇一般 Debug，從整個專案及各來源檔的 Defined symbols 移除 `PRODUCT_SAFETY_TEST_BUILD`、`PRODUCT_SAFETY_TEST_TARGET`、`PRODUCT_SAFETY_TEST_EVK`，確認未定義 `PRODUCT_HOST_TEST`。不要只把 BUILD／TARGET 設為 0：部分 ADC 注入程式使用 `#if defined(PRODUCT_SAFETY_TEST_BUILD)`。Clean／Build Debug 後，用更新工具下載同次 Debug BIN 才會替換目前 MCU 上的 SafetyTestEVK；只切換 IDE 組態不會更換已燒錄韌體。
+- [x] 測試程式保留策略已確認：保留 `product_safety_test.c/.h`、ADC 注入的既有條件編譯區、測試專用 Modbus 診斷、Python 工具與 Host 測試，供後續正式板／儀器回歸。不手動刪除或整段註解；一般組態透過既有編譯條件停用測試入口。一般 Debug／Release 的入口封鎖及具名 AXF 符號已在本次測試回報通過，仍須維持正確巨集設定。
+- 一般 Debug 會恢復 FRAM／DAC／外部 AD7124 等正式硬體路徑，EVK 缺少產品周邊時可能回報相應 Fault。EVK 需繼續做隔離測試時，改用獨立 SafetyTestEVK；不將 EVK 繞過設定帶入一般 Debug／Release。此文件不聲稱已替使用者變更 IDE 或板上韌體。
+
+
 - [x] SafetyTestEVK USB CDC 雙重故障四路 PWM 互鎖（COM8）：2026-10-24 21:41:45～21:41:57（台灣時間），使用者執行 `pwm-multi-fault-cycle` 回報 PASS；先清過溫／先清低電壓兩輪均確認雙故障及第一項 Reset 後四路套用 Duty=0，最後 Reset 後才恢復最新要求值 200／300／400／500 permille。結束 Duty=0、原週期／模式還原、兩項注入 disabled。站號 2，JSONL 檔名 `20261024_214145_808261.jsonl`；證據為終端輸出，完整 JSONL 未取得，實體波形仍待量測。
 - 目前 10 組既有 EVK Python 安全循環均已在 COM3 與 USB CDC COM8 取得 PASS（USB 過溫／低電壓／雙故障／重置由 repeat-cycle 覆蓋），不需為了補齊此清單重跑。APP → USB Updater → APP 回歸亦已通過；仍待目標板 busy 時序、正式板／實體輸出與建置及原始紀錄歸檔；本階段完成不代表整機安全驗收完成。
 
