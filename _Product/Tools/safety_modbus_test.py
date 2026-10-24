@@ -311,6 +311,129 @@ def low_voltage_cycle(client):
                 raise RuntimeError('無法確認低電壓注入已關閉；請重新上電並檢查 Fault') from exc
 
 
+def fault_records(client):
+    records = {}
+    for index in range(client.read(0x4800, 1)[0]):
+        client.write_single(0x4801, index)
+        code, detail = client.read(0x4802, 2)
+        require(code not in records, 'Fault 清單出現重複代碼')
+        records[code] = detail
+    return records
+
+
+def wait_safety(client, live, latch, name, seconds=4):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        state = safety(client)
+        client.log(event='sample', phase=name, **state)
+        inhibited = int(bool(live or latch))
+        if (state['live'] == live and state['latch'] == latch and
+                state['inhibit'] == inhibited and state['state'] == inhibited):
+            return state
+        time.sleep(0.1)
+    raise TimeoutError(f'{name} Safety 狀態不符／逾時')
+
+
+def reset_fault(client, code, blocked=False):
+    try:
+        client.write_multiple(0x4809, [code, 0xC1EA])
+    except ModbusError as exc:
+        require(blocked and exc.code == 3, f'Fault 0x{code:04X} Reset 回覆異常')
+    else:
+        require(not blocked, f'Fault 0x{code:04X} 條件仍成立卻接受 Reset')
+    expected = 3 if blocked else 1
+    require(client.read(0x480B, 1)[0] == expected, f'Fault 0x{code:04X} Reset 結果不符')
+
+
+def multi_fault_cycle(client):
+    # Probe both interfaces before writes. Existing faults are never cleared to start.
+    diagnostic(client)
+    probe = low_voltage_diagnostic(client)
+    require(probe['assert_samples'] == 3 and probe['release_samples'] == 100,
+            '低電壓韌體參數不是預期的 3／100 次')
+    require(not fault_records(client), '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['live'] == 0 and initial['latch'] == 0 and
+            initial['state'] == 0 and initial['inhibit'] == 0, '初始 Safety 不是正常狀態')
+    touched_temperature = touched_voltage = False
+    codes = {1: 0x0201, 2: 0x0202}
+    both_faults = {0x0201: 8500, 0x0202: 1}
+
+    def recover(source):
+        if source == 1:
+            applied(client, 8499)
+            wait_for(client, lambda d: d['count'] == 0 and not d['trip'], 5, '解除過溫')
+        else:
+            low_voltage_apply(client)
+            d = low_voltage_wait(client, lambda d: not d['raw'] and not d['confirmed'],
+                                 '解除低電壓')
+            require(d['peak_release'] == 100, '低電壓恢復未經 100 次正常取樣')
+
+    try:
+        touched_voltage = True
+        low_voltage_apply(client)
+        touched_temperature = True
+        applied(client, 8499)
+        wait_for(client, lambda d: d['count'] == 0 and not d['trip'], 5, '組合測試初始正常溫度')
+        for first in (1, 2):
+            order = 'temperature-first' if first == 1 else 'low-voltage-first'
+            remaining = 3 ^ first
+            before = wait_safety(client, 0, 0, '本輪開始')
+            require(not fault_records(client), '本輪開始仍有 Fault')
+            applied(client, 8500)
+            low_voltage_apply(client, active=True)
+            d = wait_for(client, lambda d: bool(d['trip']), 7, '雙重故障過溫確認')
+            require(d['count'] >= 3, '過溫未經三次確認')
+            low_voltage_wait(client, lambda d: d['confirmed'], '雙重故障低電壓確認')
+            state = wait_safety(client, 3, 3, '雙重故障成立')
+            require(fault_records(client) == both_faults, '雙重 Fault 代碼／detail 不符')
+            require(state['event_sequence'] != before['event_sequence'] and
+                    state['snapshot_sequence'] != before['snapshot_sequence'], '未新增 Event／Snapshot')
+            client.log(event='multi_fault_trip', order=order, **state)
+            for code in codes.values():
+                reset_fault(client, code, blocked=True)
+            wait_safety(client, 3, 3, '拒絕重置後保持保護')
+            require(fault_records(client) == both_faults, '拒絕 Reset 後故障被清除')
+
+            recover(first)
+            wait_safety(client, remaining, 3, '第一項恢復但尚未重置')
+            require(fault_records(client) == both_faults, '第一項恢復時 Fault 提早清除')
+            reset_fault(client, codes[first])
+            state = wait_safety(client, remaining, remaining, '僅清除第一項故障')
+            expected = {codes[remaining]: both_faults[codes[remaining]]}
+            require(fault_records(client) == expected, '清除第一項時影響另一項 Fault')
+            reset_fault(client, codes[remaining], blocked=True)
+            wait_safety(client, remaining, remaining, '另一項持續異常時拒絕重置')
+            require(fault_records(client) == expected, '另一項持續異常時 Fault 被清除')
+            client.log(event='remaining_fault_inhibit_pass', order=order, **state)
+
+            recover(remaining)
+            wait_safety(client, 0, remaining, '全部恢復但最後鎖存保持')
+            require(fault_records(client) == expected, '最後故障在 Reset 前已清除')
+            reset_fault(client, codes[remaining])
+            wait_safety(client, 0, 0, '全部重置恢復正常')
+            require(not fault_records(client), '全部重置後仍有 Fault')
+            client.log(event='multi_fault_order_pass', order=order)
+    finally:
+        errors = []
+        # Attempt both independently, even if the first cleanup loses its ACK.
+        for name, touched, disable in (
+                ('temperature', touched_temperature, lambda: applied(client, 0, False)),
+                ('low_voltage', touched_voltage, lambda: low_voltage_apply(client, enabled=False))):
+            if touched:
+                try:
+                    disable()
+                    client.log(event='cleanup', injection=name, state='disabled',
+                               fault_reset='不自動清除失敗時的 Fault')
+                except Exception as exc:
+                    errors.append(name)
+                    client.log(event='cleanup_failed', injection=name, error=str(exc))
+        if errors:
+            raise RuntimeError('無法確認注入已關閉：' + '、'.join(errors) + '；請重新上電並檢查 Fault')
+    client.log(event='multi_fault_software_cycle_pass',
+               physical_outputs='EVK 軟體互鎖；實際 PWM／DO 待正式板量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -323,6 +446,7 @@ def main():
     sub = parser.add_subparsers(dest='action')
     sub.add_parser('temperature-cycle', help='執行一次 MCU 過溫測試循環')
     sub.add_parser('low-voltage-cycle', help='執行一次低電壓測試循環')
+    sub.add_parser('multi-fault-cycle', help='雙重故障互鎖，測試兩種解除順序')
     for action in ['read', 'write06', 'write10']:
         p = sub.add_parser(action)
         p.add_argument('address', type=number, help='HEX 請加 0x 前綴')
@@ -377,6 +501,8 @@ def main():
                     temperature_cycle(c)
                 elif args.action == 'low-voltage-cycle':
                     low_voltage_cycle(c)
+                elif args.action == 'multi-fault-cycle':
+                    multi_fault_cycle(c)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -385,7 +511,7 @@ def main():
                     c.write_multiple(args.address, args.values)
             log(event='complete', result='PASS')
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
-                  ('temperature-cycle', 'low-voltage-cycle') else '操作成功。')
+                  ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')

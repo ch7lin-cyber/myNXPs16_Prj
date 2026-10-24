@@ -1,5 +1,6 @@
 """離線測試 Python 的 RTU 收發、測試判定及失敗清理，不宣稱上板通過。"""
 import importlib.util
+import itertools
 from pathlib import Path
 import struct
 import unittest
@@ -156,6 +157,72 @@ class LowVoltageBoard:
             self.fault = self.latch = 0
 
 
+class MultiFaultBoard:
+    """Compose independent temperature/voltage models with per-source resets."""
+    def __init__(self, unsafe_release=False, cleanup_failure=None):
+        self.temperature = Board()
+        self.voltage = LowVoltageBoard()
+        self.index = self.result = self.successful_resets = 0
+        self.unsafe_release, self.cleanup_failure = unsafe_release, cleanup_failure
+        self.entries, self.cleanup_attempts = [], []
+    def log(self, **entry):
+        self.entries.append(entry)
+    def faults(self):
+        result = {}
+        if self.temperature.fault:
+            result[0x0201] = 8500
+        if self.voltage.fault:
+            result[0x0202] = 1
+        return result
+    def read(self, address, count):
+        t = self.temperature.read(0x4968, 8)
+        v = self.voltage.read(0x4974, 12)
+        if address == 0x4968:
+            return t
+        if address == 0x4974:
+            return v
+        if address == 0x4800:
+            return [len(self.faults())]
+        if address == 0x4802:
+            return list(list(self.faults().items())[self.index])
+        if address == 0x480B:
+            return [self.result]
+        if address == 0x4810:
+            live = self.temperature.trip | (self.voltage.confirmed << 1)
+            latch = self.temperature.latch | (self.voltage.latch << 1)
+            inhibit = int(bool(live or latch))
+            if self.unsafe_release and self.successful_resets and live:
+                inhibit = 0  # Regression: resetting one source releases all outputs.
+            events = self.temperature.events + self.voltage.events
+            return [0, 0, 0, live, 0, latch, 0, latch, events, events,
+                    0, events, 0, events, int(bool(live or latch)), inhibit]
+        raise AssertionError(hex(address))
+    def write_single(self, address, value):
+        assert address == 0x4801
+        self.index = value
+    def write_multiple(self, address, values):
+        if address in (0x4960, 0x4970):
+            name = 'temperature' if address == 0x4960 else 'low_voltage'
+            if not values[0]:
+                self.cleanup_attempts.append(name)
+                if self.cleanup_failure == name:
+                    raise TimeoutError('lost cleanup ACK')
+            child = self.temperature if address == 0x4960 else self.voltage
+            child.write_multiple(address, values)
+            return
+        assert address == 0x4809 and values[1] == 0xC1EA
+        code = values[0]
+        child = self.temperature if code == 0x0201 else self.voltage
+        active = self.temperature.trip if code == 0x0201 else self.voltage.confirmed
+        if active:
+            self.result = 3
+            raise tool.ModbusError(3)
+        assert code in self.faults()
+        self.result = 1
+        self.successful_resets += 1
+        child.fault = child.latch = 0
+
+
 class Tests(unittest.TestCase):
     def test_crc_fragmented_and_ack(self):
         self.assertEqual(tool.crc16(b'123456789'), 0x4B37)
@@ -212,6 +279,71 @@ class Tests(unittest.TestCase):
         with patch.object(board, 'read', side_effect=tool.ModbusError(2)), \
              patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
             tool.low_voltage_cycle(board)
+        write.assert_not_called()
+
+    def test_multi_fault_both_orders(self):
+        board = MultiFaultBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.multi_fault_cycle(board)
+        self.assertEqual([e['order'] for e in board.entries if e['event'] == 'multi_fault_order_pass'],
+                         ['temperature-first', 'low-voltage-first'])
+        self.assertEqual(board.successful_resets, 4)
+        self.assertEqual(board.faults(), {})
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+        self.assertTrue(any(e['event'] == 'multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_multi_fault_catches_unsafe_output_release(self):
+        board = MultiFaultBoard(unsafe_release=True)
+        clock = itertools.count(0, 0.1)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), \
+             self.assertRaises(TimeoutError):
+            tool.multi_fault_cycle(board)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertTrue(board.voltage.fault)  # Failure cleanup never resets the other fault.
+        self.assertFalse(any(e['event'] == 'multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_multi_fault_cleanup_attempts_both_after_one_failure(self):
+        for name in ('temperature', 'low_voltage'):
+            with self.subTest(name=name):
+                board = MultiFaultBoard(cleanup_failure=name)
+                with patch.object(tool.time, 'sleep', return_value=None), \
+                     self.assertRaisesRegex(RuntimeError, '無法確認'):
+                    tool.multi_fault_cycle(board)
+                self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+                self.assertFalse(any(e['event'] == 'multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_multi_fault_probe_failure_never_writes(self):
+        board = MultiFaultBoard()
+        original = board.read
+        def read(address, count):
+            if address == 0x4974:
+                raise tool.ModbusError(2)
+            return original(address, count)
+        with patch.object(board, 'read', side_effect=read), \
+             patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
+            tool.multi_fault_cycle(board)
+        write.assert_not_called()
+
+    def test_multi_fault_interrupt_cleans_both(self):
+        board = MultiFaultBoard()
+        original = board.write_multiple
+        def write(address, values):
+            if address == 0x4960 and values[2] == 8500:
+                raise KeyboardInterrupt()
+            original(address, values)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(board, 'write_multiple', side_effect=write), \
+             self.assertRaises(KeyboardInterrupt):
+            tool.multi_fault_cycle(board)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+
+    def test_multi_fault_existing_fault_never_writes(self):
+        board = MultiFaultBoard()
+        board.temperature.fault = board.temperature.latch = 1
+        with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '已有 Fault'):
+            tool.multi_fault_cycle(board)
         write.assert_not_called()
 
 

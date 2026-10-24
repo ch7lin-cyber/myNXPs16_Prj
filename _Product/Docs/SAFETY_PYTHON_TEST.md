@@ -70,6 +70,22 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 雙重故障互鎖循環（新增，EVK 待實測）
+
+既有通過低電壓測試的韌體已具備兩種注入介面，本次只更新 Python／離線測試與文件，無需重新編譯或燒錄 MCU。更新 `branch2_ver1` 後，在 APP 運行時執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 multi-fault-cycle
+```
+
+一個命令完成「先解除過溫」及「先解除低電壓」兩輪。每輪先觸發兩項故障並確認 Fault `0x0201`／detail 8500 與 `0x0202`／detail 1 同時存在、Safety live／latch=3、state／inhibit=1，以及新增 Event／Snapshot。兩項條件仍成立時，分別重置均須拒絕。
+
+只恢復第一項條件時，須保持兩筆 Fault 與 latch=3；重置第一項後，live／latch 必須只留下另一項來源，另一筆 Fault 仍在、state／inhibit 仍為 1，且再次重置仍成立的故障須拒絕。另一項恢復後，live=0，但 latch／Fault／inhibit 保持到最後一次重置；全部重置後才要求 Fault=0、live／latch／state／inhibit=0。過溫仍用三次取樣確認，低電壓恢復仍要求實際連續 100 次正常取樣。
+
+畫面分別顯示 `multi_fault_trip`、`remaining_fault_inhibit_pass`、兩筆 `multi_fault_order_pass`。結束或失敗／Ctrl+C 都獨立嘗試關閉過溫及低電壓注入；第一個清理失敗不阻擋第二個，任一無法確認關閉都使最終 FAIL。測試失敗時不自動重置故障。兩輪與兩項清理都成功後才輸出 `multi_fault_software_cycle_pass` 及最終 PASS。這仍是 EVK 軟體互鎖驗證，實體 PWM／DO 保護另待量測。
+
+### 過溫循環
+
 1. 唯讀檢查測試介面、Fault 數量與 Safety 初始狀態。
 2. 注入有效 84.99°C，觀察至少三次正常排程的新樣本，要求過溫計數及狀態保持零。
 3. 注入有效 85.00°C，要求至少三次新樣本、確認計數達三、Fault 0x0201／detail 8500、Safety live／latched bit、禁止輸出，以及 Event／Snapshot 新序號。
@@ -115,6 +131,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+雙重故障新增 Python 離線回歸後共 14 項測試通過：包含兩種解除順序、剩餘故障仍成立時禁止解除輸出、任一注入清理失敗仍嘗試清理另一項、Ctrl+C 清理、舊韌體不支援及既有故障時不寫入。沒有更動 MCU 程式，雙重故障 EVK 實測尚未完成。
 
 低電壓注入新增 Host 整合測試，連結真實測試命令、低電壓服務及 Fault 程式，在 EVK 與一般 SafetyTest 模式均通過 1／2／3 次成立邊界、99／100 次恢復邊界、命令 key／長度／忙碌／廣播限制與停用後來源恢復；正式 Modbus 對低電壓測試區回覆 Illegal Data Address。Python 離線案例共 8 項通過，包含低電壓成功、Safety 傳播失敗、清理失敗及不支援舊韌體時不寫入。目標 ARM 連結報表尚未取得。
 
