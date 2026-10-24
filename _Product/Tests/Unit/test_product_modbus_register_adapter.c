@@ -1480,6 +1480,12 @@ int main(void)
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
         assert(testInterface.write_multiple_registers(testInterface.context,0x4960,data,4)==
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.read_holding_registers(testInterface.context,0x4974,8,data)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.write_single_register(testInterface.context,0x4970,1)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.write_multiple_registers(testInterface.context,0x4970,data,4)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
     static const HalPwmDriverOps_t pwmOps =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};

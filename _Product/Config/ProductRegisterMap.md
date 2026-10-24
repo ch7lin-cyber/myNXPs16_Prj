@@ -271,7 +271,7 @@ returns exception 04.
 
 ## SystemRoutine diagnostic summary
 
-SafetyTest 專用注入／診斷區為 `0x4960..0x496F`，一般 Debug／Release 不提供此區；詳細命令、組態限制及 Python 操作見 [安全測試工具](../Docs/SAFETY_PYTHON_TEST.md)。
+SafetyTest 專用注入／診斷區為 `0x4960..0x497F`：過溫命令 `0x4960`、低電壓命令 `0x4970`（均限 FC10 四個 word），診斷分別為 `0x4968..0x496F`、`0x4974..0x497F`。一般 Debug／Release 不提供此區；詳細命令、組態限制及 Python 操作見 [安全測試工具](../Docs/SAFETY_PYTHON_TEST.md)。
 
 All 32-bit values use high-word first. These registers are read-only.
 

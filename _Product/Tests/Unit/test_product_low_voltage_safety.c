@@ -8,10 +8,18 @@
 #include "ProductSafetyTestConfig.h"
 #include "product_low_voltage_safety.h"
 #include "product_modbus_register_adapter.h"
+#include "product_safety_test.h"
 
 static bool g_low_voltage_active;
 static uint32_t g_interrupt_count;
 static product_low_voltage_monitor_t g_monitor;
+
+#if defined(PRODUCT_SAFETY_COMMAND_ENABLED) && !defined(TEST_LOW_VOLTAGE_INJECTION)
+/* Isolation test only; the dedicated injection suite links the real provider. */
+bool ProductSafetyTest_LowVoltageInput(bool *active) { (void)active; return false; }
+void ProductSafetyTest_LowVoltageSample(uint16_t a, uint16_t r, bool raw, bool confirmed)
+{ (void)a; (void)r; (void)raw; (void)confirmed; }
+#endif
 
 void ProductLowVoltageDriver_Initialize(void)
 {

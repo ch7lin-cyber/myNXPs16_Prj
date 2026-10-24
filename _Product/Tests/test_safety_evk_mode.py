@@ -38,6 +38,14 @@ with tempfile.TemporaryDirectory(prefix='safety-evk-') as directory:
             + ['-o', executable], check=True)
         subprocess.run([executable], check=True)
         print(f'EVK={evk}: hardware isolation and low-voltage behavior PASS')
+        subprocess.run(BASE + flags + ['-DPRODUCT_HOST_TEST=1',
+            '-DTEST_LOW_VOLTAGE_INJECTION=1'] + [source(n) for n in (
+            'product_low_voltage_safety', 'product_internal_adc_driver',
+            'product_safety_test', 'test_product_low_voltage_injection',
+            'FaultService', 'SystemFaultService', 'SystemEventService',
+            'SnapshotService', 'SafetyService')] + ['-o', executable], check=True)
+        subprocess.run([executable], check=True)
+        print(f'EVK={evk}: real command and low-voltage 1/2/3/100 sample boundaries PASS')
 
     # Refuse EVK when either safety build flag is missing or zero.
     for flags in ([], TEST[:1], TEST[1:],

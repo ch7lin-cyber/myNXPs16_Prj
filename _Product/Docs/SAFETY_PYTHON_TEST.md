@@ -1,6 +1,6 @@
 # Python 系統安全上板測試
 
-2026-10-24：改用 FC03／06／10 測試工具，MCU 正常運行並餵 Watchdog，不需 debugger call。第一個自動案例為 MCU 過溫循環；低電壓、其他故障及實體輸出量測尚未加入自動循環。
+2026-10-24：改用 FC03／06／10 測試工具，MCU 正常運行並餵 Watchdog，不需 debugger call。已提供 MCU 過溫及低電壓注入循環；過溫 EVK 實測通過，低電壓 EVK 實測待執行，其他故障及實體輸出量測尚未加入自動循環。
 
 ## 首次準備
 
@@ -24,7 +24,7 @@ PRODUCT_SAFETY_TEST_EVK=1
 
 EVK 開關位於 `_Product/Config/ProductSafetyTestConfig.h`，預設為 0。缺少任一 SafetyTest 定義，或其值不為 1，EVK 建置會報錯。一般 Debug／Release 不加入上述定義；正式板 SafetyTest 只保留前兩個定義。
 
-EVK 模式跳過 DAC／FRAM 初始化、NVM 讀取及持久化、外部 AD7124 初始化／取樣／復原／故障判斷、外部感測器配置及 L05 FB 排程、CJC 取樣與 DIP／旋鈕讀取。低電壓服務固定讀入正常狀態，不讀取 PIO1_31。溫度輸入使用 RAM 預設配置，配置事件僅要求 Alarm／Safety 消費者確認，不假裝 NVM 已儲存。保留 MCU 內溫取樣、Watchdog、通訊、正式過溫／Fault／Event／Snapshot／Safety 與 PWM 抑制流程。
+EVK 模式跳過 DAC／FRAM 初始化、NVM 讀取及持久化、外部 AD7124 初始化／取樣／復原／故障判斷、外部感測器配置及 L05 FB 排程、CJC 取樣與 DIP／旋鈕讀取。低電壓未注入時讀入正常狀態，不讀取 PIO1_31；注入時以測試命令指定的原始狀態取代輸入。溫度輸入使用 RAM 預設配置，配置事件僅要求 Alarm／Safety 消費者確認，不假裝 NVM 已儲存。保留 MCU 內溫取樣、Watchdog、通訊、正式過溫／Fault／Event／Snapshot／Safety 與 PWM 抑制流程。
 
 Clean／Build **SafetyTestEVK**，下載此組態輸出的 BIN，重新啟動 APP 後執行下列同一支 Python；不需手動清除前一個韌體執行時產生的四筆 Fault。不要混用 SafetyTest／Debug 資料夾中的舊 BIN。
 
@@ -46,6 +46,20 @@ python _Product\Tools\safety_modbus_test.py --port COM8 --baud 115200 --station 
 
 可使用 USB CDC Modbus 或 RS485 Modbus RTU；USB 的 baud 欄位不代表 USB 實際傳輸速率。RS485 使用 APP 當前設定。此工具目前不提供 ASCII。
 
+### 下一項：低電壓注入循環
+
+更新後 Clean／Build 並下載最新 **SafetyTestEVK BIN**，保留原有三個巨集，不需新增設定。啟動 APP 後執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 low-voltage-cycle
+```
+
+未指定子命令仍為過溫循環，低電壓測試需指定 `low-voltage-cycle`。此命令依序確認正常取樣、1 次與 2 次異常短脈衝均不成立、持續異常第 3 次成立、Fault `0x0202`／detail 1、Safety low-voltage bit（值 2）live／latch／inhibit、Event／Snapshot、新增故障期間拒絕 Reset、連續正常 100 次後 live 解除但 latch 保持，以及 Reset 後回復正常。過程不修改正式 3／100 次門檻或排程。
+
+MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 Python 串列通訊在 1 ms 內切換輸入。有限異常樣本耗盡後維持「注入正常」直到下一命令，保留該段實際異常樣本數、最大成立／恢復計數及曾經成立旗標。這驗證的是連續取樣判定，並非實體電路反應時間。一般 SafetyTest 關閉注入後恢復 GPIO 來源，EVK 關閉注入後恢復正常常數。
+
+正常結束、失敗或 Ctrl+C 都嘗試關閉低電壓注入；清理失敗使最終結果為 FAIL，不會自動清除失敗時的 Fault。舊版／正式版韌體不支援低電壓測試區時，唯讀探測即停止，不送注入命令。低電壓偵測電路及實際 PWM／DO 仍須正式板量測。
+
 ## 自動循環與判定
 
 1. 唯讀檢查測試介面、Fault 數量與 Safety 初始狀態。
@@ -62,7 +76,7 @@ Register 判定通過只代表軟體保護鏈驗證通過；PWM／DO 實際電�
 
 ## 僅 SafetyTest 存在的 Register
 
-新增命令的靜態 RAM 狀態（待處理／已套用參數、執行狀態及 request 旗標，約 16 bytes）放置於 `.bss.$SRAMX`，由既有 managed linker／startup 的 `.bss_RAM3` 初始化。函式內暫存值仍使用正常 stack；程式碼放 Flash，Python 在電腦執行。搭配六組表格後 SRAMX 預期約使用 8656 bytes，實際大小以目標板 MAP 為準。
+新增命令的靜態 RAM 狀態（過溫與低電壓待處理／已套用參數、計數及旗標，Host object 確認 48 bytes）放置於 `.bss.$SRAMX`，由既有 managed linker／startup 的 `.bss_RAM3` 初始化。比僅過溫版本增加 32 bytes；函式內暫存值仍使用正常 stack，程式碼放 Flash，Python 在電腦執行。搭配六組表格後 SRAMX 預期約使用 8688 bytes，實際對齊與大小以目標板 MAP 為準。
 
 | 位址（HEX） | 功能 |
 |---|---|
@@ -71,6 +85,14 @@ Register 判定通過只代表軟體保護鏈驗證通過；PWM／DO 實際電�
 | 4969／496A／496B | 已套用 enable／valid／注入溫度 |
 | 496C／496D | ADC driver 實際過溫計數／成立狀態 |
 | 496E～496F | ADC driver 實際樣本序號，U32 高 word 在前 |
+| 4970～4973 | FC10 一次寫四個 word：enable、原始低電壓 active、異常樣本上限（0=持續）、確認碼 5AFE |
+| 4974 | 低電壓命令狀態 0 待命／1 待處理／2 已套用 |
+| 4975～4977 | 已套用 enable／原始 active 要求／異常樣本上限 |
+| 4978 | 本段實際注入的異常樣本數，65535 飽和 |
+| 4979／497A | 本段最大成立／恢復計數（正式服務回報） |
+| 497B | bit0=目前 confirmed；bit1=本段曾 confirmed；bit2=目前 raw；bit3=有限異常樣本已耗盡 |
+| 497C～497D | 低電壓服務取樣呼叫序號，U32 高 word 在前 |
+| 497E／497F | 正式成立／恢復門檻，目前 3／100 |
 
 命令透過目前的 USB／RS485 request context 區分 addressed／broadcast；廣播不執行，Modbus 規則下也不回覆。部分寫入、FC06 測試寫入、錯誤確認碼及忙碌請求均拒絕。命令只更新 RAM，不寫 NVM；重新上電恢復真實溫度。正式 Debug／Release 的該區回覆 Illegal Data Address。
 
@@ -85,6 +107,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+低電壓注入新增 Host 整合測試，連結真實測試命令、低電壓服務及 Fault 程式，在 EVK 與一般 SafetyTest 模式均通過 1／2／3 次成立邊界、99／100 次恢復邊界、命令 key／長度／忙碌／廣播限制與停用後來源恢復；正式 Modbus 對低電壓測試區回覆 Illegal Data Address。Python 離線案例共 8 項通過，包含低電壓成功、Safety 傳播失敗、清理失敗及不支援舊韌體時不寫入。低電壓 EVK 實測與目標 ARM 連結報表尚待使用者執行確認。
 
 2026-10-24 EVK 隔離變更：Host 已確認 EVK application object 不再引用外部 ADC、感測器設定及 NVM 路徑，正式模式保留引用；低電壓服務在 EVK 忽略外部輸入、正式模式保留三次判定；不合法的 EVK 巨集組合會拒絕編譯。產品 driver、Python 四項離線案例與校正／正式 Modbus 回歸通過。
 

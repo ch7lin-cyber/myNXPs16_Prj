@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SafetyTest 上板工具：FC03／06／10、過溫循環與 JSONL 紀錄。"""
+"""SafetyTest 上板工具：FC03／06／10、過溫／低電壓循環與 JSONL 紀錄。"""
 import argparse
 import datetime
 import json
@@ -201,6 +201,116 @@ def number(text):
     return int(text, 0)
 
 
+def low_voltage_diagnostic(client):
+    r = client.read(0x4974, 12)
+    return dict(status=r[0], enabled=r[1], active=r[2], limit=r[3],
+                processed=r[4], peak_assert=r[5], peak_release=r[6],
+                confirmed=bool(r[7] & 1), ever_confirmed=bool(r[7] & 2),
+                raw=bool(r[7] & 4), finished=bool(r[7] & 8),
+                sequence=(r[8] << 16) | r[9], assert_samples=r[10], release_samples=r[11])
+
+
+def low_voltage_wait(client, predicate, name, seconds=4):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        d = low_voltage_diagnostic(client)
+        client.log(event='sample', phase=name, **d)
+        if predicate(d):
+            return d
+        time.sleep(0.05)
+    raise TimeoutError(f'{name} 逾時')
+
+
+def low_voltage_apply(client, active=False, limit=0, enabled=True):
+    client.write_multiple(0x4970, [int(enabled), int(active), limit, 0x5AFE])
+    d = low_voltage_wait(client, lambda d: d['status'] in (2, 3), '低電壓命令')
+    require(d['status'] == 2 and d['enabled'] == int(enabled) and
+            d['active'] == int(active) and d['limit'] == limit, '低電壓命令未成功套用')
+    return d
+
+
+def low_voltage_cycle(client):
+    probe = low_voltage_diagnostic(client)  # Old/production firmware stops before any write.
+    require(probe['assert_samples'] == 3 and probe['release_samples'] == 100,
+            '低電壓韌體參數不是預期的 3 次成立／100 次恢復')
+    require(client.read(0x4800, 1)[0] == 0, '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['state'] == 0 and initial['inhibit'] == 0 and
+            initial['live'] == 0 and initial['latch'] == 0, '初始 Safety 不是正常狀態')
+    touched = False
+    try:
+        touched = True  # Includes lost ACKs in cleanup handling.
+        d = low_voltage_apply(client)
+        start = d['sequence']
+        low_voltage_wait(client, lambda d: not d['raw'] and not d['confirmed'] and
+                         ((d['sequence'] - start) & 0xFFFFFFFF) >= 3, '正常取樣')
+        for samples in (1, 2):
+            low_voltage_apply(client, active=True, limit=samples)
+            d = low_voltage_wait(client, lambda d: d['finished'] and not d['raw'],
+                                 f'低電壓 {samples} 次短脈衝')
+            require(d['processed'] == samples and d['peak_assert'] == samples and
+                    not d['ever_confirmed'] and not d['confirmed'], '未滿三次卻觸發低電壓')
+            state = safety(client)
+            require(client.read(0x4800, 1)[0] == 0 and state['live'] == 0 and
+                    state['latch'] == 0 and state['inhibit'] == 0 and state['state'] == 0,
+                    '短脈衝出現 Fault／Safety 抑制')
+            client.log(event='low_voltage_short_pulse_pass', samples=samples, peak=d['peak_assert'])
+
+        low_voltage_apply(client, active=True)
+        d = low_voltage_wait(client, lambda d: d['confirmed'], '低電壓連續三次確認')
+        require(d['peak_assert'] == 3 and d['processed'] >= 3 and d['ever_confirmed'],
+                '低電壓三次確認計數不符')
+        time.sleep(0.1)
+        state = safety(client)
+        client.log(event='low_voltage_safety_trip', **state)
+        require(state['live'] & 2 and state['latch'] & 2 and
+                state['state'] == 1 and state['inhibit'] == 1, '低電壓未傳至 Safety inhibit')
+        require(state['event_sequence'] != initial['event_sequence'] and
+                state['snapshot_sequence'] != initial['snapshot_sequence'], '未新增 Event／Snapshot')
+        found = False
+        for index in range(client.read(0x4800, 1)[0]):
+            client.write_single(0x4801, index)
+            fault = client.read(0x4802, 2)
+            if fault[0] == 0x0202:
+                require(fault[1] == 1, '低電壓 Fault detail 不符')
+                found = True
+                break
+        require(found, '找不到 Fault 0x0202')
+        try:
+            client.write_multiple(0x4809, [0x0202, 0xC1EA])
+        except ModbusError as exc:
+            require(exc.code == 3, '低電壓持續時 Reset 異常碼錯誤')
+        else:
+            raise AssertionError('低電壓仍成立卻接受 Reset')
+        require(client.read(0x480B, 1)[0] == 3, 'Reset 結果不是條件仍成立')
+        low_voltage_apply(client)
+        d = low_voltage_wait(client, lambda d: not d['confirmed'] and not d['raw'],
+                             '連續正常取樣恢復')
+        require(d['peak_release'] == 100, '恢復未經連續 100 次正常取樣')
+        time.sleep(0.1)
+        state = safety(client)
+        require(not state['live'] & 2 and state['latch'] & 2 and state['inhibit'] == 1,
+                '電壓恢復後 live／鎖存行為不符')
+        client.write_multiple(0x4809, [0x0202, 0xC1EA])
+        require(client.read(0x480B, 1)[0] == 1, '電壓恢復後 Reset 失敗')
+        time.sleep(0.1)
+        state = safety(client)
+        require(state['live'] == 0 and state['latch'] == 0 and state['state'] == 0 and
+                state['inhibit'] == 0 and client.read(0x4800, 1)[0] == 0,
+                'Reset 後仍有 Fault／Safety 抑制')
+        client.log(event='low_voltage_software_cycle_pass',
+                   physical_outputs='EVK 軟體流程；實際低電壓電路及 PWM／DO 待正式板量測')
+    finally:
+        if touched:
+            try:
+                low_voltage_apply(client, enabled=False)
+                client.log(event='cleanup', low_voltage_injection='disabled',
+                           fault_reset='不自動清除失敗時的 Fault')
+            except Exception as exc:
+                client.log(event='cleanup_failed', error=str(exc))
+                raise RuntimeError('無法確認低電壓注入已關閉；請重新上電並檢查 Fault') from exc
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -212,6 +322,7 @@ def main():
     parser.add_argument('--log-dir', type=pathlib.Path, default=pathlib.Path('safety_test_results'))
     sub = parser.add_subparsers(dest='action')
     sub.add_parser('temperature-cycle', help='執行一次 MCU 過溫測試循環')
+    sub.add_parser('low-voltage-cycle', help='執行一次低電壓測試循環')
     for action in ['read', 'write06', 'write10']:
         p = sub.add_parser(action)
         p.add_argument('address', type=number, help='HEX 請加 0x 前綴')
@@ -264,6 +375,8 @@ def main():
                 c = Client(port, args.station, log)
                 if args.action == 'temperature-cycle':
                     temperature_cycle(c)
+                elif args.action == 'low-voltage-cycle':
+                    low_voltage_cycle(c)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -271,7 +384,8 @@ def main():
                 else:
                     c.write_multiple(args.address, args.values)
             log(event='complete', result='PASS')
-            print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action == 'temperature-cycle' else '操作成功。')
+            print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
+                  ('temperature-cycle', 'low-voltage-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')

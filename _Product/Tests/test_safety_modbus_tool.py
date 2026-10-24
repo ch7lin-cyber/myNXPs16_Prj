@@ -82,6 +82,80 @@ class Board:
             self.fault = self.latch = 0
 
 
+class LowVoltageBoard:
+    """Run independent input/debounce steps between Modbus observations."""
+    def __init__(self, fail=False, cleanup_fail=False):
+        self.enabled = self.active = self.limit = self.remaining = 0
+        self.processed = self.peak_assert = self.peak_release = 0
+        self.count = self.release = self.confirmed = self.ever = self.raw = 0
+        self.sequence = self.events = self.fault = self.latch = self.result = 0
+        self.fail, self.cleanup_fail = fail, cleanup_fail
+        self.entries = []
+    def log(self, **entry):
+        self.entries.append(entry)
+    def read(self, address, count):
+        if address == 0x4974:
+            for _ in range(100):
+                self.sequence += 1
+                self.raw = int(self.enabled and self.active and
+                               (not self.limit or self.remaining > 0))
+                if self.raw:
+                    self.processed += 1
+                    self.remaining = max(0, self.remaining - 1)
+                    self.release = 0
+                    self.count = min(3, self.count + 1)
+                    if self.count == 3:
+                        self.confirmed = 1
+                else:
+                    self.count = 0
+                    if self.confirmed:
+                        self.release += 1
+                        if self.release == 100:
+                            self.confirmed = 0
+                    else:
+                        self.release = 0
+                self.peak_assert = max(self.peak_assert, self.count)
+                self.peak_release = max(self.peak_release, self.release)
+                self.ever |= self.confirmed
+                if self.confirmed and not self.fail and not self.fault:
+                    self.fault = self.latch = 1
+                    self.events += 1
+            flags = self.confirmed | (self.ever << 1) | (self.raw << 2)
+            flags |= 8 if self.limit and not self.remaining else 0
+            return [2, self.enabled, self.active, self.limit, self.processed,
+                    self.peak_assert, self.peak_release, flags,
+                    self.sequence >> 16, self.sequence & 0xFFFF, 3, 100]
+        if address == 0x4800:
+            return [self.fault]
+        if address == 0x4802:
+            return [0x0202, 1]
+        if address == 0x480B:
+            return [self.result]
+        if address == 0x4810:
+            live = 2 if self.confirmed and not self.fail else 0
+            return [0, 0, 0, live, 0, self.latch * 2, 0, self.latch * 2,
+                    self.events, self.events, 0, self.events, 0, self.events,
+                    self.latch, self.latch]
+        raise AssertionError(hex(address))
+    def write_single(self, address, value):
+        assert address == 0x4801 and value == 0
+    def write_multiple(self, address, values):
+        if address == 0x4970:
+            if not values[0] and self.cleanup_fail:
+                raise TimeoutError('lost cleanup ACK')
+            self.enabled, self.active, self.limit, key = values
+            assert key == 0x5AFE
+            self.remaining = self.limit
+            self.processed = self.peak_assert = self.peak_release = self.ever = 0
+        else:
+            assert address == 0x4809 and values == [0x0202, 0xC1EA]
+            if self.confirmed:
+                self.result = 3
+                raise tool.ModbusError(3)
+            self.result = 1
+            self.fault = self.latch = 0
+
+
 class Tests(unittest.TestCase):
     def test_crc_fragmented_and_ack(self):
         self.assertEqual(tool.crc16(b'123456789'), 0x4B37)
@@ -109,6 +183,36 @@ class Tests(unittest.TestCase):
             tool.temperature_cycle(board)
         self.assertEqual(board.enabled, 0)
         self.assertFalse(any(e['event'] == 'software_cycle_pass' for e in board.entries))
+
+    def test_low_voltage_pass_and_cleanup(self):
+        board = LowVoltageBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.low_voltage_cycle(board)
+        self.assertEqual(board.enabled, 0)
+        self.assertEqual(board.fault, 0)
+        self.assertEqual([e['samples'] for e in board.entries
+                          if e['event'] == 'low_voltage_short_pulse_pass'], [1, 2])
+        self.assertTrue(any(e['event'] == 'low_voltage_software_cycle_pass' for e in board.entries))
+
+    def test_low_voltage_failure_cleanup(self):
+        board = LowVoltageBoard(fail=True)
+        with patch.object(tool.time, 'sleep', return_value=None), self.assertRaises(AssertionError):
+            tool.low_voltage_cycle(board)
+        self.assertEqual(board.enabled, 0)
+        self.assertFalse(any(e['event'] == 'low_voltage_software_cycle_pass' for e in board.entries))
+
+    def test_low_voltage_cleanup_failure_is_failure(self):
+        board = LowVoltageBoard(cleanup_fail=True)
+        with patch.object(tool.time, 'sleep', return_value=None), self.assertRaisesRegex(RuntimeError, '無法確認'):
+            tool.low_voltage_cycle(board)
+        self.assertTrue(any(e['event'] == 'cleanup_failed' for e in board.entries))
+
+    def test_low_voltage_unsupported_stops_before_writes(self):
+        board = LowVoltageBoard()
+        with patch.object(board, 'read', side_effect=tool.ModbusError(2)), \
+             patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
+            tool.low_voltage_cycle(board)
+        write.assert_not_called()
 
 
 if __name__ == '__main__':

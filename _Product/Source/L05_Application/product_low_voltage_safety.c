@@ -8,6 +8,7 @@
 #include "SystemFaultService.h"
 #include "product_low_voltage_driver.h"
 #include "product_modbus_register_adapter.h"
+#include "product_safety_test.h"
 
 static ProductLowVoltageSnapshot_t g_snapshot;
 static uint16_t g_assert_samples;
@@ -53,6 +54,10 @@ void ProductLowVoltageSafety_Process(uint32_t timestamp_ms)
     g_snapshot.raw_active = ProductLowVoltageDriver_IsActive();
     g_snapshot.interrupt_count =
         ProductLowVoltageDriver_GetInterruptCount();
+#endif
+
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    (void)ProductSafetyTest_LowVoltageInput(&g_snapshot.raw_active);
 #endif
 
     if (g_snapshot.raw_active)
@@ -105,6 +110,11 @@ void ProductLowVoltageSafety_Process(uint32_t timestamp_ms)
     }
     g_snapshot.fault_active =
         FaultService_IsActive(FAULT_CODE_LOW_VOLTAGE);
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    ProductSafetyTest_LowVoltageSample(g_assert_samples, g_release_samples,
+                                      g_snapshot.raw_active,
+                                      g_snapshot.confirmed_active);
+#endif
     PublishMonitor();
 }
 
