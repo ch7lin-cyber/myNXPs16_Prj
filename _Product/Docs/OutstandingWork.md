@@ -279,7 +279,7 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
-- [ ] SafetyTestEVK 無效 MCU 溫度樣本：已新增實際 valid 唯讀欄位與 Python `invalid-sample-cycle`，Host／28 項 Python 離線測試通過；待重新燒錄後確認無效高溫不誤觸發、無效低溫不得解除既有過溫，並且只有有效低溫及正確 Reset 才能恢復。實機尚未完成。
+- [x] SafetyTestEVK 無效 MCU 溫度樣本：2026-10-24 19:36:44～19:36:57（台灣時間），使用者執行 `invalid-sample-cycle` 回報 PASS；無效 85°C 實際 valid=false、count=0、trip=false，既有過溫後無效 84.99°C 實際 valid=false、count=3、trip=true，兩段各觀察至少 3.2 秒；有效低溫及正確 Reset 後恢復，注入關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_193644_508652.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體輸出仍待量測。
 - [x] SafetyTestEVK 連續循環與紀錄覆寫：2026-10-24 19:20:44～19:23:08（台灣時間），使用者上傳 `repeat-cycle` 終端紀錄，3 輪／12 案例全部 PASS；每項結束無殘留 Fault／Safety／注入，每輪 Event／Snapshot 保留 32／16 筆，最新序號依序 75／30、115／46、155／62，覆寫及全部保留紀錄索引／序號讀取檢查通過。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_192044_582132.jsonl`；已取得終端輸出，尚未取得含原始 TX／RX 與 retained_record 的完整 JSONL。實體 PWM／DO 仍待量測。
 - [x] SafetyTestEVK 重置命令防護：2026-10-24 18:58～18:59（台灣時間），使用者執行 `reset-guard-cycle` 回報 PASS。過溫／低電壓共 22 次預期拒絕與 2 次正確重置通過，拒絕時 Fault／Safety／Event／Snapshot 不變，兩項注入均關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_185848_987746.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體 PWM／DO 仍待量測。
 - [x] SafetyTestEVK 雙重故障互鎖：2026-10-24 18:45（台灣時間），使用者執行 Python `multi-fault-cycle` 回報 PASS。兩項 Fault 同時成立時 live／latch=3；先清過溫後剩低電壓 live／latch=2，先清低電壓後剩過溫 live／latch=1，兩者 state／inhibit 均保持 1；兩輪重置與兩項注入清理通過。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_184509_797979.jsonl`；依據使用者終端輸出，完整 JSONL 尚未取得。實體 PWM／DO 仍待正式板量測。

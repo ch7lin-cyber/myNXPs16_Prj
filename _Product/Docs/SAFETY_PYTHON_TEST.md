@@ -70,7 +70,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 無效溫度樣本（新增，EVK 待實測）
+### 無效溫度樣本（EVK 軟體流程已通過）
 
 本次韌體新增 ADC 實際 valid 唯讀診斷 `0x4964..0x4967`，因此必須更新程式、Clean／Build **SafetyTestEVK** 並重新下載該組態 BIN；三個測試巨集保持不變。此欄位讀取真實 driver snapshot，不以「要求注入的 valid」代替結果。啟動 APP 後執行：
 
@@ -187,7 +187,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-無效樣本新增回歸後共 28 項 Python 離線測試通過，新增成功路徑、無效樣本誤解除保護的偵測、舊韌體不寫入及清理失敗不得通過。真實 ADC driver／SafetyTest 命令 Host 測試確認實際 valid、最後有效溫度、無效低溫保留三次過溫狀態及讀取邊界。靜態測試狀態仍為 48 bytes SRAMX，只有額外唯讀欄位與程式碼；目標 ARM 建置及無效樣本 EVK 實測尚未完成。
+無效樣本新增回歸後共 28 項 Python 離線測試通過，新增成功路徑、無效樣本誤解除保護的偵測、舊韌體不寫入及清理失敗不得通過。真實 ADC driver／SafetyTest 命令 Host 測試確認實際 valid、最後有效溫度、無效低溫保留三次過溫狀態及讀取邊界。靜態測試狀態仍為 48 bytes SRAMX，只有額外唯讀欄位與程式碼；目標 ARM 建置報表尚未取得。
+
+2026-10-24 19:36:44～19:36:57（台灣時間）：使用者在 EVK 執行 `invalid-sample-cycle`，COM3、115200／8N1、站號 2，回報兩段 `invalid_sample_hold_pass`、溫度注入 `disabled`、`invalid_sample_software_cycle_pass` 與最終 PASS。無效高溫要求值 8500、實際 valid=false、count=0、trip=false；已過溫後無效低溫要求值 8499、實際 valid=false、count=3、trip=true，兩段各觀察至少 3.2 秒。
+
+依腳本判定，無效期間最後有效值與有效樣本序號保持、Fault／Safety／Event／Snapshot 未誤變更、無效低溫時 Reset 被拒絕，最後有效低溫及正確重置後正常。JSONL 位於使用者電腦 `C:\safety_test_results\20261024_193644_508652.jsonl`；證據為貼出的終端輸出，完整 JSONL 尚未取得。EVK 無效樣本軟體保護記為通過，實體輸出及正式板感測器電路仍待測。
 
 連續循環新增離線回歸後共 24 項 Python 測試通過，新增案例覆蓋兩輪八案例的排程、紀錄滿載與覆寫、重複序號偵測、序號倒退／疑似重啟偵測、首個失敗立即停止、輪數限制與 U32 跳零規則。各既有案例仍跑原本的 18 項回歸，無 MCU 程式變更。
 
