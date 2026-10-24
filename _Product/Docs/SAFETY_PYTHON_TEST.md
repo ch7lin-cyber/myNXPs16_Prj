@@ -42,6 +42,8 @@ Register 判定通過只代表軟體保護鏈驗證通過；PWM／DO 實際電�
 
 ## 僅 SafetyTest 存在的 Register
 
+新增命令的靜態 RAM 狀態（待處理／已套用參數、執行狀態及 request 旗標，約 16 bytes）放置於 `.bss.$SRAMX`，由既有 managed linker／startup 的 `.bss_RAM3` 初始化。函式內暫存值仍使用正常 stack；程式碼放 Flash，Python 在電腦執行。搭配六組表格後 SRAMX 預期約使用 8656 bytes，實際大小以目標板 MAP 為準。
+
 | 位址（HEX） | 功能 |
 |---|---|
 | 4960～4963 | FC10 一次寫四個 word：enable、valid、S16 溫度（0.01°C）、確認碼 5AFE |
