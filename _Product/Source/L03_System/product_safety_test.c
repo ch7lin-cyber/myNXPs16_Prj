@@ -81,6 +81,16 @@ uint8_t ProductSafetyTest_Read(uint16_t address, uint16_t count, uint16_t *value
 {
     ProductInternalAdcSnapshot_t snapshot;
     uint16_t data[12];
+    if (values && count && address >= 0x4964U && address <= 0x4967U &&
+        count <= 0x4968U-address) {
+        if (!ProductInternalAdcDriver_GetSnapshot(&snapshot)) return 4;
+        data[0]=snapshot.mcu_temperature.valid ? 1U : 0U;
+        data[1]=(uint16_t)snapshot.mcu_temperature.temperature_centi_c;
+        data[2]=(uint16_t)(snapshot.mcu_temperature.sequence >> 16);
+        data[3]=(uint16_t)snapshot.mcu_temperature.sequence;
+        for (uint16_t i=0;i<count;i++) values[i]=data[address-0x4964U+i];
+        return 0;
+    }
     if (values && count && address >= 0x4974U && address <= 0x497FU &&
         count <= 0x4980U-address) {
         data[0]=state.lv_status; data[1]=state.lv_applied[0];

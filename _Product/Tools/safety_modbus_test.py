@@ -592,6 +592,85 @@ def repeat_cycle(client, cycles=3):
                physical_outputs='EVK 連續軟體測試及紀錄覆寫；實際 PWM／DO 待正式板量測')
 
 
+def sample_health(client):
+    r = client.read(0x4964, 4)
+    return dict(valid=bool(r[0]), temperature=r[1], sequence=(r[2] << 16) | r[3])
+
+
+def invalid_sample_cycle(client):
+    sample_health(client)  # Added read-only validity field; old firmware stops here.
+    diagnostic(client)
+    require(not fault_records(client), '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['live'] == 0 and initial['latch'] == 0 and
+            initial['state'] == 0 and initial['inhibit'] == 0, '初始 Safety 不是正常狀態')
+    touched = False
+
+    def valid_below():
+        applied(client, 8499)
+        def ready(d):
+            actual = sample_health(client)
+            return (actual['valid'] and actual['temperature'] == 8499 and
+                    not d['trip'] and d['count'] == 0)
+        wait_for(client, ready, 5, '有效低溫樣本')
+
+    def hold_invalid(temperature, count, trip, live, latch, faults):
+        baseline = wait_safety(client, live, latch, '無效樣本前的保護狀態')
+        client.write_multiple(0x4960, [1, 0, temperature, 0x5AFE])
+        d = wait_for(client, lambda d: d['status'] in (2, 3), 3, '無效樣本命令')
+        require(d['status'] == 2 and d['enabled'] == 1 and d['valid'] == 0 and
+                d['temperature'] == temperature, '無效樣本命令未成功套用')
+        wait_for(client, lambda d: not sample_health(client)['valid'], 5, 'ADC 實際 valid 轉為無效')
+        actual = sample_health(client)
+        deadline = time.monotonic() + 3.2
+        while time.monotonic() < deadline:
+            d = diagnostic(client)
+            current = sample_health(client)
+            require(not current['valid'] and current['sequence'] == actual['sequence'] and
+                    current['temperature'] == actual['temperature'], '無效樣本卻更新有效量測值／序號')
+            require(d['count'] == count and bool(d['trip']) == trip,
+                    '無效樣本改變了過溫計數／成立狀態')
+            state = safety(client)
+            require(all(state[k] == baseline[k] for k in
+                        ('live', 'latch', 'state', 'inhibit', 'event_sequence', 'snapshot_sequence')),
+                    '無效樣本誤改變 Safety／Event／Snapshot')
+            require(fault_records(client) == faults, '無效樣本誤改變 Fault')
+            client.log(event='sample', phase='無效樣本保持', requested_temperature=temperature,
+                       actual_valid=current['valid'], count=d['count'], trip=d['trip'])
+            time.sleep(0.15)
+        client.log(event='invalid_sample_hold_pass', requested_temperature=temperature,
+                   minimum_hold_seconds=3.2, actual_valid=False, count=count, trip=trip)
+
+    try:
+        touched = True
+        valid_below()
+        hold_invalid(8500, 0, False, 0, 0, {})
+        applied(client, 8500)
+        d = wait_for(client, lambda d: bool(d['trip']), 7, '有效高溫三次確認')
+        require(d['count'] == 3 and sample_health(client)['valid'], '有效高溫未經三次確認')
+        wait_safety(client, 1, 1, '有效高溫保護成立')
+        require(fault_records(client) == {0x0201: 8500}, '過溫 Fault／detail 不符')
+        hold_invalid(8499, 3, True, 1, 1, {0x0201: 8500})
+        reset_fault(client, 0x0201, blocked=True)
+        wait_safety(client, 1, 1, '無效低溫不能解除既有保護')
+        valid_below()
+        wait_safety(client, 0, 1, '有效低溫恢復但鎖存保持')
+        reset_fault(client, 0x0201)
+        wait_safety(client, 0, 0, '有效低溫後重置恢復正常')
+        require(not fault_records(client), '有效恢復並重置後仍有 Fault')
+    finally:
+        if touched:
+            try:
+                applied(client, 0, False)
+                client.log(event='cleanup', injection='temperature', state='disabled',
+                           fault_reset='不自動清除失敗時的 Fault')
+            except Exception as exc:
+                client.log(event='cleanup_failed', error=str(exc))
+                raise RuntimeError('無法確認注入已關閉；請重新上電並檢查 Fault') from exc
+    client.log(event='invalid_sample_software_cycle_pass',
+               physical_outputs='EVK 無效樣本保護；實際 PWM／DO 待正式板量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -606,6 +685,7 @@ def main():
     sub.add_parser('low-voltage-cycle', help='執行一次低電壓測試循環')
     sub.add_parser('multi-fault-cycle', help='雙重故障互鎖，測試兩種解除順序')
     sub.add_parser('reset-guard-cycle', help='故障重置確認碼、代碼與重複命令防護')
+    sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
     repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
     repeat.add_argument('--cycles', type=int, choices=range(2, 101), default=3, metavar='2..100')
     for action in ['read', 'write06', 'write10']:
@@ -668,6 +748,8 @@ def main():
                     reset_guard_cycle(c)
                 elif args.action == 'repeat-cycle':
                     repeat_cycle(c, args.cycles)
+                elif args.action == 'invalid-sample-cycle':
+                    invalid_sample_cycle(c)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -677,7 +759,7 @@ def main():
             log(event='complete', result='PASS')
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
-                   'reset-guard-cycle', 'repeat-cycle') else '操作成功。')
+                   'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')

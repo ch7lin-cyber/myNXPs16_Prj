@@ -70,6 +70,20 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 無效溫度樣本（新增，EVK 待實測）
+
+本次韌體新增 ADC 實際 valid 唯讀診斷 `0x4964..0x4967`，因此必須更新程式、Clean／Build **SafetyTestEVK** 並重新下載該組態 BIN；三個測試巨集保持不變。此欄位讀取真實 driver snapshot，不以「要求注入的 valid」代替結果。啟動 APP 後執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 invalid-sample-cycle
+```
+
+先以有效 84.99°C 建立正常基準，再注入無效 85°C：等待 ADC 實際 valid=false，連續觀察至少 3.2 秒，要求有效樣本序號／最後有效溫度不變、過溫計數=0、不產生 Fault／Safety／Event／Snapshot 變化。接著有效 85°C 三次成立過溫，再注入無效 84.99°C：實際 valid=false 期間至少觀察 3.2 秒，要求計數保持 3、過溫保持成立、Safety live／latch／inhibit 保持，Fault 仍在且 Reset 被拒絕。最後有效 84.99°C 才能解除 live，重置後回復正常。
+
+依現行設計，無效樣本不更新有效樣本序號、不改變計數，也不清除既有過溫；這不是「無效資料應新增獨立故障」的需求。觀察時長涵蓋正常 1 秒排程的多個週期，但沒有新增無效樣本嘗試次數計數器，不宣稱精確收到幾次無效樣本。測試不直接改動正式 driver 判定或 Safety 鎖存。
+
+舊韌體不支援實際 valid 欄位時，唯讀探測即停止，不送注入。成功、失敗或 Ctrl+C 都嘗試關閉溫度注入，失敗時不自動清除 Fault。這項檢查未加入既有 `repeat-cycle`，避免改變已驗證的四案例／輪定義。實體 PWM／DO 仍待正式板量測。
+
 ### 連續循環與環形紀錄覆寫（EVK 軟體流程已通過）
 
 沿用現有韌體，只更新 Python，不需重新燒錄。預設連續 3 輪，每輪執行過溫、低電壓、雙重故障、重置命令防護四項既有案例，共 12 個案例，需數分鐘：
@@ -143,10 +157,13 @@ Register 判定通過只代表軟體保護鏈驗證通過；PWM／DO 實際電�
 | 位址（HEX） | 功能 |
 |---|---|
 | 4960～4963 | FC10 一次寫四個 word：enable、valid、S16 溫度（0.01°C）、確認碼 5AFE |
+| 4964 | ADC driver snapshot 實際 valid（0／1），非注入命令回讀 |
+| 4965 | ADC driver 最後有效 MCU 溫度（S16，0.01°C）；無效樣本不更新 |
+| 4966～4967 | ADC driver 有效樣本序號，U32 高 word 在前；無效樣本不更新 |
 | 4968 | 狀態 0 待命／1 待處理／2 成功／3 失敗 |
 | 4969／496A／496B | 已套用 enable／valid／注入溫度 |
 | 496C／496D | ADC driver 實際過溫計數／成立狀態 |
-| 496E～496F | ADC driver 實際樣本序號，U32 高 word 在前 |
+| 496E～496F | ADC driver 有效樣本序號，U32 高 word 在前 |
 | 4970～4973 | FC10 一次寫四個 word：enable、原始低電壓 active、異常樣本上限（0=持續）、確認碼 5AFE |
 | 4974 | 低電壓命令狀態 0 待命／1 待處理／2 已套用 |
 | 4975～4977 | 已套用 enable／原始 active 要求／異常樣本上限 |
@@ -169,6 +186,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+無效樣本新增回歸後共 28 項 Python 離線測試通過，新增成功路徑、無效樣本誤解除保護的偵測、舊韌體不寫入及清理失敗不得通過。真實 ADC driver／SafetyTest 命令 Host 測試確認實際 valid、最後有效溫度、無效低溫保留三次過溫狀態及讀取邊界。靜態測試狀態仍為 48 bytes SRAMX，只有額外唯讀欄位與程式碼；目標 ARM 建置及無效樣本 EVK 實測尚未完成。
 
 連續循環新增離線回歸後共 24 項 Python 測試通過，新增案例覆蓋兩輪八案例的排程、紀錄滿載與覆寫、重複序號偵測、序號倒退／疑似重啟偵測、首個失敗立即停止、輪數限制與 U32 跳零規則。各既有案例仍跑原本的 18 項回歸，無 MCU 程式變更。
 

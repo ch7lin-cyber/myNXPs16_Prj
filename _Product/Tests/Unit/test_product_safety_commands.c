@@ -24,6 +24,16 @@ int main(void)
         assert(ProductInternalAdcDriver_RequestMcuTemperature());ProductInternalAdcDriver_Process();
         assert(ProductSafetyTest_Read(0x4968,8,data)==0 && data[4]==i && data[5]==(i==3));
     }
+    command[1]=0;command[2]=8499;
+    assert(ProductSafetyTest_Write(0x4960,command,4)==0);ProductSafetyTest_Process();
+    assert(ProductInternalAdcDriver_RequestMcuTemperature());ProductInternalAdcDriver_Process();
+    assert(ProductSafetyTest_Read(0x4964,4,data)==0 && data[0]==0 && data[1]==8500);
+    assert(ProductSafetyTest_Read(0x4968,8,data)==0 && data[4]==3 && data[5]==1);
+    command[1]=1;
+    assert(ProductSafetyTest_Write(0x4960,command,4)==0);ProductSafetyTest_Process();
+    assert(ProductInternalAdcDriver_RequestMcuTemperature());ProductInternalAdcDriver_Process();
+    assert(ProductSafetyTest_Read(0x4964,4,data)==0 && data[0]==1 && data[1]==8499);
+    assert(ProductSafetyTest_Read(0x4967,2,data)==2);
     command[0]=0;command[1]=0;command[2]=0;
     assert(ProductSafetyTest_Write(0x4960,command,4)==0);ProductSafetyTest_Process();
     assert(ProductSafetyTest_Read(0x4968,8,data)==0 && data[1]==0 && data[4]==0);

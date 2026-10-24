@@ -41,19 +41,26 @@ class Board:
         self.fault = self.latch = self.result = self.samples = 0
         self.fail = fail
         self.events = 0
+        self.sample_valid = 0
+        self.actual_temperature = 0
         self.entries = []
     def log(self, **entry):
         self.entries.append(entry)
     def read(self, address, count):
         if address == 0x4968:
-            self.sequence += 1
+            self.sample_valid = int(bool(self.enabled and self.valid))
             if self.enabled and self.valid:
+                self.sequence += 1
+                self.actual_temperature = self.temperature
                 self.count = min(3, self.count+1) if self.temperature >= 8500 else 0
             self.trip = int(self.count >= 3)
             if self.trip and not self.fail:
                 self.fault = self.latch = 1
                 self.events = 1
             return [2, self.enabled, self.valid, self.temperature, self.count, self.trip,
+                    self.sequence >> 16, self.sequence & 0xFFFF]
+        if address == 0x4964:
+            return [self.sample_valid, self.actual_temperature,
                     self.sequence >> 16, self.sequence & 0xFFFF]
         if address == 0x4800:
             return [self.fault]
@@ -159,12 +166,14 @@ class LowVoltageBoard:
 
 class MultiFaultBoard:
     """Compose independent temperature/voltage models with per-source resets."""
-    def __init__(self, unsafe_release=False, cleanup_failure=None, accept_bad_key=False):
+    def __init__(self, unsafe_release=False, cleanup_failure=None, accept_bad_key=False,
+                 invalid_clears=False):
         self.temperature = Board()
         self.voltage = LowVoltageBoard()
         self.index = self.result = self.successful_resets = 0
         self.unsafe_release, self.cleanup_failure = unsafe_release, cleanup_failure
         self.accept_bad_key = accept_bad_key
+        self.invalid_clears = invalid_clears
         self.entries, self.cleanup_attempts = [], []
     def log(self, **entry):
         self.entries.append(entry)
@@ -179,7 +188,11 @@ class MultiFaultBoard:
         t = self.temperature.read(0x4968, 8)
         v = self.voltage.read(0x4974, 12)
         if address == 0x4968:
+            if self.invalid_clears and self.temperature.enabled and not self.temperature.valid:
+                self.temperature.count = self.temperature.trip = t[4] = t[5] = 0
             return t
+        if address == 0x4964:
+            return self.temperature.read(address, count)
         if address == 0x4974:
             return v
         if address == 0x4800:
@@ -490,6 +503,44 @@ class Tests(unittest.TestCase):
     def test_sequence_wrap_skips_zero(self):
         self.assertEqual(tool.sequence_distance(0xFFFFFFFE, 1), 2)
         self.assertEqual(tool.sequence_distance(0, 10), 10)
+
+    def test_invalid_sample_both_phases(self):
+        board = MultiFaultBoard()
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)):
+            tool.invalid_sample_cycle(board)
+        self.assertEqual([e['requested_temperature'] for e in board.entries
+                          if e['event'] == 'invalid_sample_hold_pass'], [8500, 8499])
+        self.assertEqual(board.temperature.enabled, 0)
+        self.assertEqual(board.faults(), {})
+        self.assertTrue(any(e['event'] == 'invalid_sample_software_cycle_pass' for e in board.entries))
+
+    def test_invalid_sample_catches_false_recovery(self):
+        board = MultiFaultBoard(invalid_clears=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), \
+             self.assertRaisesRegex(AssertionError, '計數／成立狀態'):
+            tool.invalid_sample_cycle(board)
+        self.assertEqual(board.temperature.enabled, 0)
+        self.assertTrue(board.temperature.fault)
+
+    def test_invalid_sample_old_firmware_never_writes(self):
+        board = MultiFaultBoard()
+        with patch.object(board, 'read', side_effect=tool.ModbusError(2)), \
+             patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
+            tool.invalid_sample_cycle(board)
+        write.assert_not_called()
+
+    def test_invalid_sample_cleanup_failure_no_pass(self):
+        board = MultiFaultBoard(cleanup_failure='temperature')
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), \
+             self.assertRaisesRegex(RuntimeError, '無法確認'):
+            tool.invalid_sample_cycle(board)
+        self.assertFalse(any(e['event'] == 'invalid_sample_software_cycle_pass' for e in board.entries))
 
 
 if __name__ == '__main__':
