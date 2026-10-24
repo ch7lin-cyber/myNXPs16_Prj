@@ -71,7 +71,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
-### 正式 AXF 具名測試符號檢查（新增，待檢查使用者 AXF）
+### 正式 AXF 具名測試符號檢查（本次 Debug AXF 已通過）
 
 沿用剛完成入口封鎖測試時的一般 Debug／Release 建置，**不需重新燒錄、不需連線 COM**，也不需要 pyserial 或額外安裝 nm。更新 Python 後執行：
 
@@ -87,7 +87,7 @@ python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py production-
 
 **判定範圍：只確認指定具名測試符號未出現。** LTO 可能內嵌或重新命名函式，測試 RAM 成員與匿名狀態不一定有獨立符號。因此仍須確認整個一般組態沒有定義三個測試／EVK 巨集，並搭配同次映像的 `production-guard-cycle`；本檢查不取代建置設定審核，也不能單獨證明測試程式或 RAM 狀態完全移除。SHA-256 識別所檢查 AXF，無法單憑此值證明 MCU 已下載同次 BIN。
 
-新增後共 **64 項 Python 離線回歸通過**：使用合成 ARM ELF 測試成功、區域／全域及 LTO 後綴測試符號、stripped／錯誤架構／Bootloader、損壞 symbol table／名稱、離線 CLI JSONL 與檔案不存在。尚未收到使用者同次建置 AXF 的實測結果；未修改 MCU 程式。
+新增後共 **64 項 Python 離線回歸通過**：使用合成 ARM ELF 測試成功、區域／全域及 LTO 後綴測試符號、stripped／錯誤架構／Bootloader、損壞 symbol table／名稱、離線 CLI JSONL 與檔案不存在。本次 Debug 路徑 AXF 的使用者實測結果如下；未修改 MCU 程式。
 
 
 ### 一般 Debug／Release 測試入口封鎖（本次映像／COM3 已通過）
@@ -305,6 +305,20 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+
+2026-10-24 20:52:37（台灣時間）：使用者執行 `production-symbol-check --axf "E:\myGitHub\myNXPs16_Prj\Debug\myNXPs16_Prj.axf"`，回報 `production_symbol_check_pass` 及最終 PASS。
+
+| 欄位 | 本次結果 |
+|---|---|
+| AXF 檔案大小 | 2674720 bytes（含符號／除錯資訊，不代表 Flash payload） |
+| ARM APP 入口 | `0x00008171` |
+| 已定義符號數 | 1928 |
+| 指定禁止符號 | 空陣列 `[]` |
+| AXF SHA-256 | `79a4308ac6a77eb51a494cad2a219a947f879afd2ab70779d02f307093fbfe42` |
+| JSONL | `C:\Users\ch\safety_test_results\20261024_205237_149509.jsonl` |
+
+本次 Debug 路徑 AXF 未發現指定的已定義測試符號。證據為使用者貼出的終端輸出，未取得 AXF 本體或完整 JSONL 供獨立重跑；不將此結果延伸為 Release 或所有測試 RAM 狀態已排除。先前 COM3 的 73 項 Register 封鎖亦通過，但仍須由建置／下載紀錄確認兩次測試對應同次映像，並審核三個測試／EVK 巨集未定義。AXF 大小包含除錯資訊，不能拿來與 104 KiB Flash 容量直接比較。
 
 
 2026-10-24 20:45:13～20:45:18（台灣時間）：使用者上傳 `貼上的文字 (1)(20261024-124533).txt`，為執行 `production-guard-cycle` 的終端輸出，COM3、115200／8N1、站號 2。已逐筆解析並核對：FC03 恰有 64 筆，位址連續涵蓋 `0x4960..0x499F`；FC06 為 4 筆，FC10 為 5 筆，全部 exception=2；`production_guard_cycle_pass` 的 rejected_cases=73，最終 `complete` PASS，沒有錯誤或清理失敗。
