@@ -5,6 +5,7 @@
 #include "fsl_iocon.h"
 #include "fsl_gpio.h"
 #include "product_usb_cdc.h"
+#include "ProductSafetyTestConfig.h"
 /* Same eight active-high outputs as 005. CS, USB and SWD are excluded. */
 bool ProductFwUpdate_Quiesce(void) {
     const uint8_t pins[][2]={{0,0},{0,18},{1,19},{1,22},{0,19},{0,26},{0,25},{1,25}};
@@ -16,9 +17,14 @@ bool ProductFwUpdate_Quiesce(void) {
         GPIO->DIRSET[pins[i][0]]=1u<<pins[i][1];
     }
     __DSB();__set_PRIMASK(irq);
+#if PRODUCT_SAFETY_TEST_EVK
+    /* EVK has no product DAC and deliberately never registers its driver. */
+    return true;
+#else
     bool ok=true;
     for(unsigned i=0;i<4;i++)ok=BspAnalogOutput_WriteCode((BspAnalogOutput_t)i,0u)&&ok;
     return ok;
+#endif
 }
 void ProductFwUpdate_Reset(uint16_t route,uint16_t unit,uint32_t baud) {
     uint32_t words[16];BootRequest_Encode(words,route,unit,baud);

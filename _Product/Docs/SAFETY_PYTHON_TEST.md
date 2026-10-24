@@ -46,6 +46,14 @@ python _Product\Tools\safety_modbus_test.py --port COM8 --baud 115200 --station 
 
 可使用 USB CDC Modbus 或 RS485 Modbus RTU；USB 的 baud 欄位不代表 USB 實際傳輸速率。RS485 使用 APP 當前設定。此工具目前不提供 ASCII。
 
+### EVK 進入 Updater 的修正
+
+2026-10-24：使用者回報更新工具接受進入 Updater 請求後，COM8 一直重連為 APP。檢查發現 EVK 啟動刻意略過 DAC 初始化，但 `ProductFwUpdate_Quiesce()` 仍要求四路 `BspAnalogOutput_WriteCode(0)` 成功；DAC 未註冊使安全停機回傳 false，共用更新狀態機遂停在 FAILED，不執行 mailbox／reset。進入命令的 ACK 僅代表接受請求，並不代表模式已切換。尚未取得該次裝置的 `0x7051` 狀態讀值，此原因依程式路徑確認。
+
+已修正為 EVK 仍停止四個 PWM timer 並將八路 GPIO 拉低，僅略過不存在的 DAC 歸零；正式模式仍要求 DAC 成功，失敗時禁止 reset。Host 已以真實 board quiesce 函式及 register／DAC mocks 驗證兩種模式，並通過共用更新 ACK／延遲／失敗保護測試；實機更新切換待確認。
+
+如果目前裝置已裝入有此問題的 EVK APP，新版程式尚未下載前仍無法藉該 APP 進入 Updater。可透過 SWD 載入修正版 APP 並直接執行，再使用更新工具正式下載 BIN，讓 Bootloader 的映像 metadata／CRC 與 APP 同步；只透過 SWD 改寫 APP 後直接斷電重啟，可能因舊 metadata 而無法正常自動啟動。SWD 操作須保留 Bootloader 分區。
+
 ### 下一項：低電壓注入循環
 
 更新後 Clean／Build 並下載最新 **SafetyTestEVK BIN**，保留原有三個巨集，不需新增設定。啟動 APP 後執行：
