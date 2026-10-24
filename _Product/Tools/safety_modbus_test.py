@@ -1035,6 +1035,42 @@ def pwm_multi_fault_rounds(client, periods):
         wait_pwm(client, zeros, zeros, False, '雙故障 PWM 本輪結束歸零')
 
 
+
+def production_guard_cycle(client):
+    # Only zero/disable writes: never request an injection, output or Fault Reset.
+    baseline = (safety(client), client.read(0x4800, 1)[0])
+    rejected = 0
+
+    def reject(case, function, address, operation):
+        nonlocal rejected
+        try:
+            operation()
+        except ModbusError as exc:
+            require(exc.code == 2, f'{case} 預期 Illegal Data Address(2)，收到 {exc.code}')
+        else:
+            raise AssertionError(f'{case} 測試入口仍可存取；請確認下載的是一般 Debug／Release')
+        rejected += 1
+        client.log(event='production_guard_rejection_pass', case=case,
+                   function=function, address=f'0x{address:04X}', exception=2)
+
+    # Read every address first. SafetyTest stops here before any test-region write.
+    for address in range(0x4960, 0x49A0):
+        reject('test-region-read', 3, address, lambda a=address: client.read(a, 1))
+    require((safety(client), client.read(0x4800, 1)[0]) == baseline,
+            '讀取檢查期間 Fault／Safety／事件紀錄變化，無法判定測試狀態不變')
+    for address in (0x4960, 0x4963, 0x4970, 0x4973):
+        reject('test-command-fc06', 6, address, lambda a=address: client.write_single(a, 0))
+    for address, values in ((0x4960, [0, 1, 8499, 0x5AFE]),
+                            (0x4970, [0, 0, 0, 0x5AFE]),
+                            (0x4964, [0] * 4), (0x4974, [0] * 12), (0x4980, [0] * 32)):
+        reject('test-region-fc10', 16, address,
+               lambda a=address, v=values: client.write_multiple(a, v))
+    require((safety(client), client.read(0x4800, 1)[0]) == baseline,
+            '寫入檢查期間 Fault／Safety／事件紀錄變化，無法判定測試狀態不變')
+    client.log(event='production_guard_cycle_pass', rejected_cases=rejected,
+               scope='本次韌體及通訊路徑的測試 Register 封鎖；不代表 ELF 中不存在測試符號')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -1052,6 +1088,7 @@ def main():
     sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
     sub.add_parser('injection-guard-cycle', help='注入命令錯誤 key、參數、部分及唯讀誤寫防護')
     sub.add_parser('broadcast-guard-cycle', help='站號 0 不得啟用測試注入或回覆，限單台 DUT 測試線')
+    sub.add_parser('production-guard-cycle', help='一般 Debug／Release 測試 Register 封鎖，僅送零／停用值')
     sub.add_parser('pwm-multi-fault-cycle', help='EVK 雙重故障四路 PWM 互鎖，兩種重置順序')
     sub.add_parser('pwm-inhibit-cycle', help='EVK 四路 PWM 要求值／套用值的安全抑制循環')
     repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
@@ -1122,6 +1159,8 @@ def main():
                     injection_guard_cycle(c)
                 elif args.action == 'broadcast-guard-cycle':
                     broadcast_guard_cycle(c)
+                elif args.action == 'production-guard-cycle':
+                    production_guard_cycle(c)
                 elif args.action == 'pwm-multi-fault-cycle':
                     pwm_inhibit_cycle(c, multi=True)
                 elif args.action == 'pwm-inhibit-cycle':
@@ -1133,7 +1172,10 @@ def main():
                 else:
                     c.write_multiple(args.address, args.values)
             log(event='complete', result='PASS')
-            print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
+            if args.action == 'production-guard-cycle':
+                print('通過：正式韌體測試 Register 已拒絕 73 項存取。')
+            else:
+                print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
                    'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle',
                    'injection-guard-cycle', 'broadcast-guard-cycle', 'pwm-inhibit-cycle', 'pwm-multi-fault-cycle') else '操作成功。')

@@ -70,6 +70,29 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+
+### 一般 Debug／Release 測試入口封鎖（新增，待上板）
+
+此案例需要切換韌體，不能沿用目前的 SafetyTestEVK BIN：
+
+1. 更新 `branch2_ver1`，選擇一般 **Debug** 或 **Release** 組態，確認整個專案沒有定義 `PRODUCT_SAFETY_TEST_BUILD`、`PRODUCT_SAFETY_TEST_TARGET`、`PRODUCT_SAFETY_TEST_EVK`。設定檔預設 EVK=0，勿為了在 EVK 執行而加入 EVK=1，否則會因缺少測試巨集而拒絕編譯。
+2. Clean／Build 該組態，確認 104 KiB APP 容量限制通過；使用既有更新工具下載**同次一般 Debug／Release 組態產生的 BIN**，啟動 APP，勿下載 SafetyTestEVK 舊 BIN。更新過程保留 Bootloader，避免只用 SWD 改寫 APP 造成 metadata／CRC 不一致。
+3. 關閉更新工具的 COM 連線，使用目前 APP 的 COM／站號／通訊設定執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 production-guard-cycle
+```
+
+先讀正式 Safety／Fault count 作為通訊及狀態基準，再逐一 FC03 讀取 `0x4960..0x499F` 的 64 個位址，每筆必須回覆 Illegal Data Address（exception=2）。任何位址能讀取即失敗並停止，尚不寫入測試區；下載 SafetyTest／SafetyTestEVK 時應在此失敗，不能視為正式版通過。
+
+64 筆唯讀檢查通過後，送出 4 筆 FC06（溫度／低電壓的 enable、key，值全為 0）及 5 筆 FC10（兩項完整停用命令、實際 ADC／低電壓／PWM 診斷區零值寫入）。兩項停用命令使用正確 key=0x5AFE，驗證位址被封鎖，而不是僅靠錯誤確認碼拒絕。全部必須 exception=2，共 **73 項拒絕**，最後回報 `production_guard_cycle_pass`、`rejected_cases=73` 與 PASS。
+
+本案例不啟用任何注入、不寫產品設定／輸出、不清除 Fault，不需注入清理。既有 Fault 不會為此自動重置；一般韌體在 EVK 缺少周邊可能已有 Fault，只要前後 Fault count、Safety live／latch／state／inhibit、Event／Snapshot 計數及序號一致，仍可驗證測試 Register 封鎖。若期間有自然新增故障／事件，回報 FAIL，先查明狀態變動再重測。無回應、CRC 錯誤或其他 exception 都不能算正確拒絕。
+
+結果僅證明該次韌體、通訊路徑上的測試 Register 不可存取，不等於確認 AXF 中所有測試符號均不存在。Debug／Release 與另一傳輸路徑須分別記錄；之後執行原有注入循環需重新下載 SafetyTestEVK BIN。
+
+新增後共 **57 項 Python 離線回歸通過**，包含 73 項拒絕、既有 Fault 保留、誤載測試版時不寫測試區、寫入被接受立即失敗、錯誤 exception／timeout 不算通過，以及狀態變化偵測。Host 真實 Modbus adapter 的 DEBUG=1／0 均驗證整區 64 位址 FC03／06／10 拒絕，其他校正與 Safety PWM 回歸亦通過。本次只修改 Python、Host 測試與文件，沒有修改 MCU 執行程式；正式組態建置報表及上板結果仍待取得。
+
 ### 雙重故障下的四路 PWM 互鎖（EVK 軟體流程已通過）
 
 沿用已通過 `pwm-inhibit-cycle` 的 SafetyTestEVK 韌體，只更新 Python，不需重新燒錄：

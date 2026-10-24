@@ -335,6 +335,42 @@ class PwmBoard(MultiFaultBoard):
         super().write_multiple(address, values)
 
 
+
+class ProductionGuardBoard:
+    def __init__(self, exposed_read=None, exposed_write=None, wrong_code=None,
+                 timeout=False, change_state=False, initial_faults=0):
+        self.exposed_read, self.exposed_write = exposed_read, exposed_write
+        self.wrong_code, self.timeout, self.change_state = wrong_code, timeout, change_state
+        self.initial_faults = initial_faults
+        self.reads, self.writes, self.entries = [], [], []
+    def log(self, **entry):
+        self.entries.append(entry)
+    def read(self, address, count):
+        if address == 0x4810:
+            state = [0] * 16
+            if self.change_state and self.writes:
+                state[11] = 1
+            return state
+        if address == 0x4800:
+            return [self.initial_faults]
+        assert count == 1 and 0x4960 <= address < 0x49A0
+        self.reads.append(address)
+        if self.timeout:
+            raise TimeoutError('no response')
+        if address == self.exposed_read:
+            return [0]
+        raise tool.ModbusError(self.wrong_code or 2)
+    def write_single(self, address, value):
+        self._write(6, address, [value])
+    def write_multiple(self, address, values):
+        self._write(16, address, values)
+    def _write(self, function, address, values):
+        self.writes.append((function, address, values))
+        if (function, address) == self.exposed_write:
+            return
+        raise tool.ModbusError(2)
+
+
 class SilentPort:
     def __init__(self, echo=False):
         self.timeout = 0.7
@@ -840,6 +876,52 @@ class Tests(unittest.TestCase):
         with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '只允許'):
             tool.pwm_inhibit_cycle(board, multi=True)
         write.assert_not_called()
+
+
+    def test_production_guard_all_73_rejections_and_disable_only(self):
+        board = ProductionGuardBoard(initial_faults=4)
+        tool.production_guard_cycle(board)
+        self.assertEqual(board.reads, list(range(0x4960, 0x49A0)))
+        self.assertEqual(len(board.writes), 9)
+        for function, address, values in board.writes:
+            self.assertEqual(values[0], 0)
+            self.assertTrue(0x4960 <= address < 0x49A0)
+        self.assertEqual(board.entries[-1]['rejected_cases'], 73)
+        self.assertEqual(board.entries[-1]['event'], 'production_guard_cycle_pass')
+
+    def test_production_guard_exposed_read_never_writes(self):
+        for address in (0x4960, 0x4968, 0x4974, 0x4980, 0x499F):
+            board = ProductionGuardBoard(exposed_read=address)
+            with self.subTest(address=address), self.assertRaisesRegex(AssertionError, '仍可存取'):
+                tool.production_guard_cycle(board)
+            self.assertEqual(board.writes, [])
+
+    def test_production_guard_accepting_write_fails_and_stops(self):
+        for target in ((6, 0x4960), (16, 0x4960), (16, 0x4970), (16, 0x4980)):
+            board = ProductionGuardBoard(exposed_write=target)
+            with self.subTest(target=target), self.assertRaisesRegex(AssertionError, '仍可存取'):
+                tool.production_guard_cycle(board)
+            self.assertEqual(board.writes[-1][:2], target)
+            self.assertFalse(any(e['event'] == 'production_guard_cycle_pass' for e in board.entries))
+
+    def test_production_guard_wrong_exception_is_not_a_pass(self):
+        for code in (1, 3, 4, 6):
+            board = ProductionGuardBoard(wrong_code=code)
+            with self.subTest(code=code), self.assertRaisesRegex(AssertionError, 'Illegal Data Address'):
+                tool.production_guard_cycle(board)
+            self.assertEqual(board.writes, [])
+
+    def test_production_guard_timeout_is_not_a_pass(self):
+        board = ProductionGuardBoard(timeout=True)
+        with self.assertRaises(TimeoutError):
+            tool.production_guard_cycle(board)
+        self.assertEqual(board.writes, [])
+
+    def test_production_guard_changed_state_fails(self):
+        board = ProductionGuardBoard(change_state=True)
+        with self.assertRaisesRegex(AssertionError, '無法判定'):
+            tool.production_guard_cycle(board)
+        self.assertFalse(any(e['event'] == 'production_guard_cycle_pass' for e in board.entries))
 
 
 if __name__ == '__main__':

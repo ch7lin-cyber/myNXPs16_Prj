@@ -1488,6 +1488,15 @@ int main(void)
         assert(testInterface.write_multiple_registers(testInterface.context,0x4970,data,4)==
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 #ifndef PRODUCT_SAFETY_COMMAND_ENABLED
+        for (uint16_t address = 0x4960U; address <= 0x499FU; ++address)
+        {
+            assert(testInterface.read_holding_registers(testInterface.context,address,1,data)==
+                   MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+            assert(testInterface.write_single_register(testInterface.context,address,0)==
+                   MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+            assert(testInterface.write_multiple_registers(testInterface.context,address,data,4)==
+                   MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        }
         assert(testInterface.read_holding_registers(testInterface.context,0x4980,8,data)==
                MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
 #endif
