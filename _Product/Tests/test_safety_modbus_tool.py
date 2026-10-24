@@ -280,6 +280,38 @@ class InjectionGuardBoard(MultiFaultBoard):
         super().write_multiple(address, values)
 
 
+class BroadcastBoard(InjectionGuardBoard):
+    station = 2
+    def __init__(self, apply_broadcast=False, fail_cleanup=False):
+        super().__init__(fail_cleanup=fail_cleanup)
+        self.apply_broadcast = apply_broadcast
+        self.broadcasts = []
+    def broadcast_test_command(self, address, values, function=16):
+        self.broadcasts.append((function, address, values))
+        if self.apply_broadcast and function == 16:
+            super().write_multiple(address, values)
+
+
+class SilentPort:
+    def __init__(self, echo=False):
+        self.timeout = 0.7
+        self.echo, self.flushed = echo, False
+        self.rx = b''
+        self.requests = []
+    def reset_input_buffer(self):
+        self.rx = b''
+    def write(self, frame):
+        self.requests.append(frame)
+        if self.echo:
+            self.rx = frame
+        return len(frame)
+    def flush(self):
+        self.flushed = True
+    def read(self, count):
+        result, self.rx = self.rx[:count], self.rx[count:]
+        return result
+
+
 class HistoryBoard:
     def __init__(self, corrupt=False):
         self.event_sequence = self.snapshot_sequence = 0
@@ -611,6 +643,61 @@ class Tests(unittest.TestCase):
              patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
             tool.injection_guard_cycle(board)
         write.assert_not_called()
+
+    def test_broadcast_wire_frame_and_silence(self):
+        port = SilentPort()
+        client = tool.Client(port, 2)
+        clock = itertools.count(0, 0.1)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)):
+            client.broadcast_test_command(0x4960, [1, 1, 8500, 0x5AFE])
+            client.broadcast_test_command(0x4973, [0x5AFE], 6)
+        self.assertTrue(port.flushed)
+        self.assertEqual(port.timeout, 0.7)
+        self.assertEqual(client.station, 2)
+        self.assertEqual(len(port.requests), 2)
+        for frame in port.requests:
+            self.assertEqual(frame[0], 0)
+            self.assertEqual(tool.crc16(frame), 0)
+        self.assertEqual(port.requests[0][1:7], bytes.fromhex('104960000408'))
+
+    def test_broadcast_response_or_echo_fails_and_restores_timeout(self):
+        port = SilentPort(echo=True)
+        clock = itertools.count(0, 0.1)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), \
+             self.assertRaisesRegex(IOError, '廣播收到回覆'):
+            tool.Client(port).broadcast_test_command(0x4970, [1, 1, 0, 0x5AFE])
+        self.assertEqual(port.timeout, 0.7)
+
+    def test_broadcast_cannot_write_unrelated_product_registers(self):
+        port = SilentPort()
+        with self.assertRaises(ValueError):
+            tool.Client(port).broadcast_test_command(0x4809, [0x0201, 0xC1EA])
+        self.assertEqual(port.requests, [])
+
+    def test_broadcast_guard_six_cases(self):
+        board = BroadcastBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.broadcast_guard_cycle(board)
+        self.assertEqual(len(board.broadcasts), 6)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+        self.assertTrue(any(e['event'] == 'broadcast_guard_software_cycle_pass' for e in board.entries))
+
+    def test_broadcast_guard_catches_applied_broadcast(self):
+        board = BroadcastBoard(apply_broadcast=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(AssertionError, '廣播誤改變'):
+            tool.broadcast_guard_cycle(board)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+
+    def test_broadcast_guard_cleanup_failure_no_pass(self):
+        board = BroadcastBoard(fail_cleanup=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(RuntimeError, '無法確認'):
+            tool.broadcast_guard_cycle(board)
+        self.assertEqual(board.disable_calls, {0x4960: 2, 0x4970: 2})
+        self.assertFalse(any(e['event'] == 'broadcast_guard_software_cycle_pass' for e in board.entries))
 
 
 if __name__ == '__main__':

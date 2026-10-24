@@ -70,6 +70,20 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 廣播注入防護（新增，EVK 待實測）
+
+只更新 Python，沿用目前無效樣本版韌體，不需重新燒錄。請使用目前單台 EVK 的獨立測試線，執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 broadcast-guard-cycle
+```
+
+腳本先以原站號（預設 2）關閉注入並建立正常基準，再發送站號 0 的六個測試封包：過溫與低電壓的 FC10 完整有效注入命令、各自 FC06 enable 與確認碼 word。FC10 使用正確 5AFE，以驗證「即使格式與確認碼正確，廣播仍不能啟用測試注入」。每個封包均含正常 RTU CRC。
+
+發送排空後觀察靜默，時間為 max(0.25 秒、設定的 timeout)，預設 2 秒；收到任何 bytes（含 Echo）均停止並判 FAIL。廣播不等待 ACK，也不自動重送。隨後仍使用原站號 FC03，確認兩種注入參數／狀態、Fault／Safety 及 Event／Snapshot 最新序號未變。一般 `Client`／`--station` 仍只接受 1～247，新增廣播入口只允許指定 SafetyTest 位址，不允許其他產品設定或 Fault Reset。
+
+六個案例顯示 `broadcast_guard_case_pass`，靜默觀察顯示 `broadcast_silence_pass`。成功、失敗或 Ctrl+C 都獨立嘗試以原站號關閉兩種注入，不清除失敗 Fault；全部通過才顯示 `broadcast_guard_software_cycle_pass`。可透過 RS485 RTU 或 USB CDC RTU 送出，但一次實測只代表當次選用的傳輸路徑，不能推定另一介面也已上板通過。此項只驗證測試注入的廣播政策，不宣稱一般產品 Register 的廣播寫入都應拒絕；瞬間 busy 時序仍未做目標板驗證。
+
 ### 注入命令防誤寫（EVK 軟體流程已通過）
 
 使用剛通過無效樣本測試的 SafetyTestEVK 韌體即可，本次只更新 Python，不需重新燒錄：
@@ -209,6 +223,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+廣播防護新增回歸後共 39 項 Python 離線測試通過：新增實際站號 0 RTU frame／CRC／TX 排空、靜默觀察、回覆或 Echo 時失敗且還原 timeout、禁止廣播其他產品位址、六種命令參數不變、抓出廣播被套用，以及清理失敗不得通過。無 MCU 程式變更，廣播防護 EVK 實測尚未完成。
 
 注入防誤寫新增回歸後共 33 項 Python 離線測試通過，新增 26 種拒絕成功、回異常碼卻改參數的偵測、錯誤 key 被接受的偵測、兩項清理均須嘗試及清理失敗不得通過、舊韌體不寫入等案例。無 MCU 程式變更。
 

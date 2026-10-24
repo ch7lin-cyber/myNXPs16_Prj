@@ -77,6 +77,38 @@ class Client:
         self.exchange(16, struct.pack('>HHB', address, len(values), 2*len(values)) +
                       struct.pack(f'>{len(values)}H', *values))
 
+    def broadcast_test_command(self, address, values, function=16):
+        # Narrow test entry only: never broadcast product settings or Fault Reset.
+        if function == 16 and address in (0x4960, 0x4970) and len(values) == 4:
+            if values[0] not in (0, 1) or values[1] not in (0, 1) or values[3] != 0x5AFE:
+                raise ValueError('廣播測試參數錯誤')
+            body = struct.pack('>HHB4H', address, 4, 8, *values)
+        elif function == 6 and address in (0x4960, 0x4963, 0x4970, 0x4973) and len(values) == 1:
+            body = struct.pack('>HH', address, values[0])
+        else:
+            raise ValueError('廣播只允許指定 SafetyTest 命令位址及數量')
+        frame = bytes([0, function]) + body
+        frame += struct.pack('<H', crc16(frame))
+        time.sleep(0.05)
+        self.port.reset_input_buffer()
+        self.log(event='TX', broadcast=True, frame=frame.hex().upper())
+        if self.port.write(frame) != len(frame):
+            raise IOError('廣播傳送不完整')
+        self.port.flush()  # Start silence observation after TX drained.
+        original_timeout = self.port.timeout
+        silence_seconds = max(0.25, original_timeout)
+        try:
+            self.port.timeout = min(0.05, original_timeout)
+            deadline = time.monotonic() + silence_seconds
+            while time.monotonic() < deadline:
+                reply = self.port.read(256)
+                if reply:
+                    self.log(event='RX', broadcast=True, frame=reply.hex().upper())
+                    raise IOError('廣播收到回覆或 Echo；預期完全靜默')
+        finally:
+            self.port.timeout = original_timeout
+        self.log(event='broadcast_silence_pass', observation_seconds=silence_seconds)
+
 
 def require(condition, message):
     if not condition:
@@ -753,6 +785,63 @@ def injection_guard_cycle(client):
                physical_outputs='EVK 注入命令防護；實際 PWM／DO 待正式板量測')
 
 
+def broadcast_guard_cycle(client):
+    sample_health(client)
+    diagnostic(client)
+    low_voltage_diagnostic(client)
+    require(not fault_records(client), '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['live'] == 0 and initial['latch'] == 0 and
+            initial['state'] == 0 and initial['inhibit'] == 0, '初始 Safety 不是正常狀態')
+    touched_temperature = touched_voltage = False
+    try:
+        touched_temperature = True
+        applied(client, 0, False)
+        touched_voltage = True
+        low_voltage_apply(client, enabled=False)
+        baseline = wait_safety(client, 0, 0, '廣播防護基準')
+        temperature, voltage = diagnostic(client), low_voltage_diagnostic(client)
+        cases = (
+            ('temperature-fc10', 16, 0x4960, [1, 1, 8500, 0x5AFE]),
+            ('low-voltage-fc10', 16, 0x4970, [1, 1, 0, 0x5AFE]),
+            ('temperature-enable-fc06', 6, 0x4960, [1]),
+            ('temperature-key-fc06', 6, 0x4963, [0x5AFE]),
+            ('low-voltage-enable-fc06', 6, 0x4970, [1]),
+            ('low-voltage-key-fc06', 6, 0x4973, [0x5AFE]),
+        )
+        for name, function, address, values in cases:
+            client.broadcast_test_command(address, values, function)
+            current_t, current_v = diagnostic(client), low_voltage_diagnostic(client)
+            require(all(current_t[k] == temperature[k] for k in
+                        ('status', 'enabled', 'valid', 'temperature', 'count', 'trip')),
+                    f'{name} 廣播誤改變過溫注入／計數')
+            require(all(current_v[k] == voltage[k] for k in ('status', 'enabled', 'active', 'limit')),
+                    f'{name} 廣播誤改變低電壓注入')
+            state = safety(client)
+            require(all(state[k] == baseline[k] for k in
+                        ('live', 'latch', 'state', 'inhibit', 'event_sequence', 'snapshot_sequence')) and
+                    not fault_records(client), f'{name} 廣播改變 Fault／Safety／Event／Snapshot')
+            client.log(event='broadcast_guard_case_pass', case=name, function=function,
+                       broadcast_station=0, readback_station=client.station)
+    finally:
+        errors = []
+        for name, touched, disable in (
+                ('temperature', touched_temperature, lambda: applied(client, 0, False)),
+                ('low_voltage', touched_voltage, lambda: low_voltage_apply(client, enabled=False))):
+            if touched:
+                try:
+                    disable()
+                    client.log(event='cleanup', injection=name, state='disabled',
+                               fault_reset='不自動清除失敗時的 Fault')
+                except Exception as exc:
+                    errors.append(name)
+                    client.log(event='cleanup_failed', injection=name, error=str(exc))
+        if errors:
+            raise RuntimeError('無法確認注入已關閉：' + '、'.join(errors) + '；請重新上電並檢查 Fault')
+    client.log(event='broadcast_guard_software_cycle_pass', cases=6,
+               physical_outputs='EVK 廣播注入防護；實際 PWM／DO 待正式板量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -769,6 +858,7 @@ def main():
     sub.add_parser('reset-guard-cycle', help='故障重置確認碼、代碼與重複命令防護')
     sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
     sub.add_parser('injection-guard-cycle', help='注入命令錯誤 key、參數、部分及唯讀誤寫防護')
+    sub.add_parser('broadcast-guard-cycle', help='站號 0 不得啟用測試注入或回覆，限單台 DUT 測試線')
     repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
     repeat.add_argument('--cycles', type=int, choices=range(2, 101), default=3, metavar='2..100')
     for action in ['read', 'write06', 'write10']:
@@ -835,6 +925,8 @@ def main():
                     invalid_sample_cycle(c)
                 elif args.action == 'injection-guard-cycle':
                     injection_guard_cycle(c)
+                elif args.action == 'broadcast-guard-cycle':
+                    broadcast_guard_cycle(c)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -845,7 +937,7 @@ def main():
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
                    'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle',
-                   'injection-guard-cycle') else '操作成功。')
+                   'injection-guard-cycle', 'broadcast-guard-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')
