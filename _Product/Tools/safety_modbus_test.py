@@ -872,7 +872,7 @@ def wait_pwm(client, requested, applied_values, inhibited, name, periods=None, m
     raise TimeoutError(f'{name} PWM 要求值／套用值／抑制狀態不符')
 
 
-def pwm_inhibit_cycle(client):
+def pwm_inhibit_cycle(client, *, multi=False):
     states = pwm_diagnostic(client)  # Old/production firmware: stop before writes.
     require(all(s['evk'] == 1 and s['hal_initialized'] == 1 for s in states),
             '本測試會輸出非零 PWM，只允許 SafetyTestEVK')
@@ -897,7 +897,10 @@ def pwm_inhibit_cycle(client):
         wait_for(client, lambda d: d['count'] == 0 and not d['trip'], 5, 'PWM 測試正常溫度')
         touched_voltage = True
         low_voltage_apply(client)
-        for source, code, detail in ((1, 0x0201, 8500), (2, 0x0202, 1)):
+        if multi:
+            touched_pwm = True
+            pwm_multi_fault_rounds(client, periods)
+        for source, code, detail in (() if multi else ((1, 0x0201, 8500), (2, 0x0202, 1))):
             duties = [100, 200, 300, 400]
             touched_pwm = True  # A lost Apply ACK still requires zeroing outputs.
             set_pwm(client, periods, duties, immediate)
@@ -961,8 +964,75 @@ def pwm_inhibit_cycle(client):
                     client.log(event='cleanup_failed', injection=name, error=str(exc))
         if errors:
             raise RuntimeError('無法確認安全清理：' + '、'.join(errors) + '；請停止測試並檢查輸出')
-    client.log(event='pwm_inhibit_software_cycle_pass', channels=4, sources=2,
+    client.log(event='pwm_multi_fault_software_cycle_pass' if multi else 'pwm_inhibit_software_cycle_pass',
+               channels=4, sources=2,
                physical_outputs='套用值表示服務已獲 HAL 成功回覆；實際 PWM 波形仍待儀器量測')
+
+
+
+def pwm_multi_fault_rounds(client, periods):
+    zeros, immediate = [0] * 4, [0] * 4
+    codes = {1: 0x0201, 2: 0x0202}
+    both = {0x0201: 8500, 0x0202: 1}
+
+    def recover(source):
+        if source == 1:
+            applied(client, 8499)
+            wait_for(client, lambda d: not d['trip'] and d['count'] == 0, 5, '雙故障 PWM 降溫')
+        else:
+            low_voltage_apply(client)
+            d = low_voltage_wait(client, lambda d: not d['confirmed'] and not d['raw'],
+                                 '雙故障 PWM 電壓恢復')
+            require(d['peak_release'] == 100, '低電壓恢復未經 100 次正常取樣')
+
+    for first in (1, 2):
+        order = 'temperature-first' if first == 1 else 'low-voltage-first'
+        remaining = 3 ^ first
+        wait_safety(client, 0, 0, '雙故障 PWM 本輪初始狀態')
+        require(not fault_records(client), '雙故障 PWM 本輪開始仍有 Fault')
+        duties = [100, 200, 300, 400]
+        set_pwm(client, periods, duties, immediate)
+        wait_pwm(client, duties, duties, False, '雙故障前四路非零 PWM')
+        applied(client, 8500)
+        low_voltage_apply(client, active=True)
+        d = wait_for(client, lambda d: bool(d['trip']), 7, '雙故障 PWM 過溫成立')
+        require(d['count'] == 3, '過溫未經三次確認')
+        low_voltage_wait(client, lambda d: d['confirmed'], '雙故障 PWM 低電壓成立')
+        wait_safety(client, 3, 3, '雙故障 PWM 兩項成立')
+        require(fault_records(client) == both, '雙故障 PWM Fault／detail 不符')
+        off = wait_pwm(client, duties, zeros, True, '雙故障四路歸零')
+        client.log(event='pwm_multi_fault_trip_pass', order=order, pwm=off)
+        for code in codes.values():
+            reset_fault(client, code, blocked=True)
+        wait_safety(client, 3, 3, '雙故障拒絕 Reset 後')
+        wait_pwm(client, duties, zeros, True, '雙故障拒絕 Reset 後保持歸零')
+
+        recover(first)
+        wait_safety(client, remaining, 3, '第一項恢復但鎖存仍保持')
+        wait_pwm(client, duties, zeros, True, '第一項恢復時仍歸零')
+        reset_fault(client, codes[first])
+        wait_safety(client, remaining, remaining, '第一項重置後另一項仍成立')
+        require(fault_records(client) == {codes[remaining]: both[codes[remaining]]},
+                '第一項重置影響剩餘 Fault')
+        off = wait_pwm(client, duties, zeros, True, '第一項重置不得恢復四路 PWM')
+        client.log(event='pwm_remaining_fault_pass', order=order, pwm=off)
+        duties = [200, 300, 400, 500]
+        set_pwm(client, periods, duties, immediate)
+        wait_pwm(client, duties, zeros, True, '剩餘故障時改寫仍歸零')
+        reset_fault(client, codes[remaining], blocked=True)
+        wait_safety(client, remaining, remaining, '剩餘故障拒絕 Reset 後')
+        wait_pwm(client, duties, zeros, True, '剩餘故障拒絕 Reset 後仍歸零')
+
+        recover(remaining)
+        wait_safety(client, 0, remaining, '全部恢復但最後鎖存保持')
+        wait_pwm(client, duties, zeros, True, '最後鎖存不得恢復 PWM')
+        reset_fault(client, codes[remaining])
+        wait_safety(client, 0, 0, '最後重置恢復正常')
+        restored = wait_pwm(client, duties, duties, False, '最後重置恢復最新要求值')
+        require(not fault_records(client), '雙故障 PWM 重置後仍有 Fault')
+        client.log(event='pwm_multi_fault_order_pass', order=order, pwm=restored)
+        set_pwm(client, periods, zeros, immediate)
+        wait_pwm(client, zeros, zeros, False, '雙故障 PWM 本輪結束歸零')
 
 
 def main():
@@ -982,6 +1052,7 @@ def main():
     sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
     sub.add_parser('injection-guard-cycle', help='注入命令錯誤 key、參數、部分及唯讀誤寫防護')
     sub.add_parser('broadcast-guard-cycle', help='站號 0 不得啟用測試注入或回覆，限單台 DUT 測試線')
+    sub.add_parser('pwm-multi-fault-cycle', help='EVK 雙重故障四路 PWM 互鎖，兩種重置順序')
     sub.add_parser('pwm-inhibit-cycle', help='EVK 四路 PWM 要求值／套用值的安全抑制循環')
     repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
     repeat.add_argument('--cycles', type=int, choices=range(2, 101), default=3, metavar='2..100')
@@ -1051,6 +1122,8 @@ def main():
                     injection_guard_cycle(c)
                 elif args.action == 'broadcast-guard-cycle':
                     broadcast_guard_cycle(c)
+                elif args.action == 'pwm-multi-fault-cycle':
+                    pwm_inhibit_cycle(c, multi=True)
                 elif args.action == 'pwm-inhibit-cycle':
                     pwm_inhibit_cycle(c)
                 elif args.action == 'read':
@@ -1063,7 +1136,7 @@ def main():
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
                    'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle',
-                   'injection-guard-cycle', 'broadcast-guard-cycle', 'pwm-inhibit-cycle') else '操作成功。')
+                   'injection-guard-cycle', 'broadcast-guard-cycle', 'pwm-inhibit-cycle', 'pwm-multi-fault-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')

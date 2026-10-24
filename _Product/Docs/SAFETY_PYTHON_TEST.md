@@ -70,7 +70,23 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 四路 PWM 服務抑制（新增，EVK 待實測）
+### 雙重故障下的四路 PWM 互鎖（新增，EVK 待實測）
+
+沿用已通過 `pwm-inhibit-cycle` 的 SafetyTestEVK 韌體，只更新 Python，不需重新燒錄：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 pwm-multi-fault-cycle
+```
+
+本測試會產生非零 PWM，只供無產品負載的 EVK。沿用四路 PWM 測試的寫入前檢查與清理：必須為 EVK、HAL 初始化、四路 Duty=0、無 Pending、無既有 Fault／Safety 抑制，才開始。兩輪依序先清過溫及先清低電壓；每輪先建立四路 10／20／30／40% 輸出，再使兩項故障同時成立，確認四路套用值歸零。
+
+確認帶故障 Reset 被拒絕；第一項條件恢復及重置後，剩餘 Fault／Safety 仍成立且四路套用值仍為零。此時改寫 20／30／40／50%，要求值更新但套用值仍為零。最後條件恢復但鎖存尚在時保持歸零，正確 Reset 後才恢復最後要求值。兩種解除順序都通過才回報 `pwm_multi_fault_software_cycle_pass`。
+
+結束或失敗均先嘗試四路 Duty 歸零並還原週期／模式，再獨立關閉兩項注入；清理失敗回報 FAIL，不自動清除失敗時的 Fault。此測試觀察服務及 HAL 成功回覆後的套用值，不能證明實體 PWM 波形或排除讀取間隔內的短暫脈衝，仍須儀器量測。
+
+新增後共 51 項 Python 離線回歸通過，包含兩種順序成功、部分 Reset 提早恢復輸出的偵測、最後鎖存前提早恢復的偵測、清理失敗仍關閉兩項注入，以及非 EVK 時不寫入。未修改 MCU 韌體；本案例 EVK 實測尚未完成。
+
+### 四路 PWM 服務抑制（EVK 軟體流程已通過）
 
 本次新增唯讀 PWM 服務診斷 `0x4980..0x499F`，需更新程式、Clean／Build **SafetyTestEVK** 並用更新工具下載同次 BIN；三個測試巨集不變。啟動 APP 後執行：
 

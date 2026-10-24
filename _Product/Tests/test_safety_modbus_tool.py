@@ -294,11 +294,12 @@ class BroadcastBoard(InjectionGuardBoard):
 
 class PwmBoard(MultiFaultBoard):
     def __init__(self, ignore_inhibit=False, premature_resume=False, no_resume=False,
-                 fail_pwm_cleanup=False, evk=1, initial_duty=0):
+                 fail_pwm_cleanup=False, evk=1, initial_duty=0, release_after_first_reset=False):
         super().__init__()
         self.periods, self.duties, self.modes = [10] * 4, [initial_duty] * 4, [0] * 4
         self.ignore_inhibit, self.premature_resume = ignore_inhibit, premature_resume
         self.no_resume, self.fail_pwm_cleanup, self.evk = no_resume, fail_pwm_cleanup, evk
+        self.release_after_first_reset = release_after_first_reset
         self.zero_calls = self.revision = 0
         self.ever_inhibited = False
     def read(self, address, count):
@@ -309,6 +310,8 @@ class PwmBoard(MultiFaultBoard):
             inhibited = bool(state[3] or state[5])
             self.ever_inhibited |= inhibited
             off = inhibited
+            if self.release_after_first_reset and self.successful_resets % 2 and state[3]:
+                off = False
             if self.ignore_inhibit:
                 off = False
             elif self.premature_resume:
@@ -791,6 +794,52 @@ class Tests(unittest.TestCase):
             tool.pwm_inhibit_cycle(board)
         self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
         self.assertFalse(any(e['event'] == 'pwm_inhibit_software_cycle_pass' for e in board.entries))
+
+
+    def test_pwm_multi_fault_both_orders_restore_zero(self):
+        board = PwmBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.pwm_inhibit_cycle(board, multi=True)
+        orders = [e['order'] for e in board.entries if e['event'] == 'pwm_multi_fault_order_pass']
+        self.assertEqual(orders, ['temperature-first', 'low-voltage-first'])
+        self.assertEqual(len([e for e in board.entries if e['event'] == 'pwm_remaining_fault_pass']), 2)
+        self.assertEqual(board.duties, [0] * 4)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+        self.assertEqual(board.successful_resets, 4)
+        self.assertTrue(any(e['event'] == 'pwm_multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_pwm_multi_fault_detects_partial_reset_resuming_outputs(self):
+        board = PwmBoard(release_after_first_reset=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.pwm_inhibit_cycle(board, multi=True)
+        self.assertEqual(board.duties, [0] * 4)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+        self.assertTrue(board.voltage.fault)
+        self.assertFalse(any(e['event'] == 'pwm_multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_pwm_multi_fault_detects_resume_before_last_reset(self):
+        board = PwmBoard(premature_resume=True)
+        clock = itertools.count(0, 0.05)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.pwm_inhibit_cycle(board, multi=True)
+        self.assertEqual(board.duties, [0] * 4)
+        self.assertTrue(board.voltage.fault)
+
+    def test_pwm_multi_fault_cleanup_failure_still_disables_sources(self):
+        board = PwmBoard(fail_pwm_cleanup=True)
+        with patch.object(tool.time, 'sleep', return_value=None), self.assertRaisesRegex(RuntimeError, '安全清理'):
+            tool.pwm_inhibit_cycle(board, multi=True)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertFalse(any(e['event'] == 'pwm_multi_fault_software_cycle_pass' for e in board.entries))
+
+    def test_pwm_multi_fault_refuses_non_evk_before_writes(self):
+        board = PwmBoard(evk=0)
+        with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '只允許'):
+            tool.pwm_inhibit_cycle(board, multi=True)
+        write.assert_not_called()
 
 
 if __name__ == '__main__':
