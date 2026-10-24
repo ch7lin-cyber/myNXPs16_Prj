@@ -159,11 +159,12 @@ class LowVoltageBoard:
 
 class MultiFaultBoard:
     """Compose independent temperature/voltage models with per-source resets."""
-    def __init__(self, unsafe_release=False, cleanup_failure=None):
+    def __init__(self, unsafe_release=False, cleanup_failure=None, accept_bad_key=False):
         self.temperature = Board()
         self.voltage = LowVoltageBoard()
         self.index = self.result = self.successful_resets = 0
         self.unsafe_release, self.cleanup_failure = unsafe_release, cleanup_failure
+        self.accept_bad_key = accept_bad_key
         self.entries, self.cleanup_attempts = [], []
     def log(self, **entry):
         self.entries.append(entry)
@@ -210,8 +211,20 @@ class MultiFaultBoard:
             child = self.temperature if address == 0x4960 else self.voltage
             child.write_multiple(address, values)
             return
-        assert address == 0x4809 and values[1] == 0xC1EA
+        assert address == 0x4809
         code = values[0]
+        if values[1] != 0xC1EA:
+            if self.accept_bad_key:
+                self.result = 1
+                return
+            self.result = 6
+            raise tool.ModbusError(3)
+        if code not in (0x0201, 0x0202):
+            self.result = 4
+            raise tool.ModbusError(3)
+        if code not in self.faults():
+            self.result = 2
+            raise tool.ModbusError(3)
         child = self.temperature if code == 0x0201 else self.voltage
         active = self.temperature.trip if code == 0x0201 else self.voltage.confirmed
         if active:
@@ -344,6 +357,42 @@ class Tests(unittest.TestCase):
         board.temperature.fault = board.temperature.latch = 1
         with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '已有 Fault'):
             tool.multi_fault_cycle(board)
+        write.assert_not_called()
+
+    def test_reset_guard_both_sources_and_cleanup(self):
+        board = MultiFaultBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.reset_guard_cycle(board)
+        self.assertEqual([e['code'] for e in board.entries if e['event'] == 'reset_guard_source_pass'],
+                         ['0x0201', '0x0202'])
+        self.assertEqual(len([e for e in board.entries if e['event'] == 'reset_guard_rejection_pass']), 22)
+        self.assertEqual(board.successful_resets, 2)
+        self.assertEqual(board.faults(), {})
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertTrue(any(e['event'] == 'reset_guard_software_cycle_pass' for e in board.entries))
+
+    def test_reset_guard_detects_bad_key_acceptance(self):
+        board = MultiFaultBoard(accept_bad_key=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(AssertionError, '卻接受 Reset'):
+            tool.reset_guard_cycle(board)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertTrue(board.temperature.fault)
+        self.assertFalse(any(e['event'] == 'reset_guard_software_cycle_pass' for e in board.entries))
+
+    def test_reset_guard_cleanup_failure_no_pass(self):
+        board = MultiFaultBoard(cleanup_failure='temperature')
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(RuntimeError, '無法確認'):
+            tool.reset_guard_cycle(board)
+        self.assertEqual(board.cleanup_attempts, ['temperature', 'low_voltage'])
+        self.assertFalse(any(e['event'] == 'reset_guard_software_cycle_pass' for e in board.entries))
+
+    def test_reset_guard_existing_fault_never_writes(self):
+        board = MultiFaultBoard()
+        board.voltage.fault = board.voltage.latch = 1
+        with patch.object(board, 'write_multiple') as write, self.assertRaisesRegex(AssertionError, '已有 Fault'):
+            tool.reset_guard_cycle(board)
         write.assert_not_called()
 
 

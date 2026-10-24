@@ -70,6 +70,30 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 重置命令防護循環（EVK 待實測）
+
+沿用既有已通過過溫／低電壓的 SafetyTestEVK 韌體，只更新 Python，無需重新燒錄：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 reset-guard-cycle
+```
+
+過溫 `0x0201` 與低電壓 `0x0202` 各測一輪，每輪包含下列檢查：
+
+| 情境 | 預期 Modbus 異常碼 | 預期 Reset result（0x480B） |
+|---|---|---|
+| 條件仍成立，錯誤確認碼 0000／FFFF／EAC1 | 03 | 6：確認碼錯誤 |
+| 無效故障代碼 0000／FFFF，確認碼 C1EA | 03 | 4：故障代碼無效 |
+| 重置未成立的另一項故障 | 03 | 2：故障未成立 |
+| 條件仍成立，正確代碼與確認碼 C1EA | 03 | 3：異常條件仍成立 |
+| 條件恢復但鎖存尚在，錯誤確認碼 0000／FFFF／EAC1 | 03 | 6：確認碼錯誤 |
+| 條件恢復後正確重置 | 無 | 1：成功 |
+| 再次重置剛清除的故障 | 03 | 2：故障未成立 |
+
+共 22 次預期拒絕與 2 次正確重置。每次拒絕均比對前後 Fault 清單、Safety live／latch／state／inhibit，以及 Event／Snapshot 最新序號，要求完全不變，避免「雖回異常碼卻清除了保護」的情況。正確重置後必須回復 Fault=0、Safety 正常。
+
+每個拒絕案例顯示 `reset_guard_rejection_pass`，兩項完成各顯示 `reset_guard_source_pass`；結束或失敗／Ctrl+C 時獨立嘗試關閉兩項注入，不因其中一項清理失敗而省略另一項，也不自動清除失敗時的故障。只有兩輪及清理都通過才顯示 `reset_guard_software_cycle_pass` 與最終 PASS。
+
 ### 雙重故障互鎖循環（EVK 軟體流程已通過）
 
 既有通過低電壓測試的韌體已具備兩種注入介面，本次只更新 Python／離線測試與文件，無需重新編譯或燒錄 MCU。更新 `branch2_ver1` 後，在 APP 運行時執行：
@@ -131,6 +155,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+重置防護新增離線回歸後共 18 項 Python 測試通過，新增案例確認兩項來源及 22 次拒絕、抓出錯誤 key 被接受的回歸、清理失敗不得回報通過，以及既有 Fault 時不寫入。重置命令防護 EVK 實測尚未完成；未修改 MCU 程式，實體輸出仍須正式板量測。
 
 雙重故障新增 Python 離線回歸後共 14 項測試通過：包含兩種解除順序、剩餘故障仍成立時禁止解除輸出、任一注入清理失敗仍嘗試清理另一項、Ctrl+C 清理、舊韌體不支援及既有故障時不寫入。沒有更動 MCU 程式。
 
