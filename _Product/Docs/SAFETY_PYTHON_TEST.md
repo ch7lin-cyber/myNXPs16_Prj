@@ -307,6 +307,21 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:11:59～21:14:17（台灣時間）：使用者切回 SafetyTestEVK 後，執行 `--port COM8 repeat-cycle --cycles 3`，上傳 `貼上的文字 (1)(20261024-131537).txt`。USB CDC COM8、站號 2，工具設定 115200／8N1。
+
+已解析全部終端 JSON 事件：12 筆 `repeat_case_pass`、3 筆 `repeat_round_pass`、66 筆 `reset_guard_rejection_pass`、18 筆 `cleanup`，無 `cleanup_failed`；最後 `repeat_software_cycle_pass`（rounds=3、cases=12）與 `complete` PASS。各輪包含過溫、低電壓、雙重故障與重置防護，並由腳本檢查保留紀錄索引／序號與覆寫結果。
+
+| USB CDC 輪次 | Event 保留筆數／最新序號 | Snapshot 保留筆數／最新序號 | Safety live／latch／state／inhibit |
+|---|---|---|---|
+| 1 | 32／40 | 16／16 | 0／0／0／0 |
+| 2 | 32／80 | 16／32 | 0／0／0／0 |
+| 3 | 32／120 | 16／48 | 0／0／0／0 |
+
+依腳本判定，每項結束無殘留 Fault／Safety／注入；每輪全部保留紀錄的索引、類別與連續序號檢查通過，滿載後繼續覆寫最新紀錄。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_211159_588246.jsonl`。已取得並審核終端輸出，完整 JSONL（含 TX／RX 及 retained_record）未取得。
+
+本次記為 USB CDC 的四項安全循環及紀錄覆寫通過，不延伸為其他獨立案例、所有通訊負載或長期可靠性驗收已完成；實際 PWM 波形與 DO 電位仍待儀器量測。
+
+
 2026-10-24 21:07:58～21:08:02（台灣時間）：使用者依一般 Debug BIN 下載及 APP 啟動步驟，上傳 `貼上的文字 (1)(20261024-130815).txt`；執行 `--port COM8 production-guard-cycle`，`start.port=COM8`、站號 2，工具設定 115200／8N1。
 
 已逐筆解析：FC03 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 4 筆、FC10 5 筆，全部 exception=2；`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定前後 Fault count／Safety／Event／Snapshot 不變。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_210758_624886.jsonl`；已取得終端輸出，完整 JSONL 尚未取得。
