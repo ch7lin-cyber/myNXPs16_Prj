@@ -70,7 +70,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 廣播注入防護（新增，EVK 待實測）
+### 廣播注入防護（EVK 本次 COM3 路徑已通過）
 
 只更新 Python，沿用目前無效樣本版韌體，不需重新燒錄。請使用目前單台 EVK 的獨立測試線，執行：
 
@@ -224,7 +224,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-廣播防護新增回歸後共 39 項 Python 離線測試通過：新增實際站號 0 RTU frame／CRC／TX 排空、靜默觀察、回覆或 Echo 時失敗且還原 timeout、禁止廣播其他產品位址、六種命令參數不變、抓出廣播被套用，以及清理失敗不得通過。無 MCU 程式變更，廣播防護 EVK 實測尚未完成。
+廣播防護新增回歸後共 39 項 Python 離線測試通過：新增實際站號 0 RTU frame／CRC／TX 排空、靜默觀察、回覆或 Echo 時失敗且還原 timeout、禁止廣播其他產品位址、六種命令參數不變、抓出廣播被套用，以及清理失敗不得通過。無 MCU 程式變更。
+
+2026-10-24 20:04:28～20:04:43（台灣時間）：使用者在 EVK 執行 `broadcast-guard-cycle`，COM3、115200／8N1，廣播站號 0、讀回站號 2。終端輸出顯示 6 筆 `broadcast_silence_pass`（各觀察 2 秒）、6 筆 `broadcast_guard_case_pass`，兩項注入均 `disabled`、`broadcast_guard_software_cycle_pass`（cases=6）與最終 PASS。
+
+依腳本判定，廣播未回覆、過溫及低電壓注入均未啟用，注入參數與 Fault／Safety／Event／Snapshot 保持不變，正常站號仍可讀回。本次工作目錄是 `C:\Users\ch`，JSONL 位於 `C:\Users\ch\safety_test_results\20261024_200428_761420.jsonl`；證據為貼出的終端輸出，完整 JSONL 尚未取得。只記為當次 COM3 傳輸路徑通過，不推定另一介面也已通過。目標板瞬間 busy 時序及實體 PWM／DO 仍待測。
 
 注入防誤寫新增回歸後共 33 項 Python 離線測試通過，新增 26 種拒絕成功、回異常碼卻改參數的偵測、錯誤 key 被接受的偵測、兩項清理均須嘗試及清理失敗不得通過、舊韌體不寫入等案例。無 MCU 程式變更。
 

@@ -279,7 +279,7 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
-- [ ] SafetyTestEVK 廣播注入防護：Python `broadcast-guard-cycle` 已完成，39 項離線回歸通過；待於單台 EVK 測試線驗證站號 0 的 6 種 FC06／FC10 注入命令不回覆且不執行，再用原站號確認參數及安全狀態不變。現有韌體可沿用，實機尚未完成；RS485／USB 傳輸路徑需分別記錄。
+- [x] SafetyTestEVK 廣播注入防護（本次 COM3 路徑）：2026-10-24 20:04:28～20:04:43（台灣時間），使用者執行 `broadcast-guard-cycle` 回報 PASS。站號 0 的 6 種 FC06／FC10 注入命令各觀察 2 秒無回覆，站號 2 讀回參數與 Fault／Safety／Event／Snapshot 不變，兩項注入關閉。115200／8N1，JSONL 檔名 `20261024_200428_761420.jsonl`；證據為終端輸出，完整 JSONL 尚未取得。另一傳輸介面及目標板 busy 時序、實體輸出仍待測。
 - [x] SafetyTestEVK 注入命令防誤寫：2026-10-24 19:44:00～19:44:08（台灣時間），使用者執行 `injection-guard-cycle` 回報 PASS，26 種錯誤 key／參數／FC06／部分寫入／唯讀與跨界誤寫全部正確拒絕；依腳本判定注入參數與 Fault／Safety／Event／Snapshot 不變，兩項注入已關閉。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_194400_196361.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，目標板廣播／忙碌時序及實體輸出仍未驗證。
 - [x] SafetyTestEVK 無效 MCU 溫度樣本：2026-10-24 19:36:44～19:36:57（台灣時間），使用者執行 `invalid-sample-cycle` 回報 PASS；無效 85°C 實際 valid=false、count=0、trip=false，既有過溫後無效 84.99°C 實際 valid=false、count=3、trip=true，兩段各觀察至少 3.2 秒；有效低溫及正確 Reset 後恢復，注入關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_193644_508652.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體輸出仍待量測。
 - [x] SafetyTestEVK 連續循環與紀錄覆寫：2026-10-24 19:20:44～19:23:08（台灣時間），使用者上傳 `repeat-cycle` 終端紀錄，3 輪／12 案例全部 PASS；每項結束無殘留 Fault／Safety／注入，每輪 Event／Snapshot 保留 32／16 筆，最新序號依序 75／30、115／46、155／62，覆寫及全部保留紀錄索引／序號讀取檢查通過。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_192044_582132.jsonl`；已取得終端輸出，尚未取得含原始 TX／RX 與 retained_record 的完整 JSONL。實體 PWM／DO 仍待量測。
