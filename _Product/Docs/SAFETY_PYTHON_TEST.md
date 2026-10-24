@@ -70,6 +70,29 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
+### 注入命令防誤寫（新增，EVK 待實測）
+
+使用剛通過無效樣本測試的 SafetyTestEVK 韌體即可，本次只更新 Python，不需重新燒錄：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3 injection-guard-cycle
+```
+
+先確認 Fault／Safety 正常，使用正確命令關閉兩種注入並建立參數回讀基準；接著測試共 26 種預期拒絕命令：
+
+| 誤寫情境 | 適用入口 | 預期異常碼 |
+|---|---|---|
+| 錯誤注入確認碼 0000／FFFF／FE5A（正確為 5AFE） | 過溫、低電壓 | 03 |
+| enable=2、valid／active=2 | 過溫、低電壓 | 03 |
+| FC10 僅寫 1／3 words、誤寫 5 words | 過溫、低電壓 | 02 |
+| FC06 寫 enable 或確認碼 word | 過溫、低電壓 | 02 |
+| FC10 寫診斷區、從確認碼位址跨界寫入 | 過溫、低電壓 | 02 |
+| FC06／FC10 寫實際 ADC valid 唯讀區 | 4964 | 02 |
+
+每次拒絕都要求過溫注入 status／enable／valid／溫度／計數／成立狀態不變，低電壓注入 status／enable／active／limit 不變，且 Fault=0、Safety 狀態及 Event／Snapshot 最新序號不變。正常取樣的序號會自行前進，因此不將取樣序號當成誤寫不變條件。這可抓出「回了異常碼，但參數仍被寫入」的錯誤。
+
+每項顯示 `injection_guard_rejection_pass`；成功或失敗／Ctrl+C 都獨立嘗試關閉兩種注入，失敗時不清除 Fault。全部 26 項及清理通過才顯示 `injection_guard_software_cycle_pass`／最終 PASS。此項未測目標板廣播及瞬間忙碌時序（仍僅有 Host 驗證），也未加入既有四案例 `repeat-cycle`。
+
 ### 無效溫度樣本（EVK 軟體流程已通過）
 
 本次韌體新增 ADC 實際 valid 唯讀診斷 `0x4964..0x4967`，因此必須更新程式、Clean／Build **SafetyTestEVK** 並重新下載該組態 BIN；三個測試巨集保持不變。此欄位讀取真實 driver snapshot，不以「要求注入的 valid」代替結果。啟動 APP 後執行：
@@ -186,6 +209,8 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+注入防誤寫新增回歸後共 33 項 Python 離線測試通過，新增 26 種拒絕成功、回異常碼卻改參數的偵測、錯誤 key 被接受的偵測、兩項清理均須嘗試及清理失敗不得通過、舊韌體不寫入等案例。無 MCU 程式變更，EVK 命令防誤寫實測尚未完成。
 
 無效樣本新增回歸後共 28 項 Python 離線測試通過，新增成功路徑、無效樣本誤解除保護的偵測、舊韌體不寫入及清理失敗不得通過。真實 ADC driver／SafetyTest 命令 Host 測試確認實際 valid、最後有效溫度、無效低溫保留三次過溫狀態及讀取邊界。靜態測試狀態仍為 48 bytes SRAMX，只有額外唯讀欄位與程式碼；目標 ARM 建置報表尚未取得。
 

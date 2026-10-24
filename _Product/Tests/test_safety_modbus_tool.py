@@ -249,6 +249,37 @@ class MultiFaultBoard:
         child.fault = child.latch = 0
 
 
+class InjectionGuardBoard(MultiFaultBoard):
+    def __init__(self, mutate_on_reject=False, accept_invalid=False, fail_cleanup=False):
+        super().__init__()
+        self.mutate_on_reject = mutate_on_reject
+        self.accept_invalid = accept_invalid
+        self.fail_cleanup = fail_cleanup
+        self.disable_calls = {0x4960: 0, 0x4970: 0}
+    def write_single(self, address, value):
+        if 0x4960 <= address <= 0x497F:
+            raise tool.ModbusError(2)
+        super().write_single(address, value)
+    def write_multiple(self, address, values):
+        if address in (0x4960, 0x4970) and len(values) == 4:
+            if values[3] != 0x5AFE or values[0] > 1 or values[1] > 1:
+                if self.accept_invalid:
+                    return
+                if self.mutate_on_reject:
+                    self.temperature.enabled = self.temperature.valid = 1
+                    self.temperature.temperature = 8500
+                raise tool.ModbusError(3)
+            if values[0] == 0:
+                self.disable_calls[address] += 1
+                if self.fail_cleanup and self.disable_calls[address] > 1:
+                    raise TimeoutError('cleanup ACK lost')
+            super().write_multiple(address, values)
+            return
+        if 0x4960 <= address <= 0x497F:
+            raise tool.ModbusError(2)
+        super().write_multiple(address, values)
+
+
 class HistoryBoard:
     def __init__(self, corrupt=False):
         self.event_sequence = self.snapshot_sequence = 0
@@ -541,6 +572,45 @@ class Tests(unittest.TestCase):
              self.assertRaisesRegex(RuntimeError, '無法確認'):
             tool.invalid_sample_cycle(board)
         self.assertFalse(any(e['event'] == 'invalid_sample_software_cycle_pass' for e in board.entries))
+
+    def test_injection_guard_all_rejections(self):
+        board = InjectionGuardBoard()
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.injection_guard_cycle(board)
+        rejected = [e for e in board.entries if e['event'] == 'injection_guard_rejection_pass']
+        self.assertEqual(len(rejected), 26)
+        self.assertTrue(any(e['function'] == 6 for e in rejected))
+        self.assertTrue(any(e['event'] == 'injection_guard_software_cycle_pass' for e in board.entries))
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+
+    def test_injection_guard_catches_mutation_despite_exception(self):
+        board = InjectionGuardBoard(mutate_on_reject=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(AssertionError, '雖拒絕卻改變'):
+            tool.injection_guard_cycle(board)
+        self.assertEqual((board.temperature.enabled, board.voltage.enabled), (0, 0))
+
+    def test_injection_guard_catches_accepted_bad_key(self):
+        board = InjectionGuardBoard(accept_invalid=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(AssertionError, '誤接受'):
+            tool.injection_guard_cycle(board)
+        self.assertFalse(any(e['event'] == 'injection_guard_software_cycle_pass' for e in board.entries))
+
+    def test_injection_guard_cleanup_attempts_both(self):
+        board = InjectionGuardBoard(fail_cleanup=True)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             self.assertRaisesRegex(RuntimeError, '無法確認'):
+            tool.injection_guard_cycle(board)
+        self.assertEqual(board.disable_calls, {0x4960: 2, 0x4970: 2})
+        self.assertFalse(any(e['event'] == 'injection_guard_software_cycle_pass' for e in board.entries))
+
+    def test_injection_guard_unsupported_never_writes(self):
+        board = InjectionGuardBoard()
+        with patch.object(board, 'read', side_effect=tool.ModbusError(2)), \
+             patch.object(board, 'write_multiple') as write, self.assertRaises(tool.ModbusError):
+            tool.injection_guard_cycle(board)
+        write.assert_not_called()
 
 
 if __name__ == '__main__':

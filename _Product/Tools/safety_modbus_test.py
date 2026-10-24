@@ -671,6 +671,88 @@ def invalid_sample_cycle(client):
                physical_outputs='EVK 無效樣本保護；實際 PWM／DO 待正式板量測')
 
 
+def injection_guard_cycle(client):
+    sample_health(client)
+    diagnostic(client)
+    low_voltage_diagnostic(client)
+    require(not fault_records(client), '已有 Fault，請先查明並處理，再開始測試')
+    initial = safety(client)
+    require(initial['live'] == 0 and initial['latch'] == 0 and
+            initial['state'] == 0 and initial['inhibit'] == 0, '初始 Safety 不是正常狀態')
+    touched_temperature = touched_voltage = False
+    passed = 0
+    try:
+        touched_temperature = True
+        applied(client, 0, False)
+        touched_voltage = True
+        low_voltage_apply(client, enabled=False)
+        baseline = wait_safety(client, 0, 0, '命令防護基準')
+        temperature = diagnostic(client)
+        voltage = low_voltage_diagnostic(client)
+        cases = []
+        for name, address, readonly, value in (
+                ('temperature', 0x4960, 0x4968, 8500),
+                ('low_voltage', 0x4970, 0x4974, 0)):
+            for key in (0, 0xFFFF, 0xFE5A):
+                cases.append((name + ':wrong-key', 16, address, [1, 1, value, key], 3))
+            cases.extend([
+                (name + ':invalid-enable', 16, address, [2, 1, value, 0x5AFE], 3),
+                (name + ':invalid-flag', 16, address, [1, 2, value, 0x5AFE], 3),
+                (name + ':partial-one-word', 16, address, [1], 2),
+                (name + ':partial-three-words', 16, address, [1, 1, value], 2),
+                (name + ':extra-word', 16, address, [1, 1, value, 0x5AFE, 0], 2),
+                (name + ':fc06-enable', 6, address, [1], 2),
+                (name + ':fc06-key', 6, address + 3, [0x5AFE], 2),
+                (name + ':readonly-write', 16, readonly, [1, 1, value, 0x5AFE], 2),
+                (name + ':misaligned-write', 16, address + 3, [1, 1, value, 0x5AFE], 2),
+            ])
+        cases.extend([
+            ('actual-adc:readonly-fc06', 6, 0x4964, [1], 2),
+            ('actual-adc:readonly-fc10', 16, 0x4964, [1, 1, 8500, 0x5AFE], 2),
+        ])
+        for name, function, address, values, exception in cases:
+            try:
+                if function == 6:
+                    client.write_single(address, values[0])
+                else:
+                    client.write_multiple(address, values)
+            except ModbusError as exc:
+                require(exc.code == exception, f'{name} 異常碼不符')
+            else:
+                raise AssertionError(f'{name} 誤接受了非法注入命令')
+            current_t = diagnostic(client)
+            current_v = low_voltage_diagnostic(client)
+            require(all(current_t[k] == temperature[k] for k in
+                        ('status', 'enabled', 'valid', 'temperature', 'count', 'trip')),
+                    f'{name} 雖拒絕卻改變過溫注入／計數')
+            require(all(current_v[k] == voltage[k] for k in ('status', 'enabled', 'active', 'limit')),
+                    f'{name} 雖拒絕卻改變低電壓注入')
+            state = safety(client)
+            require(all(state[k] == baseline[k] for k in
+                        ('live', 'latch', 'state', 'inhibit', 'event_sequence', 'snapshot_sequence')) and
+                    not fault_records(client), f'{name} 改變了 Fault／Safety／Event／Snapshot')
+            passed += 1
+            client.log(event='injection_guard_rejection_pass', case=name, function=function,
+                       address=f'0x{address:04X}', exception=exception)
+    finally:
+        errors = []
+        for name, touched, disable in (
+                ('temperature', touched_temperature, lambda: applied(client, 0, False)),
+                ('low_voltage', touched_voltage, lambda: low_voltage_apply(client, enabled=False))):
+            if touched:
+                try:
+                    disable()
+                    client.log(event='cleanup', injection=name, state='disabled',
+                               fault_reset='不自動清除失敗時的 Fault')
+                except Exception as exc:
+                    errors.append(name)
+                    client.log(event='cleanup_failed', injection=name, error=str(exc))
+        if errors:
+            raise RuntimeError('無法確認注入已關閉：' + '、'.join(errors) + '；請重新上電並檢查 Fault')
+    client.log(event='injection_guard_software_cycle_pass', rejected_cases=passed,
+               physical_outputs='EVK 注入命令防護；實際 PWM／DO 待正式板量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -686,6 +768,7 @@ def main():
     sub.add_parser('multi-fault-cycle', help='雙重故障互鎖，測試兩種解除順序')
     sub.add_parser('reset-guard-cycle', help='故障重置確認碼、代碼與重複命令防護')
     sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
+    sub.add_parser('injection-guard-cycle', help='注入命令錯誤 key、參數、部分及唯讀誤寫防護')
     repeat = sub.add_parser('repeat-cycle', help='連續四項案例，檢查殘留狀態與環形紀錄覆寫')
     repeat.add_argument('--cycles', type=int, choices=range(2, 101), default=3, metavar='2..100')
     for action in ['read', 'write06', 'write10']:
@@ -750,6 +833,8 @@ def main():
                     repeat_cycle(c, args.cycles)
                 elif args.action == 'invalid-sample-cycle':
                     invalid_sample_cycle(c)
+                elif args.action == 'injection-guard-cycle':
+                    injection_guard_cycle(c)
                 elif args.action == 'read':
                     print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
                 elif args.action == 'write06':
@@ -759,7 +844,8 @@ def main():
             log(event='complete', result='PASS')
             print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in
                   ('temperature-cycle', 'low-voltage-cycle', 'multi-fault-cycle',
-                   'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle') else '操作成功。')
+                   'reset-guard-cycle', 'repeat-cycle', 'invalid-sample-cycle',
+                   'injection-guard-cycle') else '操作成功。')
         except (Exception, KeyboardInterrupt) as exc:
             log(event='complete', result='FAIL', error=str(exc))
             print(f'測試未通過，紀錄：{path}')
