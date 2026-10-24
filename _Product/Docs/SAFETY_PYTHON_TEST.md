@@ -70,7 +70,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 重置命令防護循環（EVK 待實測）
+### 重置命令防護循環（EVK 軟體流程已通過）
 
 沿用既有已通過過溫／低電壓的 SafetyTestEVK 韌體，只更新 Python，無需重新燒錄：
 
@@ -156,7 +156,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-重置防護新增離線回歸後共 18 項 Python 測試通過，新增案例確認兩項來源及 22 次拒絕、抓出錯誤 key 被接受的回歸、清理失敗不得回報通過，以及既有 Fault 時不寫入。重置命令防護 EVK 實測尚未完成；未修改 MCU 程式，實體輸出仍須正式板量測。
+重置防護新增離線回歸後共 18 項 Python 測試通過，新增案例確認兩項來源及 22 次拒絕、抓出錯誤 key 被接受的回歸、清理失敗不得回報通過，以及既有 Fault 時不寫入。未修改 MCU 程式，實體輸出仍須正式板量測。
+
+2026-10-24 18:58:48～18:59:07（台灣時間）：使用者在 EVK 執行 `reset-guard-cycle`，COM3、115200／8N1、站號 2，終端輸出顯示 22 筆 `reset_guard_rejection_pass`、兩筆來源 `0x0201`／`0x0202` 的 `reset_guard_source_pass`、兩項注入均 `disabled`、`reset_guard_software_cycle_pass` 與最終 `PASS`。錯誤確認碼 result=6、無效代碼 result=4、未成立／重複重置 result=2、條件仍成立 result=3，均符合預期；依腳本判定，各次拒絕前後的 Fault／Safety 與 Event／Snapshot 最新序號不變，兩次正確重置後正常。
+
+紀錄位於使用者電腦 `C:\safety_test_results\20261024_185848_987746.jsonl`。證據為貼出的終端輸出，完整 JSONL 尚未取得；EVK 重置命令防護記為通過，不取代正式板實體輸出量測。
 
 雙重故障新增 Python 離線回歸後共 14 項測試通過：包含兩種解除順序、剩餘故障仍成立時禁止解除輸出、任一注入清理失敗仍嘗試清理另一項、Ctrl+C 清理、舊韌體不支援及既有故障時不寫入。沒有更動 MCU 程式。
 
