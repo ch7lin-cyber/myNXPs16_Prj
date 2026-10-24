@@ -307,6 +307,20 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:07:58～21:08:02（台灣時間）：使用者依一般 Debug BIN 下載及 APP 啟動步驟，上傳 `貼上的文字 (1)(20261024-130815).txt`；執行 `--port COM8 production-guard-cycle`，`start.port=COM8`、站號 2，工具設定 115200／8N1。
+
+已逐筆解析：FC03 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 4 筆、FC10 5 筆，全部 exception=2；`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定前後 Fault count／Safety／Event／Snapshot 不變。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_210758_624886.jsonl`；已取得終端輸出，完整 JSONL 尚未取得。
+
+目前入口封鎖結果依使用者操作流程彙整如下（每組均 73 項拒絕）：
+
+| 組態 | CH340 COM3 | USB CDC COM8 | 具名 AXF 符號檢查 |
+|---|---|---|---|
+| Debug | PASS，20:45:13 | PASS，21:07:58 | PASS，20:52:37 |
+| Release | PASS，20:57:25 | PASS，21:04:03 | PASS，20:57:40 |
+
+四組入口封鎖回報均已取得，兩個組態的指定具名測試符號均未發現。表中組態依前後操作步驟及 AXF 路徑記錄；終端通訊結果本身沒有建置組態／映像雜湊識別，仍待補充建置巨集審核、建置報表與各次下載 BIN 對應。此表不代表全部 Safety 功能、所有通訊模式或實體輸出已通過。
+
+
 2026-10-24 21:04:03～21:04:07（台灣時間）：沿用目前 Release APP，使用者上傳 `貼上的文字 (1)(20261024-130420).txt`。清單顯示 COM8「USB 序列裝置」、COM3「USB-SERIAL CH340」，這次選擇第 2 項，`start.port=COM8`，確定與先前 CH340 COM3 路徑不同。
 
 已逐筆解析 `production-guard-cycle`：FC03 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 4 筆、FC10 5 筆，全部 exception=2；`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定前後 Fault count／Safety／Event／Snapshot 不變。站號 2、工具設定 115200／8N1（USB CDC 實際傳輸速率不由此 baud 決定），JSONL 位於 `C:\Users\ch\safety_test_results\20261024_210403_620501.jsonl`。

@@ -279,6 +279,8 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+- [x] Debug USB CDC 測試入口封鎖（COM8）：2026-10-24 21:07:58～21:08:02（台灣時間），使用者依一般 Debug BIN 下載步驟回傳 COM8 紀錄，64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項全部 exception=2，最終 PASS；依腳本判定前後 Fault／Safety／紀錄不變。JSONL 檔名 `20261024_210758_624886.jsonl`；已審核終端輸出，完整 JSONL 未取得。依本次操作流程，Debug／Release 在 COM3 與 USB CDC COM8 四組入口封鎖結果均已取得。
+
 - [x] Release USB CDC 測試入口封鎖（COM8）：2026-10-24 21:04:03～21:04:07（台灣時間），使用者選擇清單第 2 項 COM8「USB 序列裝置」，64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項全部 exception=2，最終 PASS；依腳本判定前後 Fault／Safety／紀錄不變。站號 2，JSONL 檔名 `20261024_210403_620501.jsonl`；終端輸出已審核，完整 JSONL 未取得。先前 21:00:56 的重跑仍選 COM3，不能計入 USB CDC。Debug 在 USB CDC 上的封鎖結果仍未取得。
 
 - [x] Release 測試入口封鎖與 AXF 具名符號（本次 COM3）：2026-10-24 20:57:25～20:57:40（台灣時間），使用者依 Release 測試步驟上傳終端紀錄；64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項均 exception=2，AXF 已定義符號 1847 個、禁止符號空陣列，兩項最終 PASS。Release AXF 為 1495256 bytes、入口 0x00008171、SHA-256=`06bfdab1eb4ea9c783f0679f9d0d8796ce46ff032029669ee6b690ed952e9904`。JSONL 檔名 `20261024_205725_863328.jsonl`／`20261024_205740_363674.jsonl`；已審核終端輸出，完整 JSONL／AXF 本體未取得。
@@ -286,7 +288,7 @@ PlatformCore 基準：`80081ed`
 - [x] 本次 Debug AXF 具名測試符號檢查：2026-10-24 20:52:37（台灣時間），使用者執行 `production-symbol-check` 回報 PASS；檔案 2674720 bytes、入口 0x00008171、已定義符號 1928 個，指定禁止符號為空。SHA-256=`79a4308ac6a77eb51a494cad2a219a947f879afd2ab70779d02f307093fbfe42`，紀錄檔名 `20261024_205237_149509.jsonl`。證據為終端輸出，AXF／完整 JSONL 尚未取得；LTO 內嵌及匿名狀態仍須搭配建置巨集審核與同次映像 Register 封鎖。
 
 - [x] 本次韌體映像的測試入口封鎖（COM3）：2026-10-24 20:45:13～20:45:18（台灣時間），使用者上傳 `production-guard-cycle` 終端紀錄，64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項均 exception=2，最終 PASS；依腳本判定 Fault／Safety／紀錄前後不變。115200／8N1、站號 2，JSONL 檔名 `20261024_204513_967980.jsonl`；已審核上傳終端輸出，完整 JSONL 尚未取得。
-- [ ] 正式組態封鎖補驗：Debug／Release 路徑 AXF 的具名符號檢查及 SHA-256、兩次 COM3 Register 封鎖均已回報 PASS；仍待建置報表、三個巨集排除審核與各次下載 BIN 對應確認。Release 已補驗 USB CDC COM8；Debug 的 USB CDC 路徑仍須重測 `production-guard-cycle`。LTO 內嵌及匿名狀態不能僅由符號掃描排除。
+- [ ] 正式組態封鎖補驗：Debug／Release 路徑 AXF 的具名符號檢查及 SHA-256、兩次 COM3 Register 封鎖均已回報 PASS；仍待建置報表、三個巨集排除審核與各次下載 BIN 對應確認。Debug／Release 的 USB CDC COM8 亦已回報 PASS，四組通訊封鎖結果已補齊。LTO 內嵌及匿名狀態不能僅由符號掃描排除。
 
 - [x] SafetyTestEVK 雙重故障四路 PWM 互鎖：2026-10-24 20:34:29～20:34:41（台灣時間），使用者執行 `pwm-multi-fault-cycle` 回報 PASS；先清過溫／先清低電壓兩種順序均通過，雙故障及第一項 Reset 後四路套用 Duty=0，剩餘故障及最後鎖存保持抑制，最後 Reset 才恢復最新要求值 200／300／400／500 permille。結束四路 Duty=0、原週期／模式還原、兩項注入關閉。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_203429_623912.jsonl`；證據為終端輸出，完整 JSONL 尚未取得。實體波形與正式板仍待測。
 
