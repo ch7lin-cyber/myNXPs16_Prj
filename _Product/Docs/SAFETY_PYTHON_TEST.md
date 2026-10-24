@@ -71,6 +71,25 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
+### 正式 AXF 具名測試符號檢查（新增，待檢查使用者 AXF）
+
+沿用剛完成入口封鎖測試時的一般 Debug／Release 建置，**不需重新燒錄、不需連線 COM**，也不需要 pyserial 或額外安裝 nm。更新 Python 後執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py production-symbol-check --axf "E:\myGitHub\myNXPs16_Prj\Debug\myNXPs16_Prj.axf"
+```
+
+若當次使用 Release，將路徑中的 `Debug` 改為 `Release`；請選擇與下載 BIN 同一次建置的 AXF，不使用 SafetyTestEVK 的 AXF。本命令不呼叫任何 Modbus 操作，不要求切換或重啟 MCU。
+
+腳本以標準 Python 讀取 ELF32 little-endian ARM executable 的完整 SHT_SYMTAB，檢查入口位於現行 APP `0x8000..0x21FFF`、包含 ResetISR／Reset_Handler，並掃描全域及區域的已定義符號。拒絕名稱包含 `ProductSafetyTest_` 或 `ProductInternalAdcDriver_SetMcuTemperatureTestOverride` 的符號，也涵蓋 `.constprop`／`.isra` 等保留原名的 LTO 後綴；未定義項目及來源檔名不列入本次已定義符號掃描。
+
+紀錄包含 AXF 絕對路徑、檔案大小、SHA-256、入口、已定義符號數與命中的禁止符號；沒有命中時回報 `production_symbol_check_pass` 及最終 PASS。檔案不存在、BIN／MAP、非 ARM、Bootloader、檔案截斷／格式錯誤、缺少符號表或 Reset 符號均 FAIL，不能把空掃描當通過。JSONL 與其他測試一樣放在目前工作目錄的 `safety_test_results`。
+
+**判定範圍：只確認指定具名測試符號未出現。** LTO 可能內嵌或重新命名函式，測試 RAM 成員與匿名狀態不一定有獨立符號。因此仍須確認整個一般組態沒有定義三個測試／EVK 巨集，並搭配同次映像的 `production-guard-cycle`；本檢查不取代建置設定審核，也不能單獨證明測試程式或 RAM 狀態完全移除。SHA-256 識別所檢查 AXF，無法單憑此值證明 MCU 已下載同次 BIN。
+
+新增後共 **64 項 Python 離線回歸通過**：使用合成 ARM ELF 測試成功、區域／全域及 LTO 後綴測試符號、stripped／錯誤架構／Bootloader、損壞 symbol table／名稱、離線 CLI JSONL 與檔案不存在。尚未收到使用者同次建置 AXF 的實測結果；未修改 MCU 程式。
+
+
 ### 一般 Debug／Release 測試入口封鎖（本次映像／COM3 已通過）
 
 此案例需要切換韌體，不能沿用目前的 SafetyTestEVK BIN：

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """SafetyTest 上板工具：FC03／06／10、過溫／低電壓循環與 JSONL 紀錄。"""
 import argparse
+import hashlib
 import datetime
 import json
 import pathlib
@@ -1071,6 +1072,79 @@ def production_guard_cycle(client):
                scope='本次韌體及通訊路徑的測試 Register 封鎖；不代表 ELF 中不存在測試符號')
 
 
+
+def check_production_axf(path, log):
+    path = pathlib.Path(path)
+    data = path.read_bytes()
+    require(len(data) >= 52 and data[:7] == b'\x7fELF\x01\x01\x01',
+            '必須提供 ELF32 little-endian AXF，不能使用 BIN／MAP')
+    header = struct.unpack_from('<HHIIIIIHHHHHH', data, 16)
+    kind, machine, version, entry, _, section_offset = header[:6]
+    require(kind == 2 and machine == 40 and version == 1, '不是 ARM 可執行 AXF')
+    require(0x8000 <= (entry & ~1) < 0x22000, 'AXF 入口不在目前 APP 分區，請勿選 Bootloader')
+    section_size, section_count = header[10:12]
+    require(section_size == 40 and section_count > 0 and section_offset >= 52 and
+            section_offset + section_size * section_count <= len(data), 'ELF section table 不完整')
+    sections = [struct.unpack_from('<10I', data, section_offset + i * 40)
+                for i in range(section_count)]
+
+    def section_bytes(section):
+        offset, size = section[4:6]
+        require(offset <= len(data) and size <= len(data) - offset, 'ELF section 內容超出檔案')
+        return data[offset:offset + size]
+
+    names = []
+    for section in sections:
+        if section[1] != 2:  # SHT_SYMTAB: dynamic-only/stripped images are insufficient.
+            continue
+        require(section[9] == 16 and section[5] % 16 == 0 and section[6] < len(sections),
+                'ELF symbol table 格式錯誤')
+        strings_section = sections[section[6]]
+        require(strings_section[1] == 3, 'ELF symbol string table 格式錯誤')
+        strings = section_bytes(strings_section)
+        symbols = section_bytes(section)
+        for offset in range(0, len(symbols), 16):
+            name_offset, _, _, info, _, index = struct.unpack_from('<IIIBBH', symbols, offset)
+            require(name_offset < len(strings), 'ELF symbol name 超出範圍')
+            end = strings.find(b'\0', name_offset)
+            require(end >= 0, 'ELF symbol name 未結束')
+            if index and name_offset and info & 15 != 4:  # Skip undefined and source-file names.
+                names.append(strings[name_offset:end].decode('utf-8', errors='replace'))
+    require(names and any(n in ('ResetISR', 'Reset_Handler') for n in names),
+            '缺少完整符號表／Reset 符號，不能將 stripped AXF 判定通過')
+    forbidden = sorted({n for n in names if 'ProductSafetyTest_' in n or
+                        'ProductInternalAdcDriver_SetMcuTemperatureTestOverride' in n})
+    log(event='axf_inspection', path=str(path.resolve()), bytes=len(data),
+        sha256=hashlib.sha256(data).hexdigest(), entry=f'0x{entry:08X}',
+        defined_symbols=len(names), forbidden_symbols=forbidden)
+    require(not forbidden, 'AXF 仍含測試符號：' + '、'.join(forbidden))
+    log(event='production_symbol_check_pass',
+        scope='已定義具名測試符號未出現；LTO 內嵌及匿名狀態須搭配建置巨集與 Register 封鎖驗證')
+
+
+def production_symbol_check(args):
+    args.log_dir.mkdir(parents=True, exist_ok=True)
+    path = args.log_dir / (datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f') + '.jsonl')
+    result = 0
+    with path.open('x', encoding='utf-8') as file:
+        def log(**entry):
+            entry['time'] = datetime.datetime.now().astimezone().isoformat()
+            file.write(json.dumps(entry, ensure_ascii=False) + '\n')
+            file.flush()
+            print(json.dumps(entry, ensure_ascii=False))
+        log(event='start', action=args.action, axf=str(args.axf))
+        try:
+            check_production_axf(args.axf, log)
+            log(event='complete', result='PASS')
+            print('通過：AXF 未發現指定的已定義測試符號。')
+        except (Exception, KeyboardInterrupt) as exc:
+            log(event='complete', result='FAIL', error=str(exc))
+            print('測試未通過，請查看紀錄。')
+            result = 1
+    print(f'紀錄：{path}')
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -1088,6 +1162,8 @@ def main():
     sub.add_parser('invalid-sample-cycle', help='無效溫度樣本不得誤觸發或解除過溫')
     sub.add_parser('injection-guard-cycle', help='注入命令錯誤 key、參數、部分及唯讀誤寫防護')
     sub.add_parser('broadcast-guard-cycle', help='站號 0 不得啟用測試注入或回覆，限單台 DUT 測試線')
+    axf = sub.add_parser('production-symbol-check', help='離線檢查一般 Debug／Release AXF 的具名測試符號')
+    axf.add_argument('--axf', type=pathlib.Path, required=True, help='同次一般組態建置的 AXF 路徑')
     sub.add_parser('production-guard-cycle', help='一般 Debug／Release 測試 Register 封鎖，僅送零／停用值')
     sub.add_parser('pwm-multi-fault-cycle', help='EVK 雙重故障四路 PWM 互鎖，兩種重置順序')
     sub.add_parser('pwm-inhibit-cycle', help='EVK 四路 PWM 要求值／套用值的安全抑制循環')
@@ -1102,6 +1178,8 @@ def main():
             p.add_argument('values', type=number, nargs='+' if action == 'write10' else 1)
     args = parser.parse_args()
     args.action = args.action or 'temperature-cycle'
+    if args.action == 'production-symbol-check':
+        return production_symbol_check(args)
     if args.timeout <= 0:
         parser.error('timeout 必須大於零')
     try:

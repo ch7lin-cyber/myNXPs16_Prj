@@ -3,12 +3,32 @@ import importlib.util
 import itertools
 from pathlib import Path
 import struct
+import hashlib
+import json
+import tempfile
 import unittest
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('safety_tool', Path(__file__).parents[1]/'Tools/safety_modbus_test.py')
 tool = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tool)
+
+
+
+def arm_axf_fixture(names=('ResetISR', 'main'), entry=0x8001, machine=40, symtab=True):
+    strings = b'\0'
+    symbols = bytes(16)
+    for name in names:
+        offset = len(strings)
+        strings += name.encode() + b'\0'
+        symbols += struct.pack('<IIIBBH', offset, 0x8001, 4, 0x12, 0, 1)
+    shoff, dataoff = 52, 52 + 3 * 40
+    ident = b'\x7fELF\x01\x01\x01' + bytes(9)
+    header = struct.pack('<HHIIIIIHHHHHH', 2, machine, 1, entry, 0, shoff, 0, 52, 0, 0, 40, 3, 0)
+    strsec = struct.pack('<10I', 0, 3, 0, 0, dataoff, len(strings), 0, 0, 1, 0)
+    symsec = struct.pack('<10I', 0, 2 if symtab else 0, 0, 0,
+                         dataoff + len(strings), len(symbols), 1, 0, 4, 16)
+    return ident + header + bytes(40) + strsec + symsec + strings + symbols
 
 
 class FakePort:
@@ -922,6 +942,84 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, '無法判定'):
             tool.production_guard_cycle(board)
         self.assertFalse(any(e['event'] == 'production_guard_cycle_pass' for e in board.entries))
+
+
+    def test_axf_check_records_hash_and_defined_symbol_count(self):
+        data = arm_axf_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'firmware.axf'
+            path.write_bytes(data)
+            entries = []
+            tool.check_production_axf(path, lambda **e: entries.append(e))
+        self.assertEqual(entries[0]['sha256'], hashlib.sha256(data).hexdigest())
+        self.assertEqual(entries[0]['defined_symbols'], 2)
+        self.assertEqual(entries[-1]['event'], 'production_symbol_check_pass')
+
+    def test_axf_check_detects_global_local_and_lto_test_names(self):
+        for name in ('ProductSafetyTest_Process', 'ProductSafetyTest_Write.constprop.0',
+                     'ProductInternalAdcDriver_SetMcuTemperatureTestOverride.isra.0'):
+            data = bytearray(arm_axf_fixture(('ResetISR', name)))
+            # Make the forbidden symbol local to verify this is not a global-only scan.
+            data[-4] = 2
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'firmware.axf'
+                path.write_bytes(data)
+                with self.subTest(name=name), self.assertRaisesRegex(AssertionError, '仍含測試符號'):
+                    tool.check_production_axf(path, lambda **e: None)
+
+    def test_axf_check_rejects_stripped_and_wrong_architecture_or_boot(self):
+        for data in (arm_axf_fixture(symtab=False), arm_axf_fixture(names=('main',)),
+                     arm_axf_fixture(machine=62), arm_axf_fixture(entry=0x101),
+                     arm_axf_fixture(entry=0x22001), b'not an AXF'):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'firmware.axf'
+                path.write_bytes(data)
+                with self.subTest(data=data[:20]), self.assertRaises(AssertionError):
+                    tool.check_production_axf(path, lambda **e: None)
+
+    def test_axf_check_truncated_and_invalid_symbol_tables_fail(self):
+        valid = arm_axf_fixture()
+        corrupt = bytearray(valid)
+        struct.pack_into('<I', corrupt, 52 + 2 * 40 + 24, 99)  # Invalid linked string table.
+        bad_name = bytearray(valid)
+        struct.pack_into('<I', bad_name, len(valid) - 16, 99999)
+        for data in (valid[:20], valid[:100], valid[:-1], corrupt, bad_name):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'firmware.axf'
+                path.write_bytes(data)
+                with self.subTest(size=len(data)), self.assertRaises(AssertionError):
+                    tool.check_production_axf(path, lambda **e: None)
+
+    def test_axf_cli_runs_offline_without_pyserial_and_writes_jsonl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'firmware.axf'
+            path.write_bytes(arm_axf_fixture())
+            logdir = Path(directory) / 'logs'
+            with patch('sys.argv', ['tool', '--log-dir', str(logdir),
+                                   'production-symbol-check', '--axf', str(path)]), \
+                 patch.dict('sys.modules', {'serial': None}), patch('builtins.print'):
+                self.assertEqual(tool.main(), 0)
+            entries = [json.loads(line) for line in next(logdir.glob('*.jsonl')).read_text().splitlines()]
+            self.assertEqual(entries[-1]['result'], 'PASS')
+            self.assertNotIn('port', entries[0])
+
+    def test_axf_cli_missing_file_records_fail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch('sys.argv', ['tool', '--log-dir', directory, 'production-symbol-check',
+                                   '--axf', str(Path(directory) / 'missing.axf')]), patch('builtins.print'):
+                self.assertEqual(tool.main(), 1)
+            entries = [json.loads(line) for line in next(Path(directory).glob('*.jsonl')).read_text().splitlines()]
+            self.assertEqual(entries[-1]['result'], 'FAIL')
+
+    def test_axf_cli_test_firmware_records_fail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'firmware.axf'
+            path.write_bytes(arm_axf_fixture(('ResetISR', 'ProductSafetyTest_Read')))
+            with patch('sys.argv', ['tool', '--log-dir', directory, 'production-symbol-check',
+                                   '--axf', str(path)]), patch('builtins.print'):
+                self.assertEqual(tool.main(), 1)
+            entries = [json.loads(line) for line in next(Path(directory).glob('*.jsonl')).read_text().splitlines()]
+            self.assertEqual(entries[-1]['result'], 'FAIL')
 
 
 if __name__ == '__main__':
