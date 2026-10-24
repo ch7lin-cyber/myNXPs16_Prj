@@ -71,7 +71,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
-### 正式 AXF 具名測試符號檢查（本次 Debug AXF 已通過）
+### 正式 AXF 具名測試符號檢查（本次 Debug／Release AXF 均已通過）
 
 沿用剛完成入口封鎖測試時的一般 Debug／Release 建置，**不需重新燒錄、不需連線 COM**，也不需要 pyserial 或額外安裝 nm。更新 Python 後執行：
 
@@ -305,6 +305,23 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+
+2026-10-24 20:57:25～20:57:40（台灣時間）：使用者依前一步 Release 組態測試流程，上傳 `貼上的文字 (1)(20261024-125751).txt`，內容為 COM3 `production-guard-cycle` 及 Release 路徑 `production-symbol-check` 的終端輸出。
+
+已逐筆解析核對 73 筆拒絕：FC03 的 64 個位址連續涵蓋 `0x4960..0x499F`、FC06 共 4 筆、FC10 共 5 筆，全部 exception=2，`production_guard_cycle_pass` rejected_cases=73，最終 PASS。依腳本判定，前後 Fault count／Safety／Event／Snapshot 狀態不變。COM3、115200／8N1、站號 2；JSONL 位於 `C:\Users\ch\safety_test_results\20261024_205725_863328.jsonl`。
+
+| Release AXF 欄位 | 本次結果 |
+|---|---|
+| 路徑 | `E:\myGitHub\myNXPs16_Prj\Release\myNXPs16_Prj.axf` |
+| 檔案大小 | 1495256 bytes（含符號／除錯資訊，不代表 Flash payload） |
+| ARM APP 入口 | `0x00008171` |
+| 已定義符號數 | 1847 |
+| 指定禁止符號 | 空陣列 `[]` |
+| SHA-256 | `06bfdab1eb4ea9c783f0679f9d0d8796ce46ff032029669ee6b690ed952e9904` |
+| JSONL | `C:\Users\ch\safety_test_results\20261024_205740_363674.jsonl` |
+
+Release AXF 檢查回報 `production_symbol_check_pass` 及最終 PASS。兩項記為本次 Release 驗證流程通過；已取得終端輸出，尚未取得完整 JSONL、AXF 本體及建置／下載紀錄。Debug／Release 的本次具名符號結果均已通過，但各次下載 BIN 對應、三個巨集排除與另一通訊介面仍待補驗；不由此推定 LTO 內嵌程式或匿名 RAM 狀態均已獨立排除。
 
 
 2026-10-24 20:52:37（台灣時間）：使用者執行 `production-symbol-check --axf "E:\myGitHub\myNXPs16_Prj\Debug\myNXPs16_Prj.axf"`，回報 `production_symbol_check_pass` 及最終 PASS。
