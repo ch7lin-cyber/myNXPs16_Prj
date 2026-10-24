@@ -307,6 +307,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:27:46～21:27:53（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 injection-guard-cycle`，USB CDC、站號 2，工具設定 115200／8N1。終端顯示 26 筆 `injection_guard_rejection_pass`：兩項來源各有 3 筆 wrong-key、invalid-enable、invalid-flag，合計 10 筆 exception=3；部分／超長寫入、FC06 enable／key、唯讀與跨界誤寫，另加實際 ADC 唯讀 FC06／FC10，共 16 筆 exception=2。
+
+依腳本判定，各次拒絕後注入參數與 Fault／Safety／Event／Snapshot 不變。兩項 cleanup 均 disabled，`injection_guard_software_cycle_pass` rejected_cases=26，最終 `complete` PASS。本次記為 USB CDC COM8 注入命令防誤寫通過；JSONL 位於 `C:\Users\ch\safety_test_results\20261024_212746_156073.jsonl`，證據為貼出的終端輸出，完整 JSONL 未取得。USB 廣播及 PWM 案例不由本次推定通過，實體 PWM／DO 仍待量測。
+
+
 2026-10-24 21:22:29～21:22:43（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 invalid-sample-cycle`，USB CDC、站號 2，工具設定 115200／8N1。兩筆 `invalid_sample_hold_pass` 均 actual_valid=false、minimum_hold_seconds=3.2：無效高溫要求 8500 時 count=0、trip=false，已過溫後無效低溫要求 8499 時 count=3、trip=true。
 
 依腳本判定，無效樣本未更新最後有效值／有效序號，沒有誤改 Fault／Safety／Event／Snapshot；既有過溫未被無效低溫解除，該階段 Reset 被拒絕，最後有效降溫及正確重置後恢復正常。溫度注入清理回報 disabled，`invalid_sample_software_cycle_pass` 及最終 `complete` PASS。
