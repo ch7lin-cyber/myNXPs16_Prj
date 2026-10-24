@@ -279,7 +279,7 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
-- [ ] SafetyTestEVK 四路 PWM 服務抑制：已新增 `0x4980..0x499F` 唯讀診斷及 Python `pwm-inhibit-cycle`，Host adapter／服務／HAL 與 46 項 Python 回歸通過；待重新燒錄後確認兩項故障各自使四路套用值歸零、鎖存及保護期間改寫不能輸出、Reset 後才恢復最後要求值，結束 Duty=0 並還原週期／模式。只允許 EVK；實機及實體波形尚未完成。
+- [x] SafetyTestEVK 四路 PWM 服務抑制：2026-10-24 20:22:59～20:23:06（台灣時間），使用者執行 `pwm-inhibit-cycle` 回報 PASS；過溫 0x0201／低電壓 0x0202 各自使四路套用 Duty 歸零，保護期間改寫僅更新要求值，條件恢復後鎖存仍抑制，正確 Reset 後恢復最後要求值。結束四路 Duty=0、原週期／模式還原、兩項注入關閉。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_202259_516547.jsonl`；證據為終端輸出，完整 JSONL 尚未取得。套用值表示服務獲 HAL 成功回覆，實體波形與正式板仍待測。
 - [x] SafetyTestEVK 廣播注入防護（本次 COM3 路徑）：2026-10-24 20:04:28～20:04:43（台灣時間），使用者執行 `broadcast-guard-cycle` 回報 PASS。站號 0 的 6 種 FC06／FC10 注入命令各觀察 2 秒無回覆，站號 2 讀回參數與 Fault／Safety／Event／Snapshot 不變，兩項注入關閉。115200／8N1，JSONL 檔名 `20261024_200428_761420.jsonl`；證據為終端輸出，完整 JSONL 尚未取得。另一傳輸介面及目標板 busy 時序、實體輸出仍待測。
 - [x] SafetyTestEVK 注入命令防誤寫：2026-10-24 19:44:00～19:44:08（台灣時間），使用者執行 `injection-guard-cycle` 回報 PASS，26 種錯誤 key／參數／FC06／部分寫入／唯讀與跨界誤寫全部正確拒絕；依腳本判定注入參數與 Fault／Safety／Event／Snapshot 不變，兩項注入已關閉。COM3、115200／8N1、站號 2，JSONL 檔名 `20261024_194400_196361.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，目標板廣播／忙碌時序及實體輸出仍未驗證。
 - [x] SafetyTestEVK 無效 MCU 溫度樣本：2026-10-24 19:36:44～19:36:57（台灣時間），使用者執行 `invalid-sample-cycle` 回報 PASS；無效 85°C 實際 valid=false、count=0、trip=false，既有過溫後無效 84.99°C 實際 valid=false、count=3、trip=true，兩段各觀察至少 3.2 秒；有效低溫及正確 Reset 後恢復，注入關閉。COM3、115200／8N1、站號 2，紀錄檔名 `20261024_193644_508652.jsonl`；證據為終端輸出，完整 JSONL 尚未取得，實體輸出仍待量測。

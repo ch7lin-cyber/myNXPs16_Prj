@@ -248,7 +248,14 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-PWM 服務抑制新增回歸後共 46 項 Python 離線測試通過，涵蓋兩個來源、四通道、保護期間改寫、提早恢復／未抑制／不恢復的偵測、拒絕非 EVK 與既有非零輸出、PWM 清理失敗仍清理兩項注入。Host 實際 Modbus adapter＋PwmOutputService＋HalPwm＋mock driver 測試確認診斷與 HAL Duty 一致、抑制時四路歸零、解除後恢復、讀取邊界及唯讀限制；正式 DEBUG=1／0 Modbus 仍不公開此區。靜態測試狀態仍為 48 bytes SRAMX，無新增靜態 RAM；目標 ARM 建置與 PWM EVK 實測尚未完成。
+PWM 服務抑制新增回歸後共 46 項 Python 離線測試通過，涵蓋兩個來源、四通道、保護期間改寫、提早恢復／未抑制／不恢復的偵測、拒絕非 EVK 與既有非零輸出、PWM 清理失敗仍清理兩項注入。Host 實際 Modbus adapter＋PwmOutputService＋HalPwm＋mock driver 測試確認診斷與 HAL Duty 一致、抑制時四路歸零、解除後恢復、讀取邊界及唯讀限制；正式 DEBUG=1／0 Modbus 仍不公開此區。靜態測試狀態仍為 48 bytes SRAMX，無新增靜態 RAM；PWM EVK 軟體流程結果如下；尚未取得目標 ARM 建置報表，實體波形仍待量測。
+
+
+2026-10-24 20:22:59～20:23:06（台灣時間）：使用者在 EVK 執行 `pwm-inhibit-cycle`，COM3、115200／8N1、站號 2，兩項來源各回報 `pwm_nonzero_pass`、`pwm_inhibited_pass`、`pwm_write_while_inhibited_pass` 及 `pwm_inhibit_source_pass`，最後 `pwm_inhibit_software_cycle_pass`（channels=4、sources=2）及最終 PASS。
+
+過溫 `0x0201` 與低電壓 `0x0202` 的四路要求／套用值最初為 100／200／300／400 permille；故障後套用值全為 0、inhibited=1。抑制期間改寫為 200／300／400／500 permille，要求值更新而套用值保持 0；依腳本判定，條件恢復後鎖存仍抑制，正確 Reset 後套用值才恢復為最後要求值、inhibited=0。各通道回報 period=10、mode=0、hal_initialized=1、evk=1。
+
+清理回報四路 PWM 歸零、原週期／模式已還原、Duty 保持零，過溫及低電壓注入均關閉。JSONL 位於使用者電腦 `C:\Users\ch\safety_test_results\20261024_202259_516547.jsonl`；證據為貼出的終端輸出，完整 JSONL 尚未取得。本次記為 EVK 四路 PWM 服務抑制通過；套用值代表服務已取得 HAL 成功回覆，實際 PWM 波形、DO 電位及正式板仍待量測。
 
 廣播防護新增回歸後共 39 項 Python 離線測試通過：新增實際站號 0 RTU frame／CRC／TX 排空、靜默觀察、回覆或 Echo 時失敗且還原 timeout、禁止廣播其他產品位址、六種命令參數不變、抓出廣播被套用，以及清理失敗不得通過。無 MCU 程式變更。
 
