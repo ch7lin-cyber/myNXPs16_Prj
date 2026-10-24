@@ -70,7 +70,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 注入命令防誤寫（新增，EVK 待實測）
+### 注入命令防誤寫（EVK 軟體流程已通過）
 
 使用剛通過無效樣本測試的 SafetyTestEVK 韌體即可，本次只更新 Python，不需重新燒錄：
 
@@ -210,7 +210,11 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 
 ## 驗證狀態
 
-注入防誤寫新增回歸後共 33 項 Python 離線測試通過，新增 26 種拒絕成功、回異常碼卻改參數的偵測、錯誤 key 被接受的偵測、兩項清理均須嘗試及清理失敗不得通過、舊韌體不寫入等案例。無 MCU 程式變更，EVK 命令防誤寫實測尚未完成。
+注入防誤寫新增回歸後共 33 項 Python 離線測試通過，新增 26 種拒絕成功、回異常碼卻改參數的偵測、錯誤 key 被接受的偵測、兩項清理均須嘗試及清理失敗不得通過、舊韌體不寫入等案例。無 MCU 程式變更。
+
+2026-10-24 19:44:00～19:44:08（台灣時間）：使用者在 EVK 執行 `injection-guard-cycle`，COM3、115200／8N1、站號 2。終端輸出為 26 筆 `injection_guard_rejection_pass`，錯誤 key／非法參數均 exception=3，部分／超長／FC06／唯讀／跨界寫入均 exception=2；最後兩項注入 `disabled`、`injection_guard_software_cycle_pass`（rejected_cases=26）及最終 PASS。
+
+依腳本判定，每次拒絕後的注入參數、Fault／Safety 狀態、Event／Snapshot 最新序號均不變。JSONL 位於使用者電腦 `C:\safety_test_results\20261024_194400_196361.jsonl`；證據為貼出的終端輸出，完整 JSONL 尚未取得。EVK 注入命令防誤寫記為通過；目標板廣播／忙碌時序及實體 PWM／DO 仍待測，不能由這 26 項推定全部介面情境均已完成。
 
 無效樣本新增回歸後共 28 項 Python 離線測試通過，新增成功路徑、無效樣本誤解除保護的偵測、舊韌體不寫入及清理失敗不得通過。真實 ADC driver／SafetyTest 命令 Host 測試確認實際 valid、最後有效溫度、無效低溫保留三次過溫狀態及讀取邊界。靜態測試狀態仍為 48 bytes SRAMX，只有額外唯讀欄位與程式碼；目標 ARM 建置報表尚未取得。
 
