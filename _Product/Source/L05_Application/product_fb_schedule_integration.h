@@ -7,6 +7,7 @@
 #include "FbMovingAverage.h"
 #include "product_fb_moving_average_adapter.h"
 #include "product_alarm_logic_adapter.h"
+#include "product_pv_processing_adapter.h"
 
 /* Debug-only observation; disabled builds allocate no trace storage. */
 #ifndef PRODUCT_FB_CH0_TRACE_ENABLED
@@ -39,6 +40,13 @@ extern "C" {
 #endif
 
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms);
+bool ProductFbScheduleIntegration_ConfigureCh0PvProcessing(const ProductPvProcessingConfig *config);
+bool ProductFbScheduleIntegration_GetCh0ProcessedPv(ProductPvProcessingOutput *output);
+typedef enum { PRODUCT_CH0_ALARM_PV_RAW=0,
+               PRODUCT_CH0_ALARM_PV_PROCESSED } ProductCh0AlarmPvSource;
+/* Main loop only; changing source requires all CH0 alarms disabled. */
+bool ProductFbScheduleIntegration_SetCh0AlarmPvSource(ProductCh0AlarmPvSource source);
+ProductCh0AlarmPvSource ProductFbScheduleIntegration_GetCh0AlarmPvSource(void);
 void ProductFbScheduleIntegration_Process(uint32_t now_ms);
 /* Main-loop configuration and command APIs are on this product-owned adapter. */
 ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(void);

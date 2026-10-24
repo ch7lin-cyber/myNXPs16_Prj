@@ -24,6 +24,8 @@ typedef struct
     int32_t engineering_value;
     uint32_t conversion_flags;
     uint32_t sample_sequence;
+    uint32_t processed_timestamp_ms; /* first processing of this sequence, not ADC capture */
+    bool processed_timestamp_valid;
     uint16_t sensor_type;
     uint16_t input_error;
     bool valid;
@@ -31,6 +33,8 @@ typedef struct
 
 void ProductSensorMeasurementService_Initialize(void);
 bool ProductSensorMeasurementService_Process(uint8_t channel);
+/* Common product monotonic clock; repeated sequence does not refresh time. */
+bool ProductSensorMeasurementService_ProcessAt(uint8_t channel, uint32_t now_ms);
 bool ProductSensorMeasurementService_GetSnapshot(
     uint8_t channel,
     ProductSensorMeasurementSnapshot_t *snapshot);

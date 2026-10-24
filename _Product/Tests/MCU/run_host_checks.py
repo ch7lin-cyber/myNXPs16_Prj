@@ -22,9 +22,12 @@ with tempfile.TemporaryDirectory() as tmp:
             cmd += ['-I',str(inc)]
         cmd += [str(test)] + [str(source / name) for name in (
             'product_fb_schedule.c','product_fb_moving_average_adapter.c',
-            'product_fb_schedule_integration.c','product_alarm_logic_adapter.c')]
+            'product_fb_schedule_integration.c','product_alarm_logic_adapter.c',
+            'product_pv_processing_adapter.c')]
         cmd += [str(utility/'FbMovingAverage.c'),str(utility/'FbLogic.c'),
-                str(utility.parent/'Alarm/FbAlarm.c'),'-lm','-o',str(exe)]
+                str(utility.parent/'Alarm/FbAlarm.c'), str(utility/'FbLinearization.c'),
+                str(utility/'FbSignalLinearization.c'), str(utility/'FbInputSwitchOver.c'),
+                '-lm','-o',str(exe)]
         subprocess.run(cmd,check=True)
         csv = Path(tmp) / 'host_only.csv'
         subprocess.run([str(exe)] + ([str(csv)] if enabled else []),check=True)

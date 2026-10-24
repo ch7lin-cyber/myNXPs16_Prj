@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：L04 FbCascadeCoordinator 的MV→SV核心已完成並通過Host／ASan／UBSan，包括專案線性映射、絕對／偏差界限、Offset與明確時間濾波。非DTDM04完整公式／Filter Num相容結論；以下未實作敘述為原盤點歷史。詳見 [正式規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbCascadeCoordinator/README.md)。雙PID／L05、AT／校準、anti-windup、副控保護與產品持久化仍未完成。
+
 2026-10-22：依使用者提供的兩組 Cascade Register 欄位，對照先前已讀取的 DTDM04 v1.5 第 5.1.7 節（頁 5-9～5-10）。可確認需要 SV 轉換、上下限、Offset、濾波、主／副控 AT、一鍵校準及副控保護溫度。
 
 **FbCascadeCoordinator 目前仍為空架構，尚未實作。** FbPid 可重用，但兩個 PID 不代表完整串級功能。此次只補文件，不新增 Register、演算法或輸出動作。
@@ -77,7 +79,8 @@
 - [x] 取得兩組串級欄位，確認副控保護溫度及共用 Loop Mode。
 - [ ] 定案公式、濾波與操作順序。
 - [ ] 定義 AT／校準及保護恢復狀態機。
-- [ ] 實作協調器與 Host 測試，再接 L05／SYSTEM。
+- [x] 實作協調器的SV換算核心與Host測試（專案契約）。
+- [ ] 接L05／SYSTEM，完成AT／校準、保護與anti-windup協調。
 - [ ] 實體 CKLIB、Register、輸出與 MCU 驗證。
 
 先前單／串級僅於 STOP 時切換的建議仍為待實作契約；不宣稱已有無擾切換能力。相關總表見 [FB 功能缺口](FB_DTDM04_GAP_REVIEW.md)。

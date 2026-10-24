@@ -1,5 +1,9 @@
 # L05 產品 FB 排程預留
 
+## 摘要
+
+2026-10-25更新：目前20項排程，新增20ms CH0 PV處理，置於Alarm／Logic及原18項表格之前。預設Sensor CH0→輸入折線BYPASS→PV候選；Switch Over及Alarm的處理後PV來源可用明確記憶體API啟用，預設Alarm仍讀RAW，PID未接此結果。詳見 [PV處理鏈](L05_PV_PROCESSING.md)。正式PID callback、Register／NVM、實體輸出及MCU實測仍待接入。
+
 ## 狀態清單
 
 - [x] 建立產品獨立的排程設定表，預留 18 個 FB 項目。
@@ -12,7 +16,7 @@
 - [ ] 整合其他 L04 FB 與產品控制／輸出鏈。
 - [ ] 量測 MCU 執行時間、最大延遲與產品整合驗證。
 
-2026-10-22：另新增 Alarm／Logic 功能鏈排程，共 19 個排程項目；原表 18 項中仍只有 MovingAverage 啟用，其餘 17 項停用。Alarm／Logic 鏈固定執行，但其中各 FB 實例預設停用，詳見 [L05_ALARM_LOGIC.md](L05_ALARM_LOGIC.md)。
+2026-10-22曾新增Alarm／Logic，使排程為19項；2026-10-25加入CH0 PV處理後為20項。原18項表格仍只有MovingAverage啟用，其餘17項停用。Alarm／Logic鏈固定執行，其中各FB預設停用，詳見 [L05_ALARM_LOGIC.md](L05_ALARM_LOGIC.md)。
 測試視窗為 5 筆；週期 20 ms。輸入為 CH0 snapshot 的 `engineering_value`，
 FB 結果只保留在 L05 記憶體中供驗證，不寫 PWM／DAC、不改變 SafetyService。
 新增 L05 原始檔已納入 MCUXpresso source path；PlatformCore 的 Utility
@@ -39,7 +43,7 @@ include/source path 亦已加入 `.cproject`，供 `FbMovingAverage` 編譯及�
 
 產品提供 tasks[]、states[] 與 ProductFbSchedule_t；Init 完成後，主迴圈以
 單調遞增的毫秒 now_ms 呼叫 Process。呼叫頻率決定排程解析度與最大釋放延遲。
-正式產品 task table 已由設定巨集展開，並於最前面加入 Alarm／Logic 功能鏈。
+正式產品task table由設定巨集展開，最前依序加入CH0 PV處理與Alarm／Logic功能鏈。
 
 同一表內任務依表順序執行。多迴路可使用多個 context 或多張表，不將通道數寫死在排程器。
 不同產品可使用自己的設定表與週期，不需改動 L04 方塊。

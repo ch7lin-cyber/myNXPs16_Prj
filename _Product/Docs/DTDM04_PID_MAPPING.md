@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：已完成 L04 FbPidGroupSelector 的四組參數、完整驗證、固定／SV自動選組及外部鎖組，Host／ASan／UBSan通過。輸出僅為候選副本；以下尚未完成的「四組管理」需拆分理解，選組核心已完成，後端整組套用、CKLIB單位轉換、AT讀回／回寫及持久化仍未完成。詳見 [正式規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPidGroupSelector/README.md)。
+
 使用者提供的 PID Parameters 確認每個控制通道有四組 PID 參數，可手動指定或依 SV 自動選組。此文件僅整理規格與設計建議，未新增程式，未宣稱與 DTDM04 完全一致。
 
 目前 L04 FbPid 已包裝 CKLIB 的 PB／Ti／Td、冷卻側參數、IOF 與 2DOF 係數；L05 只呼叫 L04，符合既有分層。四組參數管理、選組、整組套用、AT 結果回寫及切組狀態銜接仍未完成。實體 CKLIB .a 仍是空檔，數值功能尚未驗證。

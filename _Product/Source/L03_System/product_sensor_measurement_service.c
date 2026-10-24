@@ -316,7 +316,7 @@ void ProductSensorMeasurementService_Initialize(void)
     }
 }
 
-bool ProductSensorMeasurementService_Process(uint8_t channel)
+static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
 {
     ProductSensorMeasurementState_t *state;
     product_temperature_input_config_t product_configuration;
@@ -389,6 +389,12 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
     state->snapshot.raw_code = sample.raw_code;
     state->snapshot.uncalibrated_uv = sample.microvolts;
     state->snapshot.calibrated_uv = calibrated_uv;
+    if (state->snapshot.sample_sequence != sample.sequence ||
+        !state->snapshot.processed_timestamp_valid)
+    {
+        state->snapshot.processed_timestamp_ms = now_ms;
+        state->snapshot.processed_timestamp_valid = timed;
+    }
     state->snapshot.sample_sequence = sample.sequence;
     state->snapshot.sensor_type = product_configuration.sensorType;
     state->snapshot.conversion_flags = 0UL;
@@ -456,6 +462,16 @@ bool ProductSensorMeasurementService_Process(uint8_t channel)
     monitor.inputError = state->snapshot.input_error;
     return ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
         channel, &monitor);
+}
+
+bool ProductSensorMeasurementService_Process(uint8_t channel)
+{
+    return ProcessMeasurement(channel, 0U, false);
+}
+
+bool ProductSensorMeasurementService_ProcessAt(uint8_t channel, uint32_t now_ms)
+{
+    return ProcessMeasurement(channel, now_ms, true);
 }
 
 bool ProductSensorMeasurementService_GetSnapshot(

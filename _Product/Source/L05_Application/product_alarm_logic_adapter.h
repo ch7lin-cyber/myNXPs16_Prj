@@ -78,6 +78,10 @@ bool ProductAlarmLogicAdapter_SetAlarm(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, uint8_t alarm, const FbAlarmConfig_t *config, bool enabled);
 bool ProductAlarmLogicAdapter_SetSetpoint(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, int32_t sv);
+/* Source/configuration transition only; rejects if any channel alarm enabled.
+ * Clears runtime, peaks, queued commands and sample age; keeps config/SV. */
+bool ProductAlarmLogicAdapter_ResetDisabledChannel(ProductAlarmLogicAdapter_t *adapter,
+    uint8_t channel);
 bool ProductAlarmLogicAdapter_Command(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, uint8_t alarm, bool reset, bool clear_peak);
 bool ProductAlarmLogicAdapter_SetLogic(ProductAlarmLogicAdapter_t *adapter,

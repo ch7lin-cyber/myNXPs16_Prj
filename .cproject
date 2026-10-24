@@ -407,7 +407,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
-					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
+					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
@@ -812,7 +812,7 @@
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utilities"/>
-					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLinearization.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
+					<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="_Modules/PlatformCore/L04_FunctionBlock/Utility" excluding="FbDeadTime.c|FbDivide|FbDivide.c|FbInBandTimer.c|FbLeadLag.c|FbLogic|FbMovingAverage|FbSelector|FbSelector.c|FbWeightedSum|FbWeightedSum.c"/></sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>

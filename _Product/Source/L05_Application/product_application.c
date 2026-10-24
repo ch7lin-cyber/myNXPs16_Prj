@@ -723,7 +723,7 @@ void ProductApplication_Process(void)
 #if !PRODUCT_SAFETY_TEST_EVK
         (void)ProductSensorConfigurationConsumer_Process(
             input, g_system_timestamp_ms);
-        (void)ProductSensorMeasurementService_Process(input);
+        (void)ProductSensorMeasurementService_ProcessAt(input, g_system_timestamp_ms);
 #endif
         (void)AlarmConfigurationEventConsumer_Process(input);
         (void)SafetyConfigurationEventConsumer_Process(input);

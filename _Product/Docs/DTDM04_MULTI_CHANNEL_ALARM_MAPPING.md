@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：L04 FbMultiChannelAlarm 已完成可變數量選取、全部有效政策、MAX−MIN、成立延遲、一次動作、Hold／Reset 及 Host／ASan／UBSan 驗證。依本專案定義失效恢復去重與人工重置，詳見 [規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Alarm/FbMultiChannelAlarm/README.md)。下方未實作／待定為原盤點歷史；SYSTEM 動作目標／回報、L05 provider、Register／NVM／MCU 仍未完成。
+
 2026-10-22：依使用者提供的 Multi-channel Alarm Parameters 表（mAlm1，僅主模組存在），配合先前讀取的 DTDM04 v1.5 第 4.2.3 節（頁 4-11），確認其比較選定 PV 的 MAX−MIN，並有動作種類、動作延遲與一次性保持。
 
 **目前沒有跨通道溫差警報 FB，尚未實作／測試。** 現有每通道三組 FbAlarm 不能直接視為已涵蓋此功能；本次只更新文件，不新增 Register、CAN 傳輸或動作分派。
@@ -73,7 +75,7 @@
 - [ ] 定義少於兩來源、失效／過期／不同時刻資料政策。
 - [ ] 定義一次動作與 Hold 重置／重新武裝規則。
 - [ ] 定義動作目標、回報、去重與失敗重試，尤其 Toggle／PID Group 類動作。
-- [ ] 建立單一實例跨通道警報 FB 與 Host 極值／時間／狀態測試。
+- [x] 建立單一實例跨通道警報 FB 與 Host 極值／時間／狀態測試。
 - [ ] 接 L05 跨模組 provider 與既有 SYSTEM 命令路由，再做 Register／NVM／MCU 驗證。
 
 尚未新增此 FB 到已建立／已完成數量。相關：[全部 FB 缺口](FB_DTDM04_GAP_REVIEW.md)、[既有 Alarm／Logic 串接](L05_ALARM_LOGIC.md)。

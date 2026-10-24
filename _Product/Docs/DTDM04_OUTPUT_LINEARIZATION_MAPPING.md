@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作更新：L04 已新增 FbOutputLinearization_Execute（FbSignalLinearization.h），完成 OFF／INTERPOLATED／左端 STEPPED、轉換後 Offset、最終輸出限制及有效性處理，並通過 Host 驗證。以下「尚未實作」列項為原規劃快照；目前以 [正式包裝契約](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbSignalLinearization/README.md) 為準。來源路由、十組容量、Register／NVM、實體輸出及 MCU 仍未整合。
+
 2026-10-22：依使用者提供的 Output Linearization Parameters 表格，確認產品標示 10 組，每組有來源功能／通道、OFF／線性內插／步階、來源與結果監看、Offset、輸出單位及 10 個 X／Y 點。此次實際提供 SET1～SET4 的位址，不將 SET5～10 的位址推算值當作已確認資料。
 
 現有 FbLinearization 可重用線性內插核心，但沒有步階與 Offset，亦沒有產品來源路由、10 組管理或實體輸出串接。**本次只是規格對照，未修改程式或 Register。**

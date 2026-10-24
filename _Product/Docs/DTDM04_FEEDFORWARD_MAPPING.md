@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：L04 FbFeedforward 已完成三階段與事件／Force核心並通過Host／ASan／UBSan；指數採明確tau與有限段正規化，第三段線性回零，取消與重觸發採專案契約。以下未實作／待定為原盤點背景，目前以 [正式規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbFeedforward/README.md) 為準。SYSTEM／L05、PID加總／熱冷分配、追蹤及Register／NVM／MCU未完成。
+
 2026-10-22：依使用者提供的 Feedforward Register 表，配合先前讀取的 DTDM04 v1.5 第 5.1.8 節（頁 5-11～5-13），確認此為事件觸發的三階段有號 MV 補償，不是一般設定值斜率或純加總。
 
 **目前沒有事件觸發前饋 FB，尚未實作。** FbWeightedSum 可加總，FbLeadLag 有動態運算，但不代表已有本功能的波形／狀態機。此次只整理文件，不新增演算法、Register 或實體輸出。
@@ -73,7 +75,7 @@
 - [ ] 定案指數曲線、FF3 曲線與每段到期行為。
 - [ ] 定案事件撤銷／重觸發、Tx 與波形完成優先順序、零時間及大 dt 跨段行為。
 - [ ] 定義雙輸出、手動／AT／Cascade 與限幅後的追蹤政策，保留既有安全權責。
-- [ ] 新增單一實例 L04 FB 與 Host 狀態／數值邊界測試。
+- [x] 新增單一實例 L04 FB 與 Host 狀態／數值邊界測試（專案契約）。
 - [ ] 接 SYSTEM Event→L05→FF＋PID 候選輸出，再做 Register／NVM 與 MCU 驗證。
 
 尚未加入現有 FB 已建立數量；本次收表完成不等於功能完成。總覽見 [FB 缺口盤點](FB_DTDM04_GAP_REVIEW.md)。

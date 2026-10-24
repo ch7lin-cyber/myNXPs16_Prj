@@ -2,6 +2,8 @@
 
 ## 摘要
 
+2026-10-25增補：CH0可用明確來源API選RAW或處理後PV，預設RAW。變更來源／變更被Alarm使用的處理鏈時，要求CH0所有Alarm先停用；重配置清除該通道歷史與舊峰值。處理結果失效不退回RAW，真實來源時間與樣本身分不以發布時間刷新。詳見 [PV處理與來源契約](L05_PV_PROCESSING.md)。其他通道未改，正式PID仍未接入。
+
 **尚未完成：正式 PID callback、Register、實體輸出與 MCU 實測仍待接入。** 本版完成的是 Alarm／Logic 資料鏈及 Host 驗證，不代表完整產品控制功能完成。
 
 2026-10-22：已建立 L03 溫度 Snapshot／DI → L05 adapter → L04 Alarm／Logic → L05 結果查詢的功能鏈，接入 ProductApplication 原有的主迴圈排程。預設容量為 4 通道 × 每通道 3 組 Alarm，共 12 組；Logic 共 16 組。週期 20 ms，全部實例預設停用，須由產品設定 API 啟用。
@@ -14,12 +16,12 @@
 
 同一個 Scheduler callback 依序完成：
 
-1. 每通道讀一次溫度 Snapshot，更新該通道的三組 Alarm。
+1. 每通道讀一次設定的溫度PV來源，更新該通道三組Alarm；CH0可選同次排程已完成的處理後PV，其他通道讀原始Snapshot。
 2. Logic 前半組依編號由小到大執行，預設為人員編號 1～8。
 3. 若已註冊 PID callback，呼叫一次並傳入實際 elapsed_ms。
 4. Logic 後半組依編號由小到大執行，預設為人員編號 9～16。
 
-這段鏈放在產品排程表最前面；原 MovingAverage 仍使用原有排程項目。此順序只保證本鏈內的 PID callback 位置，不能將其他位置執行的控制運算也視為位於此位置。日後接入 ProductPidControllerAdapter_Process 時，須註冊此 callback，避免另一個排程項目重複呼叫 PID。L05 不直接引用 CKLIB。
+這段鏈排在CH0 PV處理之後，原MovingAverage仍使用原有排程項目。此順序只保證本鏈內PID callback位置，不代表其他控制運算也在此位置。日後接入ProductPidControllerAdapter_Process須註冊此callback，避免另一排程重複呼叫。L05不直接引用CKLIB。
 
 所有 C API 編號皆從 0 起算：CH0～3、Alarm0～2、Logic0～15；文件／UI 的 Alarm1～3、Logic1～16 須由外層換算。
 

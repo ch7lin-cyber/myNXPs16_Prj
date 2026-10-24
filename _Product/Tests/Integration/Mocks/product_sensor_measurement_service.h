@@ -8,6 +8,10 @@ typedef struct
 {
     int32_t engineering_value;
     uint32_t sample_sequence;
+    uint32_t processed_timestamp_ms;
+    bool processed_timestamp_valid;
+    uint16_t input_error;
+    uint32_t conversion_flags;
     uint16_t sensor_type;
     bool valid;
 } ProductSensorMeasurementSnapshot_t;

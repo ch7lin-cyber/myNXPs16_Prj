@@ -406,8 +406,43 @@ static void TestMedianWindowFive(void)
     assert(g_monitor.unfilteredProcessValue == -32000.0F);
 }
 
+static void TestProcessingTimestamp(void)
+{
+    ProductSensorMeasurementSnapshot_t snapshot;
+    g_product_configuration.sensorType=PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    g_product_configuration.cjcSource=EVENT_CJC_SOURCE_DISABLED;
+    g_product_configuration.filterTimeConstantSeconds=0.0F;
+    g_sample.valid=true; g_sample.microvolts=25000; g_sample.sequence=99;
+    ProductSensorMeasurementService_Initialize();
+    assert(ProductSensorMeasurementService_ProcessAt(0,100));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(snapshot.processed_timestamp_valid && snapshot.processed_timestamp_ms==100);
+    assert(ProductSensorMeasurementService_ProcessAt(0,200));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(snapshot.processed_timestamp_ms==100); /* repeated sequence does not refresh */
+    g_sample.valid=false;
+    (void)ProductSensorMeasurementService_ProcessAt(0,250);
+    g_sample.valid=true;
+    assert(ProductSensorMeasurementService_ProcessAt(0,300));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(snapshot.processed_timestamp_ms==100); /* same ADC sample after error */
+    ++g_sample.sequence;
+    assert(ProductSensorMeasurementService_ProcessAt(0,400));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(snapshot.processed_timestamp_ms==400);
+    ++g_sample.sequence;
+    assert(ProductSensorMeasurementService_Process(0));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(!snapshot.processed_timestamp_valid); /* legacy untimed entry cannot invent time */
+    ++g_sample.sequence;
+    assert(ProductSensorMeasurementService_ProcessAt(0,500));
+    ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
+    assert(snapshot.processed_timestamp_valid && snapshot.processed_timestamp_ms==500);
+}
+
 int main(void)
 {
+    TestProcessingTimestamp();
     TestMedianWindowFive();
     TestConfigurationMapping();
     TestKTypePipelineAndCjcPairing();

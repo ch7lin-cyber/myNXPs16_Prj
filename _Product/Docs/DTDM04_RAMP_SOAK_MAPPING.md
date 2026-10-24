@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：L04 FbProfileSequencer 已由佔位改為程序核心，完成時間式Ramp／Soak、循環／連接、命令、到溫等待／逾時及工作量保護，Host／ASan／UBSan通過。採本專案首段／零時間／等待契約，非完整DTDM04相容結論；以下未實作敘述為原盤點背景。詳見 [正式規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbProfileSequencer/README.md)。L05、Register／NVM持久化與MCU仍待接入。
+
 2026-10-22：依使用者提供的 Ramp Soak Parameters 表，配合 DTDM04 v1.5 第 5.1.4 節（頁 5-5～5-8）整理程序資料、狀態與分層。已知四個 Pattern（0～3）、每個最多十六個 Step（0～15），各步驟有目標值及時間；樣式另外設定有效步驟、重複次數及下一個樣式／結束方式。
 
 **FbProfileSequencer 仍為空架構，尚未實作。** FbSetpointRamp、FbInBandTimer 是可重用元件，不代表完整程序功能已完成。本次只更新規格與待辦，不新增程式或 Register。

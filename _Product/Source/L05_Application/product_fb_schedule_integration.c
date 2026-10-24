@@ -8,7 +8,54 @@
 #include "product_temperature_input_types.h"
 #include "DigitalInputService.h"
 
-#define PRODUCT_FB_SCHEDULE_TASK_COUNT (19U)
+#define PRODUCT_FB_SCHEDULE_TASK_COUNT (20U)
+
+static ProductPvProcessingAdapter g_ch0_pv_processing;
+static uint32_t g_fb_now_ms;
+static ProductCh0AlarmPvSource g_ch0_alarm_source;
+static bool g_processed_alarm_has_sample;
+static uint32_t g_processed_alarm_sequence;
+static ProductPvProcessingOutput g_processed_alarm_previous;
+
+static bool IsTemperatureSensor(uint16_t sensor_type)
+{
+    switch (sensor_type)
+    {
+        case PRODUCT_SENSOR_TYPE_TC_B: case PRODUCT_SENSOR_TYPE_TC_C:
+        case PRODUCT_SENSOR_TYPE_TC_D: case PRODUCT_SENSOR_TYPE_TC_E:
+        case PRODUCT_SENSOR_TYPE_TC_J: case PRODUCT_SENSOR_TYPE_TC_K:
+        case PRODUCT_SENSOR_TYPE_TC_N: case PRODUCT_SENSOR_TYPE_TC_R:
+        case PRODUCT_SENSOR_TYPE_TC_S: case PRODUCT_SENSOR_TYPE_TC_T:
+        case PRODUCT_SENSOR_TYPE_TC_L: case PRODUCT_SENSOR_TYPE_TC_U:
+        case PRODUCT_SENSOR_TYPE_TC_TXK: case PRODUCT_SENSOR_TYPE_RTD_100_OHM:
+        case PRODUCT_SENSOR_TYPE_RTD_1000_OHM: case PRODUCT_SENSOR_TYPE_RTD_JPT100:
+        case PRODUCT_SENSOR_TYPE_RTD_NI120: case PRODUCT_SENSOR_TYPE_RTD_CU50:
+            return true;
+        default: return false;
+    }
+}
+
+static bool ReadProcessingSample(void *context, uint16_t source, ProductPvSourceSample *sample)
+{
+    ProductSensorMeasurementSnapshot_t snapshot;
+    (void)context;
+    if (source>=PRODUCT_AL_CHANNEL_COUNT || sample==NULL ||
+        !ProductSensorMeasurementService_GetSnapshot((uint8_t)source,&snapshot)) return false;
+    sample->value=snapshot.engineering_value;
+    sample->sequence=snapshot.sample_sequence;
+    sample->timestamp_ms=snapshot.processed_timestamp_ms;
+    sample->unit=IsTemperatureSensor(snapshot.sensor_type) ?
+        PRODUCT_PV_MILLICELSIUS : PRODUCT_PV_UNSUPPORTED_UNIT;
+    sample->valid=snapshot.valid && snapshot.processed_timestamp_valid &&
+        snapshot.input_error==0U && snapshot.conversion_flags==0U;
+    return true;
+}
+
+static void ProcessCh0Pv(void *context, uint32_t elapsed_ms)
+{
+    (void)elapsed_ms;
+    (void)ProductPvProcessing_Process(context,g_fb_now_ms,true,false);
+}
 
 static ProductAlarmLogicAdapter_t g_alarm_logic;
 
@@ -16,6 +63,38 @@ static bool ReadAlarmSample(void *context, uint8_t channel, ProductAlSample_t *s
 {
     ProductSensorMeasurementSnapshot_t snapshot;
     (void)context;
+    if (channel==0U && g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_PROCESSED) {
+        ProductPvProcessingOutput pv;
+        bool changed;
+        unsigned i;
+        if (!ProductPvProcessing_GetOutput(&g_ch0_pv_processing,&pv)) return false;
+        sample->valid=pv.valid && pv.timestamp_ms==g_fb_now_ms;
+        for (i=0;i<2;++i) {
+            bool contributes=pv.selected==FB_SWITCH_BOTH ||
+                (i==0 && pv.selected==FB_SWITCH_SOURCE1) ||
+                (i==1 && pv.selected==FB_SWITCH_SOURCE2);
+            if (contributes && PRODUCT_AL_MAX_SAMPLE_AGE_MS!=0U &&
+                g_fb_now_ms-pv.sources[i].raw.timestamp_ms>PRODUCT_AL_MAX_SAMPLE_AGE_MS)
+                sample->valid=false;
+        }
+        sample->pv=sample->valid ? pv.pv : 0;
+        if (sample->valid) {
+            changed=!g_processed_alarm_has_sample || pv.selected!=g_processed_alarm_previous.selected ||
+                pv.pv!=g_processed_alarm_previous.pv;
+            for (i=0;i<2;++i) {
+                bool contributes=pv.selected==FB_SWITCH_BOTH ||
+                    (i==0 && pv.selected==FB_SWITCH_SOURCE1) ||
+                    (i==1 && pv.selected==FB_SWITCH_SOURCE2);
+                if (contributes && (pv.sources[i].raw.sequence!=g_processed_alarm_previous.sources[i].raw.sequence ||
+                    pv.sources[i].raw.timestamp_ms!=g_processed_alarm_previous.sources[i].raw.timestamp_ms))
+                    changed=true;
+            }
+            if (changed) ++g_processed_alarm_sequence;
+            g_processed_alarm_previous=pv; g_processed_alarm_has_sample=true;
+        }
+        sample->sequence=g_processed_alarm_sequence;
+        return true;
+    }
     if (!ProductSensorMeasurementService_GetSnapshot(channel, &snapshot)) return false;
     sample->pv = snapshot.engineering_value;
     sample->sequence = snapshot.sample_sequence;
@@ -162,6 +241,7 @@ static void TraceCh0Process(void *context, uint32_t elapsed_ms)
     {enabled_value, period_value, callback_value, context_value},
 static const ProductFbScheduleTask_t g_tasks[] =
 {
+    {true, 20U, ProcessCh0Pv, &g_ch0_pv_processing},
     {true, PRODUCT_AL_PERIOD_MS, ProductAlarmLogicAdapter_Process, &g_alarm_logic},
     PRODUCT_FB_SCHEDULE_TASKS(MAKE_TASK)
 };
@@ -172,6 +252,18 @@ static const ProductFbScheduleTask_t g_tasks[] =
 
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
 {
+    ProductPvProcessingConfig pv_config={0};
+    g_fb_now_ms=now_ms;
+    pv_config.source[0]=0U;
+    pv_config.source[1]=1U;
+    pv_config.maximum_age_ms=200U;
+    pv_config.maximum_skew_ms=20U;
+    g_ch0_alarm_source=PRODUCT_CH0_ALARM_PV_RAW;
+    g_processed_alarm_has_sample=false; g_processed_alarm_sequence=0;
+    g_processed_alarm_previous=(ProductPvProcessingOutput){0};
+    /* Default read-only CH0 bypass; no point table or switch activated. */
+    if (!ProductPvProcessing_Init(&g_ch0_pv_processing,&pv_config,ReadProcessingSample,NULL))
+        return false;
     if (!ProductAlarmLogicAdapter_Init(&g_alarm_logic, ReadAlarmSample, ReadLogicDi, NULL))
         return false;
 #if PRODUCT_FB_CH0_TRACE_ENABLED
@@ -198,6 +290,7 @@ ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(vo
 
 void ProductFbScheduleIntegration_Process(uint32_t now_ms)
 {
+    g_fb_now_ms=now_ms;
 #if PRODUCT_FB_CH0_TRACE_ENABLED
     size_t i;
     g_trace_now_ms = now_ms;
@@ -215,6 +308,38 @@ void ProductFbScheduleIntegration_Process(uint32_t now_ms)
     }
 #endif
     ProductFbSchedule_Process(&g_schedule, now_ms);
+}
+
+bool ProductFbScheduleIntegration_ConfigureCh0PvProcessing(const ProductPvProcessingConfig *config)
+{
+    if (config==NULL || config->source[0]>=PRODUCT_AL_CHANNEL_COUNT ||
+        (config->switch_enabled && config->source[1]>=PRODUCT_AL_CHANNEL_COUNT)) return false;
+    if (!ProductPvProcessing_ValidateConfig(config) || !g_ch0_pv_processing.initialized) return false;
+    if (g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_PROCESSED &&
+        !ProductAlarmLogicAdapter_ResetDisabledChannel(&g_alarm_logic,0U)) return false;
+    if (!ProductPvProcessing_SetConfig(&g_ch0_pv_processing,config)) return false;
+    g_processed_alarm_has_sample=false;
+    return true;
+}
+
+bool ProductFbScheduleIntegration_SetCh0AlarmPvSource(ProductCh0AlarmPvSource source)
+{
+    if (!g_alarm_logic.initialized || (source!=PRODUCT_CH0_ALARM_PV_RAW &&
+        source!=PRODUCT_CH0_ALARM_PV_PROCESSED)) return false;
+    if (source==g_ch0_alarm_source) return true;
+    if (!ProductAlarmLogicAdapter_ResetDisabledChannel(&g_alarm_logic,0U)) return false;
+    g_ch0_alarm_source=source; g_processed_alarm_has_sample=false;
+    return true;
+}
+
+ProductCh0AlarmPvSource ProductFbScheduleIntegration_GetCh0AlarmPvSource(void)
+{
+    return g_ch0_alarm_source;
+}
+
+bool ProductFbScheduleIntegration_GetCh0ProcessedPv(ProductPvProcessingOutput *output)
+{
+    return ProductPvProcessing_GetOutput(&g_ch0_pv_processing,output);
 }
 
 bool ProductFbScheduleIntegration_GetCh0MovingAverage(

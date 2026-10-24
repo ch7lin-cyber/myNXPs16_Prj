@@ -57,6 +57,23 @@ bool ProductAlarmLogicAdapter_SetSetpoint(ProductAlarmLogicAdapter_t *a,
     return true;
 }
 
+bool ProductAlarmLogicAdapter_ResetDisabledChannel(ProductAlarmLogicAdapter_t *a, uint8_t ch)
+{
+    unsigned i;
+    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT) return false;
+    for (i=0;i<PRODUCT_AL_ALARMS_PER_CHANNEL;++i)
+        if (a->alarms[ch][i].enabled) return false;
+    for (i=0;i<PRODUCT_AL_ALARMS_PER_CHANNEL;++i) {
+        ProductAlAlarm_t *slot=&a->alarms[ch][i];
+        FbAlarm_Initialize(&slot->fb);
+        slot->output=(FbAlarmOutput_t){0};
+        slot->output.status=FB_ALARM_STATUS_DISABLED;
+        slot->reset_pending=slot->clear_pending=slot->reset_high=slot->clear_high=false;
+    }
+    a->sequence[ch]=0; a->has_sequence[ch]=false; a->age_ms[ch]=0;
+    return true;
+}
+
 bool ProductAlarmLogicAdapter_Command(ProductAlarmLogicAdapter_t *a,
     uint8_t ch, uint8_t index, bool reset, bool clear_peak)
 {

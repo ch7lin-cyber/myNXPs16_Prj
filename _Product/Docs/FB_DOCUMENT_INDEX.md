@@ -8,6 +8,31 @@
 
 | 範圍 | 文件 |
 |---|---|
+| L05 輸入折線→Switch Over→PV候選與整合測試 | [L05_PV_PROCESSING.md](L05_PV_PROCESSING.md) |
+| 電壓平方補償、旁路與MV限制 | [FbPowerVoltageCompensation 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPowerVoltageCompensation/README.md) |
+| 電壓補償 Host 測試細則 | [FbPowerVoltageCompensation Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPowerVoltageCompensation/HOST_TEST.md) |
+| 加熱器阻值、RMS品質與基準偏移診斷 | [FbHeaterResistance 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbHeaterResistance/README.md) |
+| 加熱器阻值 Host 測試細則 | [FbHeaterResistance Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbHeaterResistance/HOST_TEST.md) |
+| 週期／事件記錄觸發、延遲與單次武裝 | [FbRecordTrigger 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Recording/FbRecordTrigger/README.md) |
+| 記錄觸發 Host 測試細則 | [FbRecordTrigger Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Recording/FbRecordTrigger/HOST_TEST.md) |
+| 已知步階響應觀測、穩定增益與時刻指標 | [FbProcessResponse 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbProcessResponse/README.md) |
+| 製程響應 Host 測試細則 | [FbProcessResponse Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbProcessResponse/HOST_TEST.md) |
+| 批次統計、過衝／到溫與偏差積分 | [FbBatchMetrics 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbBatchMetrics/README.md) |
+| 批次統計 Host 測試細則 | [FbBatchMetrics Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Diagnostics/FbBatchMetrics/HOST_TEST.md) |
+| 事件前饋 L04 曲線、Force 與取消契約 | [FbFeedforward 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbFeedforward/README.md) |
+| 事件前饋 Host 測試細則 | [FbFeedforward Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbFeedforward/HOST_TEST.md) |
+| 串級 MV→SV 換算核心、濾波與限制 | [FbCascadeCoordinator 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbCascadeCoordinator/README.md) |
+| 串級換算 Host 測試細則 | [FbCascadeCoordinator Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbCascadeCoordinator/HOST_TEST.md) |
+| Ramp／Soak 程序核心、配方與命令引腳 | [FbProfileSequencer 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbProfileSequencer/README.md) |
+| Ramp／Soak Host 測試細則 | [FbProfileSequencer Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbProfileSequencer/HOST_TEST.md) |
+| PID 四組候選參數、Auto／鎖組及整組驗證 | [FbPidGroupSelector 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPidGroupSelector/README.md) |
+| PID 選組 Host 測試細則 | [FbPidGroupSelector Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPidGroupSelector/HOST_TEST.md) |
+| 跨通道溫差警報 L04 引腳、Hold／Reset 與動作脈衝 | [FbMultiChannelAlarm 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Alarm/FbMultiChannelAlarm/README.md) |
+| 跨通道警報 Host 測試細則 | [FbMultiChannelAlarm Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Alarm/FbMultiChannelAlarm/HOST_TEST.md) |
+| 雙輸入切換 L04 引腳、故障與恢復契約 | [FbInputSwitchOver 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbInputSwitchOver/README.md) |
+| 雙輸入切換 Host 測試細則 | [FbInputSwitchOver Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbInputSwitchOver/HOST_TEST.md) |
+| 輸入／輸出折線 L04 模式包裝、引腳與參數 | [FbSignalLinearization 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbSignalLinearization/README.md) |
+| 輸入／輸出折線測試摘要與細則 | [FbSignalLinearization Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbSignalLinearization/HOST_TEST.md) |
 | 輸入參數分層、Value／Deviation 與輸入折線缺項 | [DTDM04_INPUT_LINEARIZATION_MAPPING.md](DTDM04_INPUT_LINEARIZATION_MAPPING.md) |
 | 系統、取樣／控制週期、站號與串機管理 | [DTDM04_SYSTEM_MAPPING.md](DTDM04_SYSTEM_MAPPING.md) |
 | PID 四組參數、SV 選組與 CKLIB 單位差異 | [DTDM04_PID_MAPPING.md](DTDM04_PID_MAPPING.md) |

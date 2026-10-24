@@ -2,6 +2,8 @@
 
 ## 摘要
 
+實作增補：L04 FbInputSwitchOver 已完成與 Host／ASan／UBSan 驗證。等號、KEEP 初始來源、平均期間故障與恢復採本專案正式契約，詳見 [規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbInputSwitchOver/README.md)。以下原盤點中的未實作／待定敘述是歷史規劃，不作目前 L04 完成狀態；L05／Register／NVM／MCU 尚未整合。
+
 2026-10-22：依使用者 Register 表及重新讀取的 DTDM04 v1.5 第 3.3.4 節（頁 3-8～3-9），確認此功能為雙 Sensor 量測範圍切換，且中間區域會取兩來源的算術平均。**不是單純二選一 Selector，也不能把上下門檻直接當作一般遲滯帶。**
 
 目前尚無專用 Switch Over FB，未實作／未測試；本次只補文件並修正先前缺項描述。建議一個 L04 實例接收兩個有品質資訊的 PV，L05 決定來源；兩組 SwIn 是產品容量，不固定在 L04。SYSTEM／Safety 保留既有異常及輸出權責。
@@ -70,7 +72,7 @@ L03 提供兩來源 Snapshot 與品質；L05 選擇並檢查資料；L04 Switch 
 - [x] 取得欄位並由手冊確認中間區算術平均與判斷順序。
 - [ ] 定案等號、來源不一致、平均期間故障、恢復與範圍外政策。
 - [ ] 定義預設錯誤處理模式，保留使用者表與手冊預設值差異。
-- [ ] 建立單一實例 FB、有效性／降級狀態與平均邊界測試。
+- [x] 建立單一實例 FB、有效性／降級狀態與平均邊界測試（專案契約）。
 - [ ] 接 L05 PV 路由、Register／NVM 與 MCU 驗證。
 
 相關：[Control Loop](DTDM04_CONTROL_LOOP_MAPPING.md)、[FB 缺項總表](FB_DTDM04_GAP_REVIEW.md)。
