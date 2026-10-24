@@ -2,6 +2,7 @@
 """SafetyTest 上板工具：FC03／06／10、過溫／低電壓循環與 JSONL 紀錄。"""
 import argparse
 import hashlib
+from contextlib import contextmanager
 import datetime
 import json
 import pathlib
@@ -1145,6 +1146,83 @@ def production_symbol_check(args):
     return result
 
 
+
+def updater_cycle(open_client, initial_port, updater_port, app_port, log, reconnect_seconds=30):
+    def clean_app(client):
+        require(not fault_records(client), '已有 Fault，不能開始模式切換測試')
+        state = safety(client)
+        require(not any(state[k] for k in ('live', 'latch', 'state', 'inhibit')),
+                'Safety 不是正常狀態')
+        require(not diagnostic(client)['enabled'] and not low_voltage_diagnostic(client)['enabled'],
+                '請先關閉兩項測試注入')
+        pwm = pwm_diagnostic(client)
+        require(all(s['evk'] == 1 and s['hal_initialized'] == 1 and
+                    s['requested'] == 0 and s['applied'] == 0 and s['inhibited'] == 0 for s in pwm),
+                '切換測試僅允許四路 PWM 已歸零的 SafetyTestEVK')
+
+    with open_client(initial_port) as client:
+        original = client.read(0x7000, 10)
+        require(original[:3] == [0xA016, 1, 1], '目前不是預期的 LPC55S16 APP 模式')
+        version = client.read(0x2000, 3)
+        clean_app(client)
+        require(client.read(0x7051, 3)[0] == 0, 'APP 更新狀態不是 Idle')
+        log(event='updater_preflight_pass', identity=original, app_version=version)
+        client.write_single(0x7050, 0xB007)  # USB request only; never retry a mode write.
+        log(event='updater_request_ack', port=initial_port)
+
+    def reconnect(port, expected, operation):
+        deadline = time.monotonic() + reconnect_seconds
+        last_error = '尚未收到識別資料'
+        while time.monotonic() < deadline:
+            # Only open/read failures are retried. The operation (possibly a write) is not.
+            found = False
+            try:
+                with open_client(port) as client:
+                    try:
+                        identity = client.read(0x7000, 10)
+                    except (OSError, TimeoutError, ModbusError) as exc:
+                        last_error = str(exc)
+                    else:
+                        if identity[:3] == expected:
+                            found = True
+                            return operation(client, identity)
+                        last_error = f'仍在其他模式：{identity[:3]}'
+                        if identity[:3] == [0xA016, 1, 1] and expected[0] == 0xB016:
+                            require(client.read(0x7051, 3)[0] != 4,
+                                    'APP 安全停機失敗，更新狀態 FAILED，未切入 Updater')
+            except OSError as exc:
+                if found:
+                    raise
+                last_error = str(exc)
+            time.sleep(0.25)
+        raise TimeoutError(f'{port} 等待模式 {expected} 逾時：{last_error}；'
+                           '若 COM 改變請指定 --updater-port／--app-port；未重送切換命令')
+
+    def run_app(client, identity):
+        info = client.read(0x7010, 9)
+        status = client.read(0x7030, 8)
+        require(tuple(info[:3]) >= (0, 1, 11) and info[7:9] == [0x0016, 1],
+                'Bootloader 版本／Target 不符合本測試')
+        require(status[0] == 0 and status[1] == 0 and status[7] == 0,
+                'Updater 非 Idle／有錯誤或待處理命令，停止測試且不處理 PENDING 映像')
+        log(event='updater_mode_pass', port=updater_port, identity=identity,
+            boot_version=info[:3], status=status)
+        client.write_single(0x7020, 5)  # Verify/run active APP; no erase/download/install.
+        log(event='updater_run_app_ack', port=updater_port)
+
+    reconnect(updater_port, [0xB016, 1, 2], run_app)
+
+    def check_return(client, identity):
+        require(identity == original and client.read(0x2000, 3) == version,
+                '返回 APP 的識別／版本與切換前不同')
+        clean_app(client)
+        log(event='updater_app_return_pass', port=app_port, identity=identity, app_version=version)
+
+    reconnect(app_port, [0xA016, 1, 1], check_return)
+    log(event='updater_cycle_pass', flash_download=False,
+        scope='APP→USB Updater→APP 模式切換與重啟後軟體狀態；實體安全輸出仍待量測')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', help='例如 COM8；未指定時列出串列埠供選擇')
@@ -1164,6 +1242,9 @@ def main():
     sub.add_parser('broadcast-guard-cycle', help='站號 0 不得啟用測試注入或回覆，限單台 DUT 測試線')
     axf = sub.add_parser('production-symbol-check', help='離線檢查一般 Debug／Release AXF 的具名測試符號')
     axf.add_argument('--axf', type=pathlib.Path, required=True, help='同次一般組態建置的 AXF 路徑')
+    update = sub.add_parser('updater-cycle', help='SafetyTestEVK APP→USB Updater→APP，不下載映像')
+    update.add_argument('--updater-port', help='USB 重新列舉後 Updater COM，預設沿用 --port')
+    update.add_argument('--app-port', help='返回 APP 的 COM，預設沿用 --port')
     sub.add_parser('production-guard-cycle', help='一般 Debug／Release 測試 Register 封鎖，僅送零／停用值')
     sub.add_parser('pwm-multi-fault-cycle', help='EVK 雙重故障四路 PWM 互鎖，兩種重置順序')
     sub.add_parser('pwm-inhibit-cycle', help='EVK 四路 PWM 要求值／套用值的安全抑制循環')
@@ -1218,39 +1299,51 @@ def main():
                 print(json.dumps(entry, ensure_ascii=False))
         log(event='start', action=args.action, port=args.port, baud=args.baud, station=args.station)
         try:
-            with serial.Serial(args.port, args.baud, bytesize=8, parity=args.parity,
-                               stopbits=args.stopbits, timeout=args.timeout, write_timeout=args.timeout) as port:
-                c = Client(port, args.station, log)
-                if args.action == 'temperature-cycle':
-                    temperature_cycle(c)
-                elif args.action == 'low-voltage-cycle':
-                    low_voltage_cycle(c)
-                elif args.action == 'multi-fault-cycle':
-                    multi_fault_cycle(c)
-                elif args.action == 'reset-guard-cycle':
-                    reset_guard_cycle(c)
-                elif args.action == 'repeat-cycle':
-                    repeat_cycle(c, args.cycles)
-                elif args.action == 'invalid-sample-cycle':
-                    invalid_sample_cycle(c)
-                elif args.action == 'injection-guard-cycle':
-                    injection_guard_cycle(c)
-                elif args.action == 'broadcast-guard-cycle':
-                    broadcast_guard_cycle(c)
-                elif args.action == 'production-guard-cycle':
-                    production_guard_cycle(c)
-                elif args.action == 'pwm-multi-fault-cycle':
-                    pwm_inhibit_cycle(c, multi=True)
-                elif args.action == 'pwm-inhibit-cycle':
-                    pwm_inhibit_cycle(c)
-                elif args.action == 'read':
-                    print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
-                elif args.action == 'write06':
-                    c.write_single(args.address, args.values[0])
-                else:
-                    c.write_multiple(args.address, args.values)
+            if args.action == 'updater-cycle':
+                @contextmanager
+                def open_client(name):
+                    with serial.Serial(name, args.baud, bytesize=8, parity=args.parity,
+                                       stopbits=args.stopbits, timeout=args.timeout,
+                                       write_timeout=args.timeout) as port:
+                        yield Client(port, args.station, log)
+                updater_cycle(open_client, args.port, args.updater_port or args.port,
+                              args.app_port or args.port, log)
+            else:
+                with serial.Serial(args.port, args.baud, bytesize=8, parity=args.parity,
+                                   stopbits=args.stopbits, timeout=args.timeout, write_timeout=args.timeout) as port:
+                    c = Client(port, args.station, log)
+                    if args.action == 'temperature-cycle':
+                        temperature_cycle(c)
+                    elif args.action == 'low-voltage-cycle':
+                        low_voltage_cycle(c)
+                    elif args.action == 'multi-fault-cycle':
+                        multi_fault_cycle(c)
+                    elif args.action == 'reset-guard-cycle':
+                        reset_guard_cycle(c)
+                    elif args.action == 'repeat-cycle':
+                        repeat_cycle(c, args.cycles)
+                    elif args.action == 'invalid-sample-cycle':
+                        invalid_sample_cycle(c)
+                    elif args.action == 'injection-guard-cycle':
+                        injection_guard_cycle(c)
+                    elif args.action == 'broadcast-guard-cycle':
+                        broadcast_guard_cycle(c)
+                    elif args.action == 'production-guard-cycle':
+                        production_guard_cycle(c)
+                    elif args.action == 'pwm-multi-fault-cycle':
+                        pwm_inhibit_cycle(c, multi=True)
+                    elif args.action == 'pwm-inhibit-cycle':
+                        pwm_inhibit_cycle(c)
+                    elif args.action == 'read':
+                        print(' '.join(f'{v:04X}' for v in c.read(args.address, args.count)))
+                    elif args.action == 'write06':
+                        c.write_single(args.address, args.values[0])
+                    else:
+                        c.write_multiple(args.address, args.values)
             log(event='complete', result='PASS')
-            if args.action == 'production-guard-cycle':
+            if args.action == 'updater-cycle':
+                print('通過：APP → USB Updater → APP 切換完成，未下載映像。')
+            elif args.action == 'production-guard-cycle':
                 print('通過：正式韌體測試 Register 已拒絕 73 項存取。')
             else:
                 print('通過：軟體保護循環完成。PWM／DO 實際電位仍需量測。' if args.action in

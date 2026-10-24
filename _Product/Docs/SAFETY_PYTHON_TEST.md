@@ -71,6 +71,31 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 ## 自動循環與判定
 
 
+### APP → USB Updater → APP 回歸（新增，待實測）
+
+沿用目前 SafetyTestEVK BIN，更新 Python 即可，不需重新燒錄；本案例會安全停機並重啟 MCU，因此 RAM Event／Snapshot 等揮發狀態會重新開始。先保存需要保留的舊測試紀錄，關閉更新工具等 COM 連線，再執行：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM8 updater-cycle
+```
+
+只允許無既有 Fault／Safety 抑制、兩項注入關閉、四路 PWM 已初始化且 requested／applied=0 的 SafetyTestEVK。先讀 `0x7000` 10 words 確認 APP `[0xA016,1,1]`，保存 `0x2000` 的 3 words 版本及完整識別，確認 `0x7051` 為 Idle；FC06 寫 `0x7050=0xB007` 請求進入 USB Updater，等待 ACK 後關閉串口。
+
+重新開啟指定 COM 只做識別讀取，最多等待 30 秒，必須得到 Updater `[0xB016,1,2]`，不能因串口可開或仍看到 APP 而判定成功。讀取 Boot 資訊 `0x7010`，要求版本至少 00.01.11、Target=0x00160001；`0x7030` 狀態要求 Idle、無錯誤及待處理命令，若有 PENDING 映像即停止，不續裝、不取消。然後 FC06 寫 `0x7020=5` 要求驗證／啟動現有 Active APP。
+
+最後重連 APP，確認識別與 3 words 版本符合切換前，且 Fault／Safety／注入／PWM 都是正常、關閉或零值。預期 `updater_preflight_pass`、`updater_request_ack`、`updater_mode_pass`、`updater_run_app_ack`、`updater_app_return_pass`、`updater_cycle_pass` 及最終 PASS。本案例不傳映像、不執行擦除／下載／提交／安裝命令；啟動 APP 時由 Bootloader 檢查現有 Active metadata／CRC。
+
+若已知 USB 重新列舉會改用其他埠，可明確指定，腳本不掃描其他裝置：
+
+```powershell
+python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM8 updater-cycle --updater-port COM9 --app-port COM8
+```
+
+上例 COM9 只為示範，需換成實際埠。只重試開埠／讀取識別，兩筆切換命令不重送。ACK 遺失、版本不同、正式硬體非 EVK、無法確認模式或其他異常皆 FAIL；失敗／中斷時可能已停留 Updater，不自動重置 Fault 或重新下載。可使用既有更新工具選 USB CDC，連線實際 Updater COM，檢查狀態後啟動已驗證 APP；若 metadata／CRC 無效，依既有更新流程重新下載有效 BIN，不以 SWD 單獨改寫 APP 取代 metadata 更新。
+
+71 項 Python 離線回歸通過，新增雙模式識別、COM 重新開啟、暫時開埠失敗、仍在 APP 時不得誤判成功、PENDING／錯誤 Target 禁止 RUN、RUN ACK 遺失不重送、返回版本改變失敗及 EVK／PWM 起始防護。本次未修改 MCU 程式，上板切換與實體安全輸出仍待驗證。
+
+
 ### 正式 AXF 具名測試符號檢查（本次 Debug／Release AXF 均已通過）
 
 沿用剛完成入口封鎖測試時的一般 Debug／Release 建置，**不需重新燒錄、不需連線 COM**，也不需要 pyserial 或額外安裝 nm。更新 Python 後執行：

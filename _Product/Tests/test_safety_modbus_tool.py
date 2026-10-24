@@ -356,6 +356,54 @@ class PwmBoard(MultiFaultBoard):
 
 
 
+
+class UpdaterBoard(PwmBoard):
+    def __init__(self, stuck=False, pending=False, lost_run_ack=False,
+                 changed_version=False, wrong_target=False, transient_open=False, **kwargs):
+        super().__init__(**kwargs)
+        self.mode = 'app'
+        self.stuck, self.pending, self.lost_run_ack = stuck, pending, lost_run_ack
+        self.changed_version, self.wrong_target = changed_version, wrong_target
+        self.transient_open = transient_open
+        self.mode_writes, self.opened, self.closed = [], [], 0
+    def read(self, address, count):
+        if address == 0x7000:
+            return ([0xA016,1,1,1,0xC200,8,0,1,0,1] if self.mode == 'app' else
+                    [0xB016,1,2,1,0xC200,8,0,1,1,0])
+        if address == 0x2000:
+            return [1, 0, int(self.changed_version and len(self.mode_writes) > 1)]
+        if address == 0x7051:
+            return [0, 0, 0]
+        if address == 0x7010:
+            return [0,1,11,2026,10,24,0x5516,0x0016,2 if self.wrong_target else 1]
+        if address == 0x7030:
+            return [2 if self.pending else 0,0,0,0,0,0,224,0]
+        return super().read(address, count)
+    def write_single(self, address, value):
+        self.mode_writes.append((address, value))
+        if (address, value) == (0x7050, 0xB007):
+            if not self.stuck:
+                self.mode = 'updater'
+        elif (address, value) == (0x7020, 5):
+            self.mode = 'app'
+            if self.lost_run_ack:
+                raise TimeoutError('RUN ACK lost')
+        else:
+            raise AssertionError('unexpected updater write')
+    def open_client(self, name):
+        board = self
+        if self.transient_open and self.mode == 'updater':
+            self.transient_open = False
+            raise OSError('USB re-enumerating')
+        class Session:
+            def __enter__(self):
+                board.opened.append(name)
+                return board
+            def __exit__(self, *args):
+                board.closed += 1
+        return Session()
+
+
 class ProductionGuardBoard:
     def __init__(self, exposed_read=None, exposed_write=None, wrong_code=None,
                  timeout=False, change_state=False, initial_faults=0):
@@ -1020,6 +1068,55 @@ class Tests(unittest.TestCase):
                 self.assertEqual(tool.main(), 1)
             entries = [json.loads(line) for line in next(Path(directory).glob('*.jsonl')).read_text().splitlines()]
             self.assertEqual(entries[-1]['result'], 'FAIL')
+
+
+    def test_updater_cycle_roundtrip_only_two_mode_writes(self):
+        board = UpdaterBoard(transient_open=True)
+        with patch.object(tool.time, 'sleep', return_value=None):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'RETURN', board.log)
+        self.assertEqual(board.mode_writes, [(0x7050, 0xB007), (0x7020, 5)])
+        self.assertEqual(board.opened, ['APP', 'BOOT', 'RETURN'])
+        self.assertEqual(board.closed, 3)
+        self.assertEqual(board.entries[-1]['event'], 'updater_cycle_pass')
+
+    def test_updater_cycle_stuck_app_never_runs_or_retries_write(self):
+        board = UpdaterBoard(stuck=True)
+        clock = itertools.count(0, 0.1)
+        with patch.object(tool.time, 'sleep', return_value=None), \
+             patch.object(tool.time, 'monotonic', side_effect=lambda: next(clock)), self.assertRaises(TimeoutError):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log, reconnect_seconds=1)
+        self.assertEqual(board.mode_writes, [(0x7050, 0xB007)])
+
+    def test_updater_cycle_pending_image_is_not_installed_or_run(self):
+        board = UpdaterBoard(pending=True)
+        with self.assertRaisesRegex(AssertionError, 'PENDING'):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log)
+        self.assertEqual(board.mode_writes, [(0x7050, 0xB007)])
+
+    def test_updater_cycle_lost_run_ack_not_retried(self):
+        board = UpdaterBoard(lost_run_ack=True)
+        with self.assertRaises(TimeoutError):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log)
+        self.assertEqual(board.mode_writes, [(0x7050, 0xB007), (0x7020, 5)])
+        self.assertFalse(any(e['event'] == 'updater_cycle_pass' for e in board.entries))
+
+    def test_updater_cycle_changed_app_version_fails(self):
+        board = UpdaterBoard(changed_version=True)
+        with self.assertRaisesRegex(AssertionError, '版本'):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log)
+
+    def test_updater_cycle_wrong_boot_target_never_runs(self):
+        board = UpdaterBoard(wrong_target=True)
+        with self.assertRaisesRegex(AssertionError, 'Target'):
+            tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log)
+        self.assertEqual(board.mode_writes, [(0x7050, 0xB007)])
+
+    def test_updater_cycle_preflight_refuses_outputs_and_non_evk(self):
+        for options in ({'initial_duty':100}, {'evk':0}):
+            board = UpdaterBoard(**options)
+            with self.subTest(options=options), self.assertRaisesRegex(AssertionError, 'SafetyTestEVK'):
+                tool.updater_cycle(board.open_client, 'APP', 'BOOT', 'APP', board.log)
+            self.assertEqual(board.mode_writes, [])
 
 
 if __name__ == '__main__':
