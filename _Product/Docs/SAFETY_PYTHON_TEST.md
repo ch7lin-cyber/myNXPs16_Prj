@@ -307,6 +307,13 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 ## 驗證狀態
 
 
+2026-10-24 21:22:29～21:22:43（台灣時間）：使用者於 SafetyTestEVK 執行 `--port COM8 invalid-sample-cycle`，USB CDC、站號 2，工具設定 115200／8N1。兩筆 `invalid_sample_hold_pass` 均 actual_valid=false、minimum_hold_seconds=3.2：無效高溫要求 8500 時 count=0、trip=false，已過溫後無效低溫要求 8499 時 count=3、trip=true。
+
+依腳本判定，無效樣本未更新最後有效值／有效序號，沒有誤改 Fault／Safety／Event／Snapshot；既有過溫未被無效低溫解除，該階段 Reset 被拒絕，最後有效降溫及正確重置後恢復正常。溫度注入清理回報 disabled，`invalid_sample_software_cycle_pass` 及最終 `complete` PASS。
+
+本次記為 USB CDC COM8 無效樣本保護通過。JSONL 位於 `C:\Users\ch\safety_test_results\20261024_212229_960208.jsonl`；證據為使用者貼出的終端輸出，完整 JSONL 未取得。實體 PWM 波形、DO 電位與正式板感測電路仍待測，不由 Register 推定通過。
+
+
 2026-10-24 21:11:59～21:14:17（台灣時間）：使用者切回 SafetyTestEVK 後，執行 `--port COM8 repeat-cycle --cycles 3`，上傳 `貼上的文字 (1)(20261024-131537).txt`。USB CDC COM8、站號 2，工具設定 115200／8N1。
 
 已解析全部終端 JSON 事件：12 筆 `repeat_case_pass`、3 筆 `repeat_round_pass`、66 筆 `reset_guard_rejection_pass`、18 筆 `cleanup`，無 `cleanup_failed`；最後 `repeat_software_cycle_pass`（rounds=3、cases=12）與 `complete` PASS。各輪包含過溫、低電壓、雙重故障與重置防護，並由腳本檢查保留紀錄索引／序號與覆寫結果。

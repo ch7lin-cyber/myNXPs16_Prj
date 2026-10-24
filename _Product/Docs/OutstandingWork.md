@@ -279,6 +279,8 @@ PlatformCore 基準：`80081ed`
 8. 完成五份簡報與維護文件。
 # EVK 過溫驗證補充（2026-10-24）
 
+- [x] SafetyTestEVK USB CDC 無效 MCU 溫度樣本（COM8）：2026-10-24 21:22:29～21:22:43（台灣時間），使用者執行 `invalid-sample-cycle` 回報 PASS；無效 8500 實際 valid=false、count=0、trip=false；已過溫後無效 8499 實際 valid=false、count=3、trip=true，兩段各保持至少 3.2 秒。依腳本判定有效降溫／Reset 恢復正常，最後注入 disabled。站號 2，JSONL 檔名 `20261024_212229_960208.jsonl`；證據為貼出的終端輸出，完整 JSONL 未取得，實際 PWM／DO 仍待量測。
+
 - [x] SafetyTestEVK USB CDC 連續循環與紀錄覆寫（COM8）：2026-10-24 21:11:59～21:14:17（台灣時間），使用者執行 `repeat-cycle --cycles 3`，3 輪／12 案例、66 次重置拒絕與 18 次注入清理通過，無 cleanup_failed。各輪 Safety live／latch／state／inhibit=0，Event／Snapshot 保留 32／16 筆，最新序號 40／16、80／32、120／48，最終 PASS。站號 2，JSONL 檔名 `20261024_211159_588246.jsonl`；證據為上傳終端輸出，完整 JSONL 未取得，實際 PWM／DO 仍待量測。
 
 - [x] Debug USB CDC 測試入口封鎖（COM8）：2026-10-24 21:07:58～21:08:02（台灣時間），使用者依一般 Debug BIN 下載步驟回傳 COM8 紀錄，64 筆 FC03＋4 筆 FC06＋5 筆 FC10 共 73 項全部 exception=2，最終 PASS；依腳本判定前後 Fault／Safety／紀錄不變。JSONL 檔名 `20261024_210758_624886.jsonl`；已審核終端輸出，完整 JSONL 未取得。依本次操作流程，Debug／Release 在 COM3 與 USB CDC COM8 四組入口封鎖結果均已取得。
