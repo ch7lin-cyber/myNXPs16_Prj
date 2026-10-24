@@ -158,6 +158,11 @@ PlatformCore 基準：`80081ed`
 
 ### 板上輸入與 Safety
 
+- [x] 2026-10-24：新增 SafetyTest 專用 Modbus 過溫注入入口及 [Python 自動測試循環](SAFETY_PYTHON_TEST.md)，改由正常主迴圈處理，避免 debugger call／暫停 MCU。
+- [x] 命令原子寫入、確認碼、廣播拒絕、忙碌、正常三次計數及 Python 成敗判定／失敗清理的 Host 測試。
+- [ ] 更新並燒錄 SafetyTest BIN，執行 `python _Product/Tools/safety_modbus_test.py`，保存真實上板 JSONL 結果。
+- [ ] 量測過溫觸發時 PWM／DO 的實際安全電位；Register 成功不代替此項。
+
 - [x] 建立不需實際加熱 MCU 或降低整板電壓的 Safety 驗證方法：[`SystemSafetyVerification.md`](SystemSafetyVerification.md)。
 - [x] 加入 MCU 溫度測試注入介面與 ADC driver 門檻 Host test；API 受 `PRODUCT_SAFETY_TEST_BUILD` 保護，且需同時定義 `PRODUCT_HOST_TEST` 或專用 `PRODUCT_SAFETY_TEST_TARGET`。Host 測試已驗證 production 編譯不帶測試 macro 時不會生成注入介面。
 - [ ] 驗證 DIP Switch bit-packed Register。

@@ -7,6 +7,7 @@
 #include "product_temperature_input_types.h"
 #include "ProductConfig.h"
 #include "product_fw_update.h"
+#include "product_safety_test.h"
 
 #include "EventService.h"
 #include "FactoryCalibrationService.h"
@@ -1278,6 +1279,11 @@ static ModbusExceptionCode_t ReadRegisters(
     if (starting_address >= 0x7000U && starting_address <= 0x7053U)
         return (ModbusExceptionCode_t)ProductFwUpdate_Read(starting_address, quantity, values);
 
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    if (starting_address >= 0x4960U && starting_address <= 0x496FU)
+        return (ModbusExceptionCode_t)ProductSafetyTest_Read(starting_address, quantity, values);
+#endif
+
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             starting_address, &serial_information))
     {
@@ -1992,6 +1998,9 @@ static ModbusExceptionCode_t WriteSingleRegister(
         return (ModbusExceptionCode_t)ProductFwUpdate_Write(address, value);
     if (ProductFwUpdate_IsPending())return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
 
+    if (address >= 0x4960U && address <= 0x496FU)
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+
     if (ModbusRegisterAdapter_ResolveSerialAddress(
             address, &serial_information))
     {
@@ -2158,6 +2167,14 @@ static ModbusExceptionCode_t WriteMultipleRegisters(
     const uint16_t *values,
     uint16_t quantity)
 {
+    if (starting_address >= 0x4960U && starting_address <= 0x496FU) {
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+        if (ProductFwUpdate_IsPending()) return MODBUS_EXCEPTION_SERVER_DEVICE_BUSY;
+        return (ModbusExceptionCode_t)ProductSafetyTest_Write(starting_address, values, quantity);
+#else
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+#endif
+    }
     product_modbus_register_context_t *registerContext =
         (product_modbus_register_context_t *)context;
     product_temperature_input_config_t pendingConfig;

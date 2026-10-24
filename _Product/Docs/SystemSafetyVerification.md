@@ -1,5 +1,7 @@
 # System Safety Verification
 
+> 2026-10-24：上板操作改用 [Python 自動安全測試](SAFETY_PYTHON_TEST.md)。下方 debugger call 操作保留為歷史說明，因暫停／連線與 Watchdog 問題，不再作為建議測試流程。
+
 ## Purpose
 
 Verify the MCU overtemperature and low-voltage protection paths without

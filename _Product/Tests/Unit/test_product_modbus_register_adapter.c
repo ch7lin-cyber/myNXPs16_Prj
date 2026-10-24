@@ -1469,6 +1469,18 @@ static void TestCjcOffsetPendingApply(void)
 
 int main(void)
 {
+    /* Production images must not expose the SafetyTest command region. */
+    {
+        ModbusSlaveRegisterInterface_t testInterface;
+        uint16_t data[8]={1,1,8500,0x5AFE};
+        ProductModbusRegisterAdapter_GetInterface(&testInterface);
+        assert(testInterface.read_holding_registers(testInterface.context,0x4968,8,data)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.write_single_register(testInterface.context,0x4960,1)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+        assert(testInterface.write_multiple_registers(testInterface.context,0x4960,data,4)==
+               MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    }
     static const HalPwmDriverOps_t pwmOps =
         {MockPwmInitialize, MockPwmSetDuty, MockPwmSetPeriod};
     static const HalDacDriverOps_t dacOps =

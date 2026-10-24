@@ -17,6 +17,7 @@
 #include "DigitalOutputService.h"
 #include "SafetyConfigurationEventConsumer.h"
 #include "SafetyService.h"
+#include "product_safety_test.h"
 #include "SnapshotService.h"
 #include "SystemFaultService.h"
 #include "SystemRoutine.h"
@@ -604,6 +605,9 @@ void ProductApplication_Process(void)
         ProductRotarySwitchDriver_Process();
     }
     BspInternalAdc_Process();
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    ProductSafetyTest_Process();
+#endif
     (void)SystemRoutine_ExecuteFast(g_system_timestamp_ms);
     if (g_cjc_due)
     {

@@ -1,4 +1,5 @@
 #include "product_fw_update.h"
+#include "product_safety_test.h"
 #include "../../../_Modules/PlatformCore/FwUpdateApp/include/fw_update_app.h"
 #include "ProductFwUpdateConfig.h"
 
@@ -25,7 +26,12 @@ static const FwUpdateAppPlatform_t platform = { .user = 0, .quiesce = Quiesce, .
 
 void ProductFwUpdate_Init(void) { (void)FwUpdateApp_Init(&update, &config, &platform); }
 void ProductFwUpdate_SetRequestContext(uint16_t route, uint16_t unit)
-{ FwUpdateApp_SetRequestContext(&update, route, unit); }
+{
+    FwUpdateApp_SetRequestContext(&update, route, unit);
+#ifdef PRODUCT_SAFETY_COMMAND_ENABLED
+    ProductSafetyTest_SetAddressed(route != 0U && unit != 0U);
+#endif
+}
 uint8_t ProductFwUpdate_Read(uint16_t address, uint16_t count, uint16_t *values)
 { return FwUpdateApp_Read(&update, address, count, values); }
 uint8_t ProductFwUpdate_Write(uint16_t address, uint16_t value)

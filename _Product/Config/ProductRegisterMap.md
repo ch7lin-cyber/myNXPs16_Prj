@@ -271,6 +271,8 @@ returns exception 04.
 
 ## SystemRoutine diagnostic summary
 
+SafetyTest 專用注入／診斷區為 `0x4960..0x496F`，一般 Debug／Release 不提供此區；詳細命令、組態限制及 Python 操作見 [安全測試工具](../Docs/SAFETY_PYTHON_TEST.md)。
+
 All 32-bit values use high-word first. These registers are read-only.
 
 | Address | Access | Meaning |

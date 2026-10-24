@@ -66,6 +66,11 @@ suites = {
         driver_source("product_internal_adc_driver"),
         UNIT / "test_product_internal_adc_temperature_injection.c",
     ],
+    "safety_commands": [
+        driver_source("product_internal_adc_driver"),
+        PRODUCT / "Source/L03_System/product_safety_test.c",
+        UNIT / "test_product_safety_commands.c",
+    ],
 }
 
 with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
@@ -79,7 +84,8 @@ with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
             "-Werror",
             "-DPRODUCT_HOST_TEST=1",
             *(["-DPRODUCT_SAFETY_TEST_BUILD=1"]
-              if name == "mcu_temperature_injection" else []),
+              if name in ("mcu_temperature_injection", "safety_commands") else []),
+            *(["-DPRODUCT_SAFETY_TEST_TARGET=1"] if name == "safety_commands" else []),
             *["-I" + str(path) for path in include_dirs],
             *[str(path) for path in sources],
             "-o",
@@ -88,3 +94,13 @@ with tempfile.TemporaryDirectory(prefix="product-driver-tests-") as directory:
         subprocess.run(command, check=True)
         subprocess.run([str(output)], check=True)
         print(f"{name}: PASS", flush=True)
+
+    for symbols in ([], ['PRODUCT_SAFETY_TEST_BUILD'], ['PRODUCT_SAFETY_TEST_TARGET']):
+        obj = Path(directory) / 'safety_production.o'
+        subprocess.run(['gcc', '-std=c11', *['-D'+s+'=1' for s in symbols],
+                        '-I'+str(PRODUCT / 'Source/L03_System'), '-c',
+                        str(PRODUCT / 'Source/L03_System/product_safety_test.c'),
+                        '-o', str(obj)], check=True)
+        names = subprocess.check_output(['nm', str(obj)], text=True)
+        assert 'ProductSafetyTest_' not in names, symbols
+    print('Safety command API absent unless both target-test symbols are set: PASS')
