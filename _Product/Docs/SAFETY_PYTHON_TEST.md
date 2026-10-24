@@ -70,7 +70,7 @@ MCU 按正常低電壓服務取樣呼叫消耗有限次數的注入，不依靠 
 
 ## 自動循環與判定
 
-### 雙重故障下的四路 PWM 互鎖（新增，EVK 待實測）
+### 雙重故障下的四路 PWM 互鎖（EVK 軟體流程已通過）
 
 沿用已通過 `pwm-inhibit-cycle` 的 SafetyTestEVK 韌體，只更新 Python，不需重新燒錄：
 
@@ -84,7 +84,7 @@ python E:\myGitHub\myNXPs16_Prj\_Product\Tools\safety_modbus_test.py --port COM3
 
 結束或失敗均先嘗試四路 Duty 歸零並還原週期／模式，再獨立關閉兩項注入；清理失敗回報 FAIL，不自動清除失敗時的 Fault。此測試觀察服務及 HAL 成功回覆後的套用值，不能證明實體 PWM 波形或排除讀取間隔內的短暫脈衝，仍須儀器量測。
 
-新增後共 51 項 Python 離線回歸通過，包含兩種順序成功、部分 Reset 提早恢復輸出的偵測、最後鎖存前提早恢復的偵測、清理失敗仍關閉兩項注入，以及非 EVK 時不寫入。未修改 MCU 韌體；本案例 EVK 實測尚未完成。
+新增後共 51 項 Python 離線回歸通過，包含兩種順序成功、部分 Reset 提早恢復輸出的偵測、最後鎖存前提早恢復的偵測、清理失敗仍關閉兩項注入，以及非 EVK 時不寫入。未修改 MCU 韌體；本案例 EVK 軟體流程結果如下，實體波形仍待量測。
 
 ### 四路 PWM 服務抑制（EVK 軟體流程已通過）
 
@@ -263,6 +263,13 @@ python _Product\Tools\safety_modbus_test.py --port COM8 write10 0x4809 0x0201 0x
 數字預設十進位；HEX 一律加 `0x`。後續測試新增自動案例，重用同一組通訊與紀錄，不需再使用 debugger call。
 
 ## 驗證狀態
+
+
+2026-10-24 20:34:29～20:34:41（台灣時間）：使用者在 EVK 執行 `pwm-multi-fault-cycle`，COM3、115200／8N1、站號 2。先清過溫及先清低電壓兩種順序，各回報 `pwm_multi_fault_trip_pass`、`pwm_remaining_fault_pass` 及 `pwm_multi_fault_order_pass`；最終 `pwm_multi_fault_software_cycle_pass`（channels=4、sources=2）及 `complete` PASS。
+
+兩輪雙重故障成立時，四路要求 Duty=100／200／300／400 permille，套用值全為 0、inhibited=1；僅清除第一項故障後同樣保持歸零。依腳本判定，剩餘故障期間改寫要求值、拒絕帶故障 Reset，以及全部條件恢復後的最後鎖存階段均保持抑制；最後正確 Reset 後，四路套用值才恢復為最後要求值 200／300／400／500 permille、inhibited=0。各通道回報 period=10、mode=0、hal_initialized=1、evk=1。
+
+清理完成四路 Duty=0、原週期／模式還原，兩項注入均關閉。JSONL 位於使用者電腦 `C:\Users\ch\safety_test_results\20261024_203429_623912.jsonl`；證據為貼出的終端輸出，完整 JSONL 尚未取得。本次記為 EVK 雙重故障四路 PWM 服務互鎖通過；套用值代表服務獲得 HAL 成功回覆，實際 PWM 波形、DO 電位、讀取間隔內短暫脈衝與正式板仍待儀器量測。
 
 PWM 服務抑制新增回歸後共 46 項 Python 離線測試通過，涵蓋兩個來源、四通道、保護期間改寫、提早恢復／未抑制／不恢復的偵測、拒絕非 EVK 與既有非零輸出、PWM 清理失敗仍清理兩項注入。Host 實際 Modbus adapter＋PwmOutputService＋HalPwm＋mock driver 測試確認診斷與 HAL Duty 一致、抑制時四路歸零、解除後恢復、讀取邊界及唯讀限制；正式 DEBUG=1／0 Modbus 仍不公開此區。靜態測試狀態仍為 48 bytes SRAMX，無新增靜態 RAM；PWM EVK 軟體流程結果如下；尚未取得目標 ARM 建置報表，實體波形仍待量測。
 
