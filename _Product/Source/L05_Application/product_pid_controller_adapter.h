@@ -19,8 +19,8 @@ typedef FbPidMode_t ProductPidControllerMode_t;
 typedef struct
 {
     uint32_t sample_sequence;
-    int32_t pv; /* normalized to CKLIB unit: 0.1 degree C by the provider */
-    int32_t sv;
+    int32_t pv; /* 0.001 degree C; temporary CKLIB conversion lives in L04 */
+    int32_t sv; /* 0.001 degree C; provider must not divide by 100 */
     bool enable;
     bool reset;
     bool valid;

@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #include "cklib/inc/ck_auto_tune.h"
 #include "cklib/inc/ck_controller.h"
@@ -31,6 +32,7 @@ static struct _CK_AUTO_TUNE g_auto_tune;
 static ProductPidControllerInput_t g_sample;
 static uint32_t g_create_count;
 static uint32_t g_apply_count;
+static int32_t g_autotune_pv;
 static uint32_t g_controller_control_count;
 static uint32_t g_controller_reset_count;
 static uint32_t g_auto_tune_reset_count;
@@ -161,7 +163,7 @@ CK_ERROR ckAutoTuneCollectAndSignal(CK_AUTO_TUNE autotune,
                                     control_value_t pv,
                                     CK_OUTPUT *output)
 {
-    (void)pv;
+    g_autotune_pv=pv;
     autotune->calls++;
     output->mv[0] = 500;
     output->mv[1] = 0;
@@ -359,11 +361,35 @@ static void TestEnableResetPins(void)
     ProductPidControllerAdapter_Deinit(&adapter);
 }
 
+static void TestTemperatureConversion(void)
+{
+    const int32_t input[]={25123,25150,-25123,-25150,49,50,-49,-50,INT32_MAX,INT32_MIN};
+    const int32_t expected[]={251,252,-251,-252,0,1,0,-1,21474836,-21474836};
+    ProductPidControllerAdapter_t adapter;
+    ProductPidControllerAdapterConfig_t config=MakeConfig(PRODUCT_PID_CONTROLLER_MODE_PID_CONTROL);
+    g_sample.enable=g_sample.valid=true; g_sample.reset=false; g_provider_available=true;
+    assert(ProductPidControllerAdapter_Init(&adapter,&config,ReadSample,NULL));
+    for (unsigned i=0;i<sizeof(input)/sizeof(input[0]);++i) {
+        g_sample.pv=g_sample.sv=input[i]; ++g_sample.sample_sequence;
+        ProductPidControllerAdapter_Process(&adapter,20);
+        assert(g_controller.pv==expected[i] && g_controller.sv==expected[i]);
+    }
+    ProductPidControllerAdapter_Deinit(&adapter);
+    config=MakeConfig(PRODUCT_PID_CONTROLLER_MODE_AUTO_TUNE);
+    g_sample.pv=-25150; g_sample.sv=30050; ++g_sample.sample_sequence;
+    assert(ProductPidControllerAdapter_Init(&adapter,&config,ReadSample,NULL));
+    ProductPidControllerAdapter_Process(&adapter,20);
+    assert(g_autotune_pv==-252 && g_auto_tune.sv==301);
+    ++g_sample.sample_sequence; ProductPidControllerAdapter_Process(&adapter,20);
+    assert(adapter.fb_pid.auto_tune_completed && g_controller.pv==-252 && g_controller.sv==301);
+    ProductPidControllerAdapter_Deinit(&adapter);
+}
+
 int main(void)
 {
     g_sample.sample_sequence = 1U;
-    g_sample.pv = 250;
-    g_sample.sv = 300;
+    g_sample.pv = 25000;
+    g_sample.sv = 30000;
     g_sample.enable = true;
     g_sample.valid = true;
 
@@ -375,6 +401,7 @@ int main(void)
     TestInvalidInput();
     assert(g_create_count == 6U);
     assert(g_auto_tune_reset_count >= 2U);
+    TestTemperatureConversion();
 
     puts("PASS: PID adapter modes, ENABLE/RESET transitions, timing, stale input, and AutoTune handoff");
     return 0;

@@ -2,6 +2,8 @@
 
 ## Summary
 
+2026-10-25 單位更新：L05／L04公開PV與SV採0.001°C，只有L04 CKLIB邊界暫轉0.1°C，L05不得先除100。下一版待Colin將CKLIB統一至0.001°C；需確認實體版本後同步移除PID與AT的暫時轉換。MV仍為0.1%，SetParameter參數刻度未一併變更。詳見 [PID單位遷移清單](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md)。
+
 L04 owns the reusable `FbPid` function block and is the only layer that includes or calls CKLIB. L05 maps product PV/SV and configuration into `FbPid`, invokes it on the product schedule, and publishes MV plus validity/diagnostics. L05 must not include CKLIB headers or expose CKLIB handles. The adapter is not yet connected to a product PV source, output consumer, or schedule registration.
 
 ## Block diagram
@@ -25,7 +27,7 @@ flowchart LR
 | L05 `ProductPidControllerAdapter` | Product sample provider, sample freshness, scheduled elapsed time, product configuration mapping, forwarding output and diagnostics | None |
 | Consumer | Accept MV only when valid; apply product/safety limits and perform output write | None |
 
-L04 supports four modes: AutoTune (with PID or PID-FB target), On/Off, PID, and PID-FB. `FbPid_SetParameter()` forwards semantic parameter IDs to CKLIB setters so callers do not depend on CKLIB parameter enums or handles. PV/SV use CKLIB's 0.1 °C representation. The L05 sample provider must normalize product sources to this unit (for milli-degrees Celsius, divide by 100 with an agreed rounding rule) before returning the sample. Reject non-temperature inputs unless a separate scale mapping is specified.
+L04 supports four modes: AutoTune (with PID or PID-FB target), On/Off, PID, and PID-FB. `FbPid_SetParameter()` forwards semantic parameter IDs without converting their units. Public PV/SV and the L05 provider use 0.001°C; L04 alone rounds to the current CKLIB 0.1°C API, nearest with half away from zero. Providers must not divide by 100. Reject non-temperature inputs unless a separate scale mapping is specified.
 
 `ProductPidControllerAdapter_Process(context, elapsed_ms)` matches the L05 schedule callback contract. L05 reads the sample provider, checks optional maximum sample age (`0` disables freshness checking), passes elapsed time to L04, and exposes the resulting MV and validity. General controller modes convert elapsed milliseconds to CKLIB's 10 ms step units, rounded to the nearest unit. AutoTune has no elapsed-time argument and requires the configured period/tolerance to match the actual scheduled callback.
 

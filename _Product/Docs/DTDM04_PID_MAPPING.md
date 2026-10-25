@@ -2,6 +2,8 @@
 
 ## 摘要
 
+單位實作更新：公開PV／SV已採0.001°C，由L04暫轉CKLIB的0.1°C。下一版待Colin統一後端至0.001°C，需確認版本並移除暫時轉換；下文舊介面敘述以此更新為準，PB／Ti／Td等SetParameter刻度尚未統一。詳見 [遷移清單](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md)。
+
 實作增補：已完成 L04 FbPidGroupSelector 的四組參數、完整驗證、固定／SV自動選組及外部鎖組，Host／ASan／UBSan通過。輸出僅為候選副本；以下尚未完成的「四組管理」需拆分理解，選組核心已完成，後端整組套用、CKLIB單位轉換、AT讀回／回寫及持久化仍未完成。詳見 [正式規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPidGroupSelector/README.md)。
 
 使用者提供的 PID Parameters 確認每個控制通道有四組 PID 參數，可手動指定或依 SV 自動選組。此文件僅整理規格與設計建議，未新增程式，未宣稱與 DTDM04 完全一致。

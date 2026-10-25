@@ -8,6 +8,7 @@
 
 | 範圍 | 文件 |
 |---|---|
+| PID目前0.1°C相容轉換與Colin下一版0.001°C待辦 | [PID單位邊界](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md) |
 | L05 輸入折線→Switch Over→PV候選與整合測試 | [L05_PV_PROCESSING.md](L05_PV_PROCESSING.md) |
 | 電壓平方補償、旁路與MV限制 | [FbPowerVoltageCompensation 規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPowerVoltageCompensation/README.md) |
 | 電壓補償 Host 測試細則 | [FbPowerVoltageCompensation Host Test](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPowerVoltageCompensation/HOST_TEST.md) |

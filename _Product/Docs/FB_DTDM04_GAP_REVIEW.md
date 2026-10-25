@@ -100,7 +100,7 @@ Control Loop、Model Output 與輸出折線欄位皆已補入逐欄對照；Mode
 
 FbPid.c 已實際呼叫 CKLIB，產品 adapter 只呼叫 L04，分層符合既有要求。測試中的 CKLIB 函式是 test doubles；libcklib.a 仍為零位元組佔位。這只能證明封裝／控制流程，不證明 PID 數值效果。
 
-FbPid 公開 PV／SV 仍採 CKLIB 的 0.1°C，Alarm 與 Sensor 是 0.001°C。正式串接前須在 L04 backend 邊界定案換算與捨入，或明確記錄外層轉換；目前不能稱溫度 FB 已全部統一刻度。MV 仍為 0.1%，也不能與溫度混用。
+FbPid公開PV／SV已統一0.001°C，L04邊界暫轉目前CKLIB的0.1°C，最接近值且半格離零取整；L05不得重複換算。下一版待Colin將CKLIB統一0.001°C，實體版本確認後移除轉換。PB等SetParameter刻度與實體解析度仍待核對，不能宣稱後端已有0.001°C精度。MV仍0.1%。
 
 AT SV 比例、熱／冷 PID 參數與限幅已有參數入口；但四組 PID 管理、根據 SV 自動切換與 AT 結果持久化需要額外流程。不得把封裝 API 存在當作整個功能群組完成。
 
@@ -110,7 +110,7 @@ AT SV 比例、熱／冷 PID 參數與限幅已有參數入口；但四組 PID �
 |---|---|---|
 | ENABLE | Alarm／Logic 停用清除執行狀態；Ramp／InBand 等有保持狀態的契約 | 逐 FB 明訂暫停／停用／Reset，不以一次全域替換破壞既有行為。 |
 | 時間 | Alarm／Logic／PID 為 ms；Ramp／InBand 等為秒 | L05 顯式換算，避免直接傳同一數值。 |
-| 溫度 | Sensor／Alarm 為整數 0.001°C；PID 為 0.1°C；部分通用 FB 使用呼叫端定義的 float 單位 | 介面註明單位，轉換邊界集中，不能只靠變數名稱猜測。 |
+| 溫度 | Sensor／Alarm／PID公開引腳0.001°C；目前CKLIB後端0.1°C | L04集中暫時轉換；下一版Colin統一後端時核對版本並移除，PB等參數另查。 |
 | 有效性 | 不同 FB 對無效輸入可能清除或凍結狀態 | L05 檢查 status／valid，避免使用診斷用舊值作控制結果。 |
 | 最終輸出 | FB 有輸出限幅不等於 Safety 許可 | 既有 SYSTEM／Safety／輸出服務權責優先，禁止旁路。 |
 
