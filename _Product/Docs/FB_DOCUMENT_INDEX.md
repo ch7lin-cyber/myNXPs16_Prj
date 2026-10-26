@@ -6,6 +6,8 @@
 
 各 L04 FB 的正式規格與測試放在 PlatformCore 內，產品 Docs 以連結集中導覽，避免複製後出現不同版本。
 
+2026-10-26：各已實作 FB 已統一 SVG FBD 格式，共 25 個模組、26 張公開入口方塊圖（含 PID；輸入／輸出折線各一張）。[全部 FBD、引腳與參數文件索引](../../_Modules/PlatformCore/L04_FunctionBlock/FBD_INDEX.md)。本次為文件格式更新，未改變引腳或禁能契約；C7G Logic 仍為尚未實作的規劃。
+
 | 範圍 | 文件 |
 |---|---|
 | PID目前0.1°C相容轉換與Colin下一版0.001°C待辦 | [PID單位邊界](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md) |
