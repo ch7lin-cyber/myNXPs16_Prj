@@ -2,6 +2,8 @@
 
 ## 摘要
 
+2026-10-27 用語統一：24 個模組為「L04 實作完成；Host 單元測試通過」；FbPid 為「L04 封裝完成；Host mock 單元測試通過」。產品串接與 MCU 實測分開追蹤，詳見 [狀態定義與逐項總表](../../_Modules/PlatformCore/L04_FunctionBlock/VERIFICATION_STATUS.md)。本次不重新執行全部歷史測試。
+
 L05增補：PV處理adapter已接正式Sensor Snapshot provider、20ms CH0排程與Alarm的RAW／PROCESSED明確來源選擇，涵蓋單位／時效／時間差、整組設定與來源變更歷史清除，Host整合與回歸通過。預設Alarm仍RAW；PID、Register／NVM、實體輸出及MCU仍未完成，不宣稱正式閉迴路上線。時間戳是樣本首次處理時間，非ADC精確擷取時間。
 
 更新日期：2026-10-25；原始盤點為2026-10-22。此為本機原始碼／契約與Host驗證狀態，不代表完整設備相容或MCU實測。
@@ -30,32 +32,32 @@ L05增補：PV處理adapter已接正式Sensor Snapshot provider、20ms CH0排程
 
 | FB | 程式狀態 | DTDM04 對照及限制 |
 |---|---|---|
-| FbAlarm | 已實作／Host 驗證 | 4.2.1～4.2.2；八種比較、成立延遲、待機、峰值。MANUAL／Reset／Peak Clear 為專案契約，與原 HOLD／STOP 不完全相同。L05 已有 12 組配置。 |
-| FbLogic | 已實作／Host 驗證 | 5.2.4；四輸入、反向、ON／OFF 延遲。OFF 強制零為專案契約。L05 已有 16 組與前／後半組順序。 |
-| FbSetpointRamp | 已實作／Host 驗證 | 可作 5.1.5 斜率控制的基礎。不是完整程序執行器；現有零斜率為保持，須另確認產品如何解讀手冊設定。 |
-| FbInBandTimer | 已實作／Host 驗證 | 可作到溫帶與持溫計時的基礎；不能直接等同 5.1.4 的步驟結束等候／逾時警報。 |
-| FbOutputLimiter | 已實作／Host 驗證 | 限幅與變化率限制的通用元件；不取代 SYSTEM 最終輸出許可。 |
-| FbWeightedSum | 已實作／Host 驗證 | 可用於 PID MV＋FF MV 等加總，但本身沒有前饋時序。 |
-| FbDivide | 已實作／Host 驗證 | 通用數學運算，非 DTDM04 專用功能。 |
-| FbSelector | 已實作／Host 驗證 | 四輸入索引／最小／最大選擇；沒有 Switch Over 的切換帶與故障替代狀態。 |
-| FbMovingAverage | 已實作／Host 驗證 | 移動平均；已有 CH0 L05 驗證鏈。不能視為等同手冊的濾波演算法。 |
-| FbLinearization | 已實作／Host 驗證 | 分段線性插值，X 嚴格遞增，範圍外 CLAMP／ERROR；尚非完整 DTDM04 輸入／輸出折線功能。 |
-| FbLeadLag | 已實作／Host 驗證 | 通用超前／落後元件；不能因有此元件就認定前饋或串級完成。 |
-| FbDeadTime | 已實作／Host 驗證 | 通用純延遲，不等同布林 ON／OFF 延遲或程序等待功能。 |
-| FbPid | 封裝已實作；實體驗證未完成 | AUTO_TUNE／ON_OFF／PID／PID_FB 四模式，CKLIB 引用位於 L04；有產品 adapter mock 測試。不是空架構，也不能宣稱實體演算法已驗證。 |
-| FbProfileSequencer | 程序核心已實作／Host驗證 | 專案Ramp／Soak、循環／連接、等待／命令已做；L05、持久化恢復及MCU待接。 |
-| FbCascadeCoordinator | SV換算核心已實作／Host驗證 | 主控MV→副控SV映射、界限、Offset及濾波已做；完整雙PID協調待接。 |
-| FbPowerVoltageCompensation | L04平方補償已實作／Host驗證 | 專案電阻負載模型，產品輸出鏈及anti-windup未接。 |
-| FbHeaterResistance | L04阻值診斷已實作／Host驗證 | 專案診斷，非DTDM04缺項；RMS來源／時間窗與產品處置待接。 |
-| FbBatchMetrics | L04統計核心已實作／Host驗證 | 專案批次統計；產品事件／來源／保存／MCU未接。 |
-| FbProcessResponse | 已知步階觀測核心已實作／Host驗證 | 專案製程分析，非自動辨識／整定；產品實驗與資料串接待接。 |
-| FbRecordTrigger | L04觸發核心已實作／Host驗證 | 週期／事件請求，非資料記錄服務；L05／實際擷取保存／MCU未接。 |
-| FbC7gLogic | 僅獨立規劃文件 | C7G 功能，與 DTDM04 FbLogic 分開。 |
-| FbSignalLinearization | L04包裝已實作／Host驗證 | 輸入Value／Deviation／Bypass、輸出內插／步階／Off、Offset及限制；來源與Register未接。 |
-| FbInputSwitchOver | L04已實作／Host驗證 | 雙來源切換／平均及故障政策；L05品質／時序與產品來源未接。 |
-| FbMultiChannelAlarm | L04已實作／Host驗證 | MAX−MIN、延遲與單次動作；SYSTEM目標／命令回報未接。 |
-| FbPidGroupSelector | L04候選選組已實作／Host驗證 | 四組參數驗證與SV選組；不是後端已套用ACK。 |
-| FbFeedforward | L04波形核心已實作／Host驗證 | 延遲／兩段補償／回零與Force；FF＋PID、熱冷及追蹤未接。 |
+| FbAlarm | L04 實作完成；Host 單元測試通過 | 4.2.1～4.2.2；八種比較、成立延遲、待機、峰值。MANUAL／Reset／Peak Clear 為專案契約，與原 HOLD／STOP 不完全相同。L05 已有 12 組配置。 |
+| FbLogic | L04 實作完成；Host 單元測試通過 | 5.2.4；四輸入、反向、ON／OFF 延遲。OFF 強制零為專案契約。L05 已有 16 組與前／後半組順序。 |
+| FbSetpointRamp | L04 實作完成；Host 單元測試通過 | 可作 5.1.5 斜率控制的基礎。不是完整程序執行器；現有零斜率為保持，須另確認產品如何解讀手冊設定。 |
+| FbInBandTimer | L04 實作完成；Host 單元測試通過 | 可作到溫帶與持溫計時的基礎；不能直接等同 5.1.4 的步驟結束等候／逾時警報。 |
+| FbOutputLimiter | L04 實作完成；Host 單元測試通過 | 限幅與變化率限制的通用元件；不取代 SYSTEM 最終輸出許可。 |
+| FbWeightedSum | L04 實作完成；Host 單元測試通過 | 可用於 PID MV＋FF MV 等加總，但本身沒有前饋時序。 |
+| FbDivide | L04 實作完成；Host 單元測試通過 | 通用數學運算，非 DTDM04 專用功能。 |
+| FbSelector | L04 實作完成；Host 單元測試通過 | 四輸入索引／最小／最大選擇；沒有 Switch Over 的切換帶與故障替代狀態。 |
+| FbMovingAverage | L04 實作完成；Host 單元測試通過 | 移動平均；已有 CH0 L05 驗證鏈。不能視為等同手冊的濾波演算法。 |
+| FbLinearization | L04 實作完成；Host 單元測試通過 | 分段線性插值，X 嚴格遞增，範圍外 CLAMP／ERROR；尚非完整 DTDM04 輸入／輸出折線功能。 |
+| FbLeadLag | L04 實作完成；Host 單元測試通過 | 通用超前／落後元件；不能因有此元件就認定前饋或串級完成。 |
+| FbDeadTime | L04 實作完成；Host 單元測試通過 | 通用純延遲，不等同布林 ON／OFF 延遲或程序等待功能。 |
+| FbPid | L04 封裝完成；Host mock 單元測試通過 | AUTO_TUNE／ON_OFF／PID／PID_FB 四模式，CKLIB 引用位於 L04；有產品 adapter mock 測試。不是空架構，也不能宣稱實體演算法已驗證。 |
+| FbProfileSequencer | L04 實作完成；Host 單元測試通過 | 專案Ramp／Soak、循環／連接、等待／命令已做；L05、持久化恢復及MCU待接。 |
+| FbCascadeCoordinator | L04 實作完成；Host 單元測試通過 | 主控MV→副控SV映射、界限、Offset及濾波已做；完整雙PID協調待接。 |
+| FbPowerVoltageCompensation | L04 實作完成；Host 單元測試通過 | 專案電阻負載模型，產品輸出鏈及anti-windup未接。 |
+| FbHeaterResistance | L04 實作完成；Host 單元測試通過 | 專案診斷，非DTDM04缺項；RMS來源／時間窗與產品處置待接。 |
+| FbBatchMetrics | L04 實作完成；Host 單元測試通過 | 專案批次統計；產品事件／來源／保存／MCU未接。 |
+| FbProcessResponse | L04 實作完成；Host 單元測試通過 | 專案製程分析，非自動辨識／整定；產品實驗與資料串接待接。 |
+| FbRecordTrigger | L04 實作完成；Host 單元測試通過 | 週期／事件請求，非資料記錄服務；L05／實際擷取保存／MCU未接。 |
+| FbC7gLogic | 尚未實作；尚未建立／執行 | C7G 功能，與 DTDM04 FbLogic 分開。 |
+| FbSignalLinearization | L04 實作完成；Host 單元測試通過 | 輸入Value／Deviation／Bypass、輸出內插／步階／Off、Offset及限制；來源與Register未接。 |
+| FbInputSwitchOver | L04 實作完成；Host 單元測試通過 | 雙來源切換／平均及故障政策；L05品質／時序與產品來源未接。 |
+| FbMultiChannelAlarm | L04 實作完成；Host 單元測試通過 | MAX−MIN、延遲與單次動作；SYSTEM目標／命令回報未接。 |
+| FbPidGroupSelector | L04 實作完成；Host 單元測試通過 | 四組參數驗證與SV選組；不是後端已套用ACK。 |
+| FbFeedforward | L04 實作完成；Host 單元測試通過 | 延遲／兩段補償／回零與Force；FF＋PID、熱冷及追蹤未接。 |
 
 以上不將 AlarmConfigurationEventConsumer、SafetyConfigurationEventConsumer、FunctionBlockLifecycle 或 CKLIB 標頭計為獨立運算 FB。
 
@@ -63,17 +65,17 @@ L05增補：PV處理adapter已接正式Sensor Snapshot provider、20ms CH0排程
 
 | 群組 | 手冊依據 | 現況 | 缺項及放置位置 |
 |---|---|---|---|
-| 輸入折線表 | 3.3.5，頁 3-9～3-11；使用者已提供 Input Module 與折線欄位 | 專案折線包裝已實作／Host驗證 | Value／Deviation、Offset、旁路已做，原Low／High端點語意待確認；14 組中間點與邊界是否構成 16 節點待確認。詳見 [輸入折線對照](DTDM04_INPUT_LINEARIZATION_MAPPING.md)。 |
-| Ramp Soak Parameters | 5.1.4，頁 5-5～5-8；使用者已提供四樣式／十六步驟欄位 | 程序核心已實作／Host驗證 | 已整理有效步驟索引、額外循環、END／STOP、首步與等待差異；專案狀態契約已定；產品配方歸屬、L05與斷電保存仍未完成。詳見 [程序對照](DTDM04_RAMP_SOAK_MAPPING.md)。 |
+| 輸入折線表 | 3.3.5，頁 3-9～3-11；使用者已提供 Input Module 與折線欄位 | 專案折線包裝實作完成；Host 單元測試通過 | Value／Deviation、Offset、旁路已做，原Low／High端點語意待確認；14 組中間點與邊界是否構成 16 節點待確認。詳見 [輸入折線對照](DTDM04_INPUT_LINEARIZATION_MAPPING.md)。 |
+| Ramp Soak Parameters | 5.1.4，頁 5-5～5-8；使用者已提供四樣式／十六步驟欄位 | 程序核心實作完成；Host 單元測試通過 | 已整理有效步驟索引、額外循環、END／STOP、首步與等待差異；專案狀態契約已定；產品配方歸屬、L05與斷電保存仍未完成。詳見 [程序對照](DTDM04_RAMP_SOAK_MAPPING.md)。 |
 | Control Loop Parameters | 使用者已提供完整群組欄位，跨第 3、5 章 | 有 PID 封裝及部分基礎元件 | 已拆分 PV 路由、單／串級、控制演算法、雙 SV、程序、輸出候選值與 NVM 恢復責任；詳見 [逐欄對照](DTDM04_CONTROL_LOOP_MAPPING.md)。Deadband／等待溫度／斜率時間單位仍有疑點。 |
-| Input Switch Over Parameters | 3.3.4，頁 3-8～3-9；使用者已提供欄位 | 專用Switch Over已實作／Host驗證 | 手冊確認低／高來源選擇及中間區兩來源平均，不等同一般遲滯。專案故障／恢復／等號契約已定；L05來源／時效未接；詳見 [輸入切換對照](DTDM04_SWITCH_OVER_MAPPING.md)。 |
+| Input Switch Over Parameters | 3.3.4，頁 3-8～3-9；使用者已提供欄位 | 專用Switch Over實作完成；Host 單元測試通過 | 手冊確認低／高來源選擇及中間區兩來源平均，不等同一般遲滯。專案故障／恢復／等號契約已定；L05來源／時效未接；詳見 [輸入切換對照](DTDM04_SWITCH_OVER_MAPPING.md)。 |
 | Logic Operator Parameters | 5.2.4，頁 5-25～5-26 | L04 與基本 L05 串接已做 | 現有來源為常數／Alarm／Logic／DI，尚未完整納入手冊所有程序／控制狀態；Register 及 MCU 驗證另列。 |
 | Alarm Parameters | 4.2.1～4.2.2，頁 4-9～4-10 | L04 與 12 組 L05 已做 | Register、NVM、事件與 DO 分派待整合；MANUAL／STOP 差異是專案選擇，不以改回手冊語意作為補缺。 |
-| Multi-channel Alarm Parameters | 4.2.3，頁 4-11；使用者已提供 mAlm1 欄位 | 跨通道比較核心已實作／Host驗證 | 已確認 8×4 選擇 mask、MAX−MIN、0～10 秒動作延遲及 Hold 一次動作；專案重置／重新武裝已定；跨模組品質provider與SYSTEM動作目標待接。詳見 [多通道警報對照](DTDM04_MULTI_CHANNEL_ALARM_MAPPING.md)。 |
-| Feedforward | 5.1.8，頁 5-11～5-13；使用者已提供三階段參數表 | 前饋核心已實作／Host驗證 | 已確認 D1／T1／T2／T3／Tx、有號 0.1% 補償與 PID MV 加總；曲線／事件／Force採專案契約；FF＋PID／熱冷與anti-windup未接。詳見 [前饋對照](DTDM04_FEEDFORWARD_MAPPING.md)。 |
+| Multi-channel Alarm Parameters | 4.2.3，頁 4-11；使用者已提供 mAlm1 欄位 | 跨通道比較核心實作完成；Host 單元測試通過 | 已確認 8×4 選擇 mask、MAX−MIN、0～10 秒動作延遲及 Hold 一次動作；專案重置／重新武裝已定；跨模組品質provider與SYSTEM動作目標待接。詳見 [多通道警報對照](DTDM04_MULTI_CHANNEL_ALARM_MAPPING.md)。 |
+| Feedforward | 5.1.8，頁 5-11～5-13；使用者已提供三階段參數表 | 前饋核心實作完成；Host 單元測試通過 | 已確認 D1／T1／T2／T3／Tx、有號 0.1% 補償與 PID MV 加總；曲線／事件／Force採專案契約；FF＋PID／熱冷與anti-windup未接。詳見 [前饋對照](DTDM04_FEEDFORWARD_MAPPING.md)。 |
 | PID Parameters | 5.1.1～5.1.3，頁 5-1～5-5；使用者已提供四組完整欄位 | CKLIB 封裝＋mock 驗證 | 四組候選選擇已做，後端整組套用與AT回寫未完成；時間精度及 2DOF 係數範圍與 CKLIB 檔頭不一致。詳見 [PID 對照](DTDM04_PID_MAPPING.md)。 |
 | Model Output Parameters | 使用者已提供 0x1990～19AB 欄位，手冊文字未找到直接對應 | 已確認為模型輸出，演算法未確認 | 含開關、百分比、增益、時間常數、基礎溫度與唯讀結果；缺單位／公式／來源用途，且 Base Temperature 的 U16 與負值範圍矛盾。詳見 [模型輸出對照](DTDM04_MODEL_OUTPUT_MAPPING.md)。 |
-| 輸出折線表 | 使用者已提供 Output Linearization Parameters（10 Sets）；4.1.2 提到 ACO 來源 | 模式包裝已實作／Host驗證 | 已確認每組十個 X／Y 點、內插／步階、來源路由、Offset 與單位；左端步階、Offset與顯式點數／邊界／Off契約已做，L05來源／Register未接。詳見 [逐欄對照](DTDM04_OUTPUT_LINEARIZATION_MAPPING.md)。 |
+| 輸出折線表 | 使用者已提供 Output Linearization Parameters（10 Sets）；4.1.2 提到 ACO 來源 | 模式包裝實作完成；Host 單元測試通過 | 已確認每組十個 X／Y 點、內插／步階、來源路由、Offset 與單位；左端步階、Offset與顯式點數／邊界／Off契約已做，L05來源／Register未接。詳見 [逐欄對照](DTDM04_OUTPUT_LINEARIZATION_MAPPING.md)。 |
 | Cascade Control Loop Parameters | 5.1.7，頁 5-9～5-10；使用者已提供兩組欄位 | PID封裝與SV換算核心已做 | 已確認絕對／相對界限、Offset、濾波、AT／校準與副控保護溫度。專案映射與時間濾波已定；原Filter Num未確認，AT／校準／保護協調待接；詳見 [串級對照](DTDM04_CASCADE_MAPPING.md)。 |
 
 Control Loop、Model Output 與輸出折線欄位皆已補入逐欄對照；Model Output 還缺演算法與單位，輸出折線已有專案契約，但產品路由與設備相容仍待驗證。本報告不能作為所有 Register 都已完成相容性審查的證明。

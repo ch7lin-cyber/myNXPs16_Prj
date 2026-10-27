@@ -2,6 +2,9 @@
 
 ## 摘要
 
+2026-10-27：完成狀態統一區分「L04 實作／封裝、Host 單元測試／mock 測試、產品串接、MCU 實測」。[狀態定義與各 FB 總表](../../_Modules/PlatformCore/L04_FunctionBlock/VERIFICATION_STATUS.md)；不再將 Host 驗證視為獨立於單元測試的第三項完成工作。
+
+
 **Alarm／Logic 串接尚未完成：正式 PID callback、Register、實體輸出與 MCU 實測仍待接入。**
 
 各 L04 FB 的正式規格與測試放在 PlatformCore 內，產品 Docs 以連結集中導覽，避免複製後出現不同版本。
