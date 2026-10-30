@@ -3,7 +3,7 @@
 #include "product_internal_adc_driver.h"
 #include "ProductLowVoltageConfig.h"
 #include <stddef.h>
-/* Managed linker/startup includes this zero-initialized state in .bss_RAM3. */
+/* Test state uses ordinary SRAM so SRAMX remains available for MCAN RAM. */
 static struct {
     bool addressed, pending;
     uint16_t command[3], applied[3], status;
@@ -11,11 +11,7 @@ static struct {
     uint16_t lv_command[3], lv_applied[3], lv_status, lv_remaining;
     uint16_t lv_processed, lv_peak_assert, lv_peak_release, lv_flags;
     uint32_t lv_sequence;
-} state
-#if defined(__GNUC__)
-    __attribute__((section(".bss.$SRAMX")))
-#endif
-    ;
+} state;
 void ProductSafetyTest_SetAddressed(bool value) { state.addressed = value; }
 uint8_t ProductSafetyTest_Write(uint16_t address, const uint16_t *v, uint16_t count)
 {

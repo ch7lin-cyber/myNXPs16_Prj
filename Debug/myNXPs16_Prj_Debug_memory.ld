@@ -15,7 +15,7 @@ MEMORY
   PROGRAM_FLASH (rx) : ORIGIN = 0x0, LENGTH = 0x3d000 /* 244K bytes (alias Flash) */  
   SRAM (rwx) : ORIGIN = 0x20000000, LENGTH = 0x10000 /* 64K bytes (alias RAM) */  
   USB_RAM (rwx) : ORIGIN = 0x20010000, LENGTH = 0x4000 /* 16K bytes (alias RAM2) */  
-  SRAMX (rwx) : ORIGIN = 0x4000000, LENGTH = 0x4000 /* 16K bytes (alias RAM3) */  
+  SRAMX (rwx) : ORIGIN = 0x4001000, LENGTH = 0x2fc0 /* 12K bytes available after MCAN reservation */
 }
 
   /* Define a symbol for the top of each memory region */
@@ -31,7 +31,7 @@ MEMORY
   __base_RAM2 = 0x20010000 ; /* RAM2 */  
   __top_USB_RAM = 0x20010000 + 0x4000 ; /* 16K bytes */  
   __top_RAM2 = 0x20010000 + 0x4000 ; /* 16K bytes */  
-  __base_SRAMX = 0x4000000  ; /* SRAMX */  
-  __base_RAM3 = 0x4000000 ; /* RAM3 */  
-  __top_SRAMX = 0x4000000 + 0x4000 ; /* 16K bytes */  
-  __top_RAM3 = 0x4000000 + 0x4000 ; /* 16K bytes */  
+  __base_SRAMX = 0x4001000 ; /* SRAMX */
+  __base_RAM3 = 0x4001000 ; /* RAM3 */
+  __top_SRAMX = 0x4001000 + 0x2fc0 ; /* includes boot mailbox reservation */
+  __top_RAM3 = 0x4001000 + 0x2fc0 ; /* includes boot mailbox reservation */

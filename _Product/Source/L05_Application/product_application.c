@@ -42,6 +42,7 @@
 #include "product_sensor_measurement_service.h"
 #include "product_fb_schedule_integration.h"
 #include "product_status_led.h"
+#include "product_can_driver.h"
 #include "product_temperature_input_types.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
@@ -391,6 +392,10 @@ bool ProductApplication_Init(void)
     {
         return false;
     }
+    if (!ProductCanDriver_Init())
+    {
+        return false;
+    }
 
     if ((DigitalInputService_Initialize(4U) != DIGITAL_INPUT_STATUS_OK) ||
         (DigitalOutputService_Initialize(4U) != DIGITAL_OUTPUT_STATUS_OK))
@@ -616,6 +621,7 @@ void ProductApplication_Process(void)
 {
     uint8_t input;
 
+    ProductCanDriver_Process();
     ProductStatusLed_Process();
 #if !PRODUCT_SAFETY_TEST_EVK
     if (g_digital_input_due)

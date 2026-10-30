@@ -191,6 +191,10 @@ PlatformCore 基準：`80081ed`
 - [ ] 定義 CAN 資料來源、方向、更新期限／優先級、逾時與節點失聯行為；新設計需依目前產品架構定義，不直接沿用舊位址與語意。
 - [ ] CAN PDO／訊息與正式 Register Map 定案後，更新通訊規格及 Register Map CSV。
 
+- [x] 加入 LPC55S16 MCAN Classic CAN 初始化、標準 11-bit frame TX/RX 軟體佇列、error warning/passive／Bus-off 診斷與事件計數；已預留 4 KiB SRAMX Message RAM。
+- [ ] 以兩個實體節點驗證 CAN 連線、ACK、接收佇列、錯誤計數與 Bus-off 恢復。
+- [ ] 在低階 frame transport 上加入 CANopen NMT、Heartbeat、PDO／SDO／EMCY 與節點狀態管理。
+
 - [ ] 完成 FC0 Modbus RTU 的 FC03／FC04／FC06／FC10 測試矩陣。
 - [ ] 完成 FC0 Modbus ASCII 的 FC03／FC04／FC06／FC10 測試矩陣。
 - [ ] 驗證 4800～921600 baud 支援範圍。
