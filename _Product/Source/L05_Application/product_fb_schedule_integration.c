@@ -59,6 +59,52 @@ static void ProcessCh0Pv(void *context, uint32_t elapsed_ms)
 
 static ProductAlarmLogicAdapter_t g_alarm_logic;
 
+#if PRODUCT_PID_CH0_TEST_ENABLED
+static ProductPidControllerAdapter_t g_ch0_pid_test;
+static ProductPidControllerInput_t g_ch0_pid_test_input;
+static bool g_ch0_pid_test_enable, g_ch0_pid_test_reset;
+static int32_t g_ch0_pid_test_sv;
+
+static bool ReadPidTestSample(void *context, ProductPidControllerInput_t *input)
+{
+    ProductPvSourceSample source={0};
+    bool available;
+    (void)context;
+    available=ReadProcessingSample(NULL,0U,&source);
+    input->sample_sequence=source.sequence;
+    input->pv=source.value;
+    input->sv=g_ch0_pid_test_sv;
+    input->enable=g_ch0_pid_test_enable;
+    input->reset=g_ch0_pid_test_reset;
+    input->valid=available && source.valid && source.unit==PRODUCT_PV_MILLICELSIUS &&
+        (uint32_t)(g_fb_now_ms-source.timestamp_ms)<=200U;
+    g_ch0_pid_test_reset=false;
+    g_ch0_pid_test_input=*input;
+    return true; /* unavailable source is explicit invalid input, never fake PV */
+}
+
+bool ProductFbScheduleIntegration_ConfigureCh0PidTest(bool enable, int32_t sv, int32_t mv)
+{
+    if (!g_ch0_pid_test.initialized || sv<FB_ALARM_LIMIT_MIN || sv>FB_ALARM_LIMIT_MAX ||
+        mv<0 || mv>1000) return false;
+    if (FbPid_SetTestMv(&g_ch0_pid_test.fb_pid,mv)!=FB_PID_STATUS_OK) return false;
+    if (!ProductPidControllerAdapter_Reset(&g_ch0_pid_test)) return false;
+    g_ch0_pid_test_enable=enable; g_ch0_pid_test_sv=sv; g_ch0_pid_test_reset=false;
+    return true;
+}
+bool ProductFbScheduleIntegration_ResetCh0PidTest(void)
+{
+    if (!ProductPidControllerAdapter_Reset(&g_ch0_pid_test)) return false;
+    g_ch0_pid_test_reset=true; return true;
+}
+bool ProductFbScheduleIntegration_GetCh0PidTest(ProductCh0PidTestDiagnostics *out)
+{
+    if (!out || !g_ch0_pid_test.initialized) return false;
+    out->input=g_ch0_pid_test_input; out->fixed_mv_test_backend=true;
+    return ProductPidControllerAdapter_GetDiagnostics(&g_ch0_pid_test,&out->controller);
+}
+#endif
+
 static bool ReadAlarmSample(void *context, uint8_t channel, ProductAlSample_t *sample)
 {
     ProductSensorMeasurementSnapshot_t snapshot;
@@ -266,6 +312,19 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
         return false;
     if (!ProductAlarmLogicAdapter_Init(&g_alarm_logic, ReadAlarmSample, ReadLogicDi, NULL))
         return false;
+#if PRODUCT_PID_CH0_TEST_ENABLED
+    {
+        const ProductPidControllerAdapterConfig_t pid_config={
+            FB_PID_MODE_PID,FB_PID_MODE_PID,FB_PID_ACTION_HEAT,200U,100U,0U};
+        if (g_ch0_pid_test.initialized) ProductPidControllerAdapter_Deinit(&g_ch0_pid_test);
+        g_ch0_pid_test_enable=false; g_ch0_pid_test_reset=false; g_ch0_pid_test_sv=25000;
+        g_ch0_pid_test_input=(ProductPidControllerInput_t){0};
+        if (!ProductPidControllerAdapter_Init(&g_ch0_pid_test,&pid_config,ReadPidTestSample,NULL))
+            return false;
+        if (!ProductAlarmLogicAdapter_SetPidStep(&g_alarm_logic,
+                ProductPidControllerAdapter_Process,&g_ch0_pid_test)) return false;
+    }
+#endif
 #if PRODUCT_FB_CH0_TRACE_ENABLED
     g_product_fb_ch0_trace.capture = 0U;
     g_product_fb_ch0_trace.schema_version = 1U;

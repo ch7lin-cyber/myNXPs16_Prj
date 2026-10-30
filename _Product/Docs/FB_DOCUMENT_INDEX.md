@@ -2,6 +2,8 @@
 
 ## 摘要
 
+2026-10-30：新增 [CH0 PID 固定 MV 串接測試](L05_CH0_PID_TEST.md)。採明確編譯開關、預設停用；Host 整合通過，尚未接實體輸出或 MCU 實測，不代表實體 CKLIB 已可用。
+
 2026-10-27：完成狀態統一區分「L04 實作／封裝、Host 單元測試／mock 測試、產品串接、MCU 實測」。[狀態定義與各 FB 總表](../../_Modules/PlatformCore/L04_FunctionBlock/VERIFICATION_STATUS.md)；不再將 Host 驗證視為獨立於單元測試的第三項完成工作。
 
 
