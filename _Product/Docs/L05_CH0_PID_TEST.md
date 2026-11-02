@@ -43,6 +43,25 @@ PV／SV 公開刻度均為 0.001°C；固定 MV 使用 0.1%。測試後端不使
 
 ## 設定與查詢 API
 
+### SWD／Expressions 觀察（保留 Os／LTO）
+
+2026-11-02：內部 adapter／Input 在最佳化後可能顯示 optimized out，不能以其中 `_Bool` 顯示 235 就判定記憶體損壞或有效 true。新增下列 volatile 控制值與快照，避免直接觀察或改寫最佳化的內部物件。尚待目標板實測。
+
+| 運算式 | 用途 |
+|---|---|
+| `g_ch0_pid_test_enable` | uint32，只有寫 1 才啟用；0 或其他數值停用；預設 0 |
+| `g_ch0_pid_test_sv` | int32，0.001°C；預設 25000 |
+| `g_ch0_pid_test_mv` | int32，0.1%；預設 0，合法 0～1000；超範圍輸出無效 |
+| `g_ch0_pid_test_reset` | uint32，寫 1 送出一次重置，取樣後清回 0 |
+| `g_ch0_pid_test_watch.input` | 最後一次 provider 的 PV／SV／序號／有效性 |
+| `g_ch0_pid_test_watch.controller.output` | MV、valid、status 及錯誤 |
+| `g_ch0_pid_test_watch.controller.callback_count` | 執行次數 |
+| `g_ch0_pid_test_watch.controller.last_elapsed_ms` | 本次週期 |
+
+在初始化完成後暫停，設定 enable=1、sv=30000、mv=100，再 Resume 約 1 秒後 Suspend。快照應顯示真實 PV、SV=30000、有效時 MV=100。不要修改 watch，它是每次 callback 完成後更新的結果副本；setter 後的立即狀態以 Get API 為準，watch 要等下一 callback。volatile 不提供跨執行中多欄位讀取的一致性，應暫停後讀取／修改，不以 Live Watch 的混合時間資料判斷。
+
+Host 已補測 SWD 控制值、單次重置、非法 MV／enable 與快照更新；ASan／UBSan 通過，另以 Host LTO 編譯並確認五個 SWD 全域符號保留。這不代表已驗證 ARM Debugger 的載入、符號顯示或目標板時序。
+
 所有 API 在主迴圈中序列呼叫，不從 ISR 或多個執行者同時呼叫。
 
 | API | 用途與限制 |

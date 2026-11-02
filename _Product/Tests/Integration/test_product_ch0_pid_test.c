@@ -83,6 +83,20 @@ int main(void)
     assert(ProductFbScheduleIntegration_Init(0xfffffff0U));
     assert(ProductFbScheduleIntegration_ConfigureCh0PidTest(true,30000,1000));
     Fresh(4U); assert(Read().controller.output_valid && Read().controller.output.mv[0]==1000);
+    g_ch0_pid_test_enable=1; g_ch0_pid_test_sv=35000; g_ch0_pid_test_mv=333;
+    Fresh(24U);
+    assert(g_ch0_pid_test_watch.input.sv==35000);
+    assert(g_ch0_pid_test_watch.controller.output.mv[0]==333);
+    assert(g_ch0_pid_test_watch.controller.output_valid);
+    assert(g_ch0_pid_test_watch.controller.callback_count==2);
+    g_ch0_pid_test_reset=1; Fresh(44U);
+    assert(g_ch0_pid_test_reset==0 && !g_ch0_pid_test_watch.controller.output_valid);
+    Fresh(64U); assert(g_ch0_pid_test_watch.controller.output_valid);
+    g_ch0_pid_test_mv=1001; Fresh(84U);
+    assert(!g_ch0_pid_test_watch.controller.output_valid);
+    g_ch0_pid_test_mv=100; Fresh(104U); assert(g_ch0_pid_test_watch.controller.output_valid);
+    g_ch0_pid_test_enable=235; Fresh(124U);
+    assert(!g_ch0_pid_test_watch.controller.output_valid);
     puts("PASS: CH0 snapshot -> shared PID callback -> L05 adapter -> L04 fixed MV; guards, reset, timing and recovery");
     return 0;
 }

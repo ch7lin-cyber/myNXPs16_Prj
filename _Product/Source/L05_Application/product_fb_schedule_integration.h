@@ -22,6 +22,10 @@ typedef struct {
     ProductPidControllerInput_t input;
     bool fixed_mv_test_backend;
 } ProductCh0PidTestDiagnostics;
+/* SWD only: edit controls while halted; resume then halt to read the snapshot. */
+extern volatile uint32_t g_ch0_pid_test_enable, g_ch0_pid_test_reset;
+extern volatile int32_t g_ch0_pid_test_sv, g_ch0_pid_test_mv;
+extern volatile ProductCh0PidTestDiagnostics g_ch0_pid_test_watch;
 /* Main-loop APIs; no Register or physical output. SV uses 0.001 C, MV 0.1%. */
 #ifdef __cplusplus
 extern "C" {
