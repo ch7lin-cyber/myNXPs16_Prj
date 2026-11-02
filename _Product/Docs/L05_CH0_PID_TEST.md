@@ -18,14 +18,18 @@ MCUXpresso 本機手動修正位置：Project Properties → C/C++ Build → Set
 
 ## 編譯與預設狀態
 
-兩個巨集均預設為 0。需在整個測試組態的 C／C++ 編譯設定一致加入：
+2026-11-02：目前 **Debug 組態明確用於固定 MV 串接測試**，C／C++ 編譯器已加入下列兩個巨集，且 linker Libraries 已移除 `cklib`。不再要求使用者每次更新 `.cproject` 後手動移除。Release 未變更，保留正式 CKLIB 路徑；目前 archive 不相容 Cortex-M33，Release 仍須等相容庫才能連結驗證。
+
+Header 的兩個巨集預設值仍為 0；Debug 組態透過專案編譯參數一致指定為 1：
 
 ```text
 FB_PID_TEST_BACKEND=1
 PRODUCT_PID_CH0_TEST_ENABLED=1
 ```
 
-第一個選擇 L04 固定 MV 後端，第二個註冊 CH0 L05 測試鏈。不能只在單一 `.c` 定義，因為 FbPid_t 的測試欄位依編譯巨集決定；修改設定後須 Clean／Rebuild。僅啟用 L05 而未選擇 L04 測試後端會編譯失敗。此版沒有新增專用 MCUXpresso 組態，也沒有改動既有 Debug／Release／SafetyTest 的巨集。
+第一個選擇 L04 固定 MV 後端，第二個註冊 CH0 L05 測試鏈。不能只在單一 `.c` 定義，因為 FbPid_t 的測試欄位依編譯巨集決定；修改設定後須 Clean／Rebuild。僅啟用 L05 而未選擇 L04 測試後端會編譯失敗。本次修改現有 Debug，沒有新增組態，也沒有變更 Release 或其他本機自建組態。
+
+重新載入 IDE 的專案設定，確認目前 Active Configuration=Debug，再執行 Clean／Build。編譯命令須有兩個 `-D...=1`，最終連結命令須有 `-flto -Os` 且沒有 `-lcklib` 或直接指定 `libcklib.a`。`-L.../CKLIB/Lib` 僅是搜尋路徑，本身不會讀取 archive，不需因此刪除目錄或庫檔。若 Console 仍有 `-lcklib`，確認 IDE 未快取舊設定或另有手動加入的 linker 選項。
 
 測試後端只接受 PID＋HEAT、AT target=PID 的設定；不模擬 AUTO_TUNE／ON_OFF／PID_FB，亦拒絕一般 SetParameter，避免把固定 MV 誤認為算法或整定結果。預設固定 MV=0、enable=false；不因編譯測試後端就開始發出有效 MV。
 

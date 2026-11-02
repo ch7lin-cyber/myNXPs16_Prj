@@ -15,14 +15,14 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="axf" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" cleanCommand="rm -rf" description="Debug build" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.exe.debug.1419950340" name="Debug" parent="com.crt.advproject.config.exe.debug" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;${BuildArtifactFileName}&quot;; arm-none-eabi-objcopy -O binary &quot;${BuildArtifactFileName}&quot; &quot;${BuildArtifactFileBaseName}.bin&quot;">
+				<configuration artifactExtension="axf" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" cleanCommand="rm -rf" description="Debug: fixed MV PID wiring test, no CKLIB archive" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.exe.debug.1419950340" name="Debug" parent="com.crt.advproject.config.exe.debug" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;${BuildArtifactFileName}&quot;; arm-none-eabi-objcopy -O binary &quot;${BuildArtifactFileName}&quot; &quot;${BuildArtifactFileBaseName}.bin&quot;">
 					<folderInfo id="com.crt.advproject.config.exe.debug.1419950340." name="/" resourcePath="">
 						<toolChain id="com.crt.advproject.toolchain.exe.debug.1872929338" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.exe.debug">
 							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.exe.debug.364825218" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.exe.debug"/>
 							<builder buildPath="${workspace_loc:/myNXPs16_Prj}/Debug" id="com.crt.advproject.builder.exe.debug.1493837311" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.crt.advproject.builder.exe.debug"/>
 							<tool id="com.crt.advproject.cpp.exe.debug.378367573" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.exe.debug">
 								<option id="com.crt.advproject.cpp.hdrlib.2080988844" name="Library headers" superClass="com.crt.advproject.cpp.hdrlib" useByScannerDiscovery="false"/>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.2143611813" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false"/>
+								<option id="gnu.cpp.compiler.option.preprocessor.def.2143611813" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols" IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false"><listOptionValue builtIn="false" value="FB_PID_TEST_BACKEND=1" /><listOptionValue builtIn="false" value="PRODUCT_PID_CH0_TEST_ENABLED=1" /></option>
 								<option id="com.crt.advproject.cpp.arch.1523177902" name="Architecture" superClass="com.crt.advproject.cpp.arch" useByScannerDiscovery="true" value="com.crt.advproject.cpp.target.cm33" valueType="enumerated"/>
 								<option id="com.crt.advproject.cpp.misc.dialect.308531614" name="Language standard" superClass="com.crt.advproject.cpp.misc.dialect" useByScannerDiscovery="true"/>
 								<option id="gnu.cpp.compiler.option.dialect.flags.532638817" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" useByScannerDiscovery="true"/>
@@ -91,21 +91,21 @@
 							<tool id="com.crt.advproject.gcc.exe.debug.1668021819" name="MCU C Compiler" superClass="com.crt.advproject.gcc.exe.debug">
 								<option id="com.crt.advproject.gcc.hdrlib.694050576" name="Library headers" superClass="com.crt.advproject.gcc.hdrlib" useByScannerDiscovery="false"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.compiler.option.preprocessor.def.symbols.1992313646" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="__REDLIB__"/>
-									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100"/>
-									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100_cm33"/>
-									<listOptionValue builtIn="false" value="SDK_OS_BAREMETAL"/>
-									<listOptionValue builtIn="false" value="FACTORY_CALIBRATION_INPUT_COUNT=4"/>
-									<listOptionValue builtIn="false" value="SDK_DEBUGCONSOLE=1"/>
-									<listOptionValue builtIn="false" value="CR_INTEGER_PRINTF"/>
-									<listOptionValue builtIn="false" value="PRINTF_FLOAT_ENABLE=0"/>
-									<listOptionValue builtIn="false" value="SERIAL_PORT_TYPE_UART=1"/>
-									<listOptionValue builtIn="false" value="SERIAL_PORT_TYPE_VIRTUAL=1"/>
-									<listOptionValue builtIn="false" value="DEBUG_CONSOLE_TRANSFER_NON_BLOCKING"/>
-									<listOptionValue builtIn="false" value="__MCUXPRESSO"/>
-									<listOptionValue builtIn="false" value="__USE_CMSIS"/>
-									<listOptionValue builtIn="false" value="DEBUG"/>
-								</option>
+									<listOptionValue builtIn="false" value="__REDLIB__" />
+									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100" />
+									<listOptionValue builtIn="false" value="CPU_LPC55S16JBD100_cm33" />
+									<listOptionValue builtIn="false" value="SDK_OS_BAREMETAL" />
+									<listOptionValue builtIn="false" value="FACTORY_CALIBRATION_INPUT_COUNT=4" />
+									<listOptionValue builtIn="false" value="SDK_DEBUGCONSOLE=1" />
+									<listOptionValue builtIn="false" value="CR_INTEGER_PRINTF" />
+									<listOptionValue builtIn="false" value="PRINTF_FLOAT_ENABLE=0" />
+									<listOptionValue builtIn="false" value="SERIAL_PORT_TYPE_UART=1" />
+									<listOptionValue builtIn="false" value="SERIAL_PORT_TYPE_VIRTUAL=1" />
+									<listOptionValue builtIn="false" value="DEBUG_CONSOLE_TRANSFER_NON_BLOCKING" />
+									<listOptionValue builtIn="false" value="__MCUXPRESSO" />
+									<listOptionValue builtIn="false" value="__USE_CMSIS" />
+									<listOptionValue builtIn="false" value="DEBUG" />
+								<listOptionValue builtIn="false" value="FB_PID_TEST_BACKEND=1" /><listOptionValue builtIn="false" value="PRODUCT_PID_CH0_TEST_ENABLED=1" /></option>
 								<option id="com.crt.advproject.gcc.thumb.1995276664" name="Thumb mode" superClass="com.crt.advproject.gcc.thumb" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.gcc.arch.260036948" name="Architecture" superClass="com.crt.advproject.gcc.arch" useByScannerDiscovery="true" value="com.crt.advproject.gcc.target.cm33" valueType="enumerated"/>
 								<option id="com.crt.advproject.c.misc.dialect.1279872632" name="Language standard" superClass="com.crt.advproject.c.misc.dialect" useByScannerDiscovery="true"/>
@@ -311,7 +311,6 @@
 								<option id="gnu.c.link.option.noshared.1821467331" name="No shared libraries (-static)" superClass="gnu.c.link.option.noshared"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.libs.1663302320" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="fro_calib_hardabi"/>
-									<listOptionValue builtIn="false" value="cklib"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.paths.530513939" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/LPC55S16/mcuxpresso}&quot;"/>
