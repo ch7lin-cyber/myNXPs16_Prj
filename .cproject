@@ -167,7 +167,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/CKLIB/Include}&quot;"/>
 								<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/_Modules/PlatformCore/L04_FunctionBlock/Utility}&quot;"/></option>
 								<option id="gnu.c.compiler.option.include.files.1661300486" name="Include files (-include)" superClass="gnu.c.compiler.option.include.files" useByScannerDiscovery="false"/>
-								<option id="com.crt.advproject.gcc.exe.debug.option.optimization.level.89335401" name="Optimization Level" superClass="com.crt.advproject.gcc.exe.debug.option.optimization.level" useByScannerDiscovery="true"/>
+								<option id="com.crt.advproject.gcc.exe.debug.option.optimization.level.89335401" name="Optimization Level" superClass="com.crt.advproject.gcc.exe.debug.option.optimization.level" useByScannerDiscovery="true" value="gnu.c.optimization.level.size" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.optimization.flags.762299881" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-fno-common" valueType="string"/>
 								<option id="com.crt.advproject.gcc.exe.debug.option.debugging.level.918947076" name="Debug Level" superClass="com.crt.advproject.gcc.exe.debug.option.debugging.level" useByScannerDiscovery="false"/>
 								<option id="gnu.c.compiler.option.debugging.other.1118588592" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false"/>
@@ -324,7 +324,7 @@
 									<listOptionValue builtIn="false" value="-print-memory-usage"/>
 									<listOptionValue builtIn="false" value="--sort-section=alignment"/>
 									<listOptionValue builtIn="false" value="--cref"/>
-								<listOptionValue builtIn="false" value="-Os"/><listOptionValue builtIn="false" value="-flto"/><listOptionValue builtIn="false" value="-T&quot;../_Product/linker/app_update_assert.ld&quot;"/></option>
+								<listOptionValue builtIn="false" value="-T&quot;../_Product/linker/app_update_assert.ld&quot;"/></option>
 								<option id="gnu.c.link.option.userobjs.1207095404" name="Other objects" superClass="gnu.c.link.option.userobjs"/>
 								<option id="gnu.c.link.option.shared.1606287221" name="Shared (-shared)" superClass="gnu.c.link.option.shared"/>
 								<option id="gnu.c.link.option.soname.1628914066" name="Shared object name (-Wl,-soname=)" superClass="gnu.c.link.option.soname"/>
@@ -334,7 +334,7 @@
 								<option id="gnu.c.link.option.debugging.gprof.351562235" name="Generate gprof information (-pg)" superClass="gnu.c.link.option.debugging.gprof"/>
 								<option id="gnu.c.link.option.debugging.codecov.1235130307" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.c.link.option.debugging.codecov"/>
 								<option id="com.crt.advproject.link.gcc.lto.1331441410" name="Enable Link-time optimization (-flto)" superClass="com.crt.advproject.link.gcc.lto" value="true" valueType="boolean"/>
-								<option id="com.crt.advproject.link.gcc.lto.optmization.level.1557950504" name="Link-time optimization level" superClass="com.crt.advproject.link.gcc.lto.optmization.level"/>
+								<option id="com.crt.advproject.link.gcc.lto.optmization.level.1557950504" name="Link-time optimization level" superClass="com.crt.advproject.link.gcc.lto.optmization.level" value="link.c.optimization.level.size" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.fpu.394324191" name="Floating point" superClass="com.crt.advproject.link.fpu" value="com.crt.advproject.link.fpu.fpv5sp.hard" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.manage.1849932313" name="Manage linker script" superClass="com.crt.advproject.link.manage" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.link.script.437545288" name="Linker script" superClass="com.crt.advproject.link.script" value="myNXPs16_Prj_Debug.ld" valueType="string"/>
@@ -729,7 +729,7 @@
 									<listOptionValue builtIn="false" value="-print-memory-usage"/>
 									<listOptionValue builtIn="false" value="--sort-section=alignment"/>
 									<listOptionValue builtIn="false" value="--cref"/>
-								<listOptionValue builtIn="false" value="-Os"/><listOptionValue builtIn="false" value="-flto"/><listOptionValue builtIn="false" value="-T&quot;../_Product/linker/app_update_assert.ld&quot;"/></option>
+								<listOptionValue builtIn="false" value="-T&quot;../_Product/linker/app_update_assert.ld&quot;"/></option>
 								<option id="gnu.c.link.option.userobjs.362898524" name="Other objects" superClass="gnu.c.link.option.userobjs"/>
 								<option id="gnu.c.link.option.shared.641700946" name="Shared (-shared)" superClass="gnu.c.link.option.shared"/>
 								<option id="gnu.c.link.option.soname.1440932387" name="Shared object name (-Wl,-soname=)" superClass="gnu.c.link.option.soname"/>
@@ -739,7 +739,7 @@
 								<option id="gnu.c.link.option.debugging.gprof.1499287204" name="Generate gprof information (-pg)" superClass="gnu.c.link.option.debugging.gprof"/>
 								<option id="gnu.c.link.option.debugging.codecov.934565082" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.c.link.option.debugging.codecov"/>
 								<option id="com.crt.advproject.link.gcc.lto.584757735" name="Enable Link-time optimization (-flto)" superClass="com.crt.advproject.link.gcc.lto" value="true" valueType="boolean"/>
-								<option id="com.crt.advproject.link.gcc.lto.optmization.level.942359423" name="Link-time optimization level" superClass="com.crt.advproject.link.gcc.lto.optmization.level"/>
+								<option id="com.crt.advproject.link.gcc.lto.optmization.level.942359423" name="Link-time optimization level" superClass="com.crt.advproject.link.gcc.lto.optmization.level" value="link.c.optimization.level.size" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.fpu.374633136" name="Floating point" superClass="com.crt.advproject.link.fpu" value="com.crt.advproject.link.fpu.fpv5sp.hard" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.manage.1121502954" name="Manage linker script" superClass="com.crt.advproject.link.manage" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.link.script.954078356" name="Linker script" superClass="com.crt.advproject.link.script" value="myNXPs16_Prj_Release.ld" valueType="string"/>

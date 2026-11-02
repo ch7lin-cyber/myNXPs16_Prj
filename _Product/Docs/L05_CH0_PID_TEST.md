@@ -2,6 +2,14 @@
 
 ## 摘要
 
+2026-11-02 容量設定修正：使用者啟用 PID 測試後出現 `APP payload exceeds OTA1 capacity`。其連結命令含 GCC `-flto -O0`，而 `-Os`／`-flto` 另以 `-Xlinker` 傳給 ld。本次將 Debug／Release 的 MCU C Linker「Link-time optimization level」明確設為 Optimize for size（GCC `-Os`），並移除誤放在 ld 參數中的兩項旗標；Debug C Compiler 也明確選擇 Optimize for size。這是修正 LTO 設定，尚無重建後映像可證明容量已通過。
+
+原 APP 分區仍為 104 KiB（106496 bytes），OTA1 的 48-byte 標頭限制保留，最大 payload 為 106448 bytes。以目前 8000h 起址計算，`_image_end` 須不超過 21FD0h；記憶體表的 100.00% 不能用來推算精確超出多少。未調大分區、未移除斷言或停用其他功能。
+
+MCUXpresso 本機手動修正位置：Project Properties → C/C++ Build → Settings → MCU Linker → Link-time optimization，保留 Enable LTO，將 Link-time optimization level 設為 Optimize for size（-Os）；MCU C Compiler → Optimization 也設為 -Os。Other linker options 中移除以 `-Xlinker` 傳入的 `-Os`／`-flto`，但保留 OTA linker script。Clean／Build 後確認最終 GCC 命令使用 `-flto -Os`，而非 `-flto -O0`。最佳化可能使 Debugger 的區域變數或單步位置難以觀察；先以可查詢的診斷資料判定鏈是否運作。
+
+依據：[GCC 10 最佳化與 LTO 說明](https://gcc.gnu.org/onlinedocs/gcc-10.1.0/gcc/Optimize-Options.html)。XML 設定已檢查，目標 ARM 工具鏈不在本環境，實際 Flash 餘量仍待使用者重建；若仍失敗，需以最新 map 的 `_image_end`、各 section 及符號大小決定下一步裁剪，不繞過 OTA 容量保護。
+
 2026-11-02 Redlib 連結修正：PV adapter、折線核心／包裝及斜率／限幅改用不依賴 Redlib 分類符號的有限值檢查，處理 `undefined reference to __isfinitef／__isfinited`。Host 單元與整合回歸通過；更新後需 Clean／Build，ARM 最終連結與 MCU 尚待確認。詳細見 [相容處理與測試紀錄](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbFinite.md)。
 
 2026-10-30：已建立 CH0 Sensor Snapshot → L05 既有 Alarm／Logic 鏈內 PID callback → ProductPidControllerAdapter → L04 FbPid 固定 MV 測試後端 → L05 診斷查詢。Host 整合與 ASan／UBSan 通過；原 CKLIB 封裝 mock 測試、Alarm／Logic／PV 串接回歸通過。本輪尚未執行 MCU 編譯或目標板實測。
@@ -64,6 +72,24 @@ python _Product/Tests/run_ch0_pid_test.py --sanitize
 ```
 
 腳本只對這次編譯加入測試巨集，不修改 IDE 組態。測試以可控制的 Sensor Snapshot 替身驗證完整資料鏈；MCU 才會使用真正 Sensor 服務。測試程式為 `_Product/Tests/Integration/test_product_ch0_pid_test.c`。
+
+### Windows 找不到編譯器（WinError 2）
+
+若錯誤發生在 `subprocess.run(cmd)` 啟動階段，表示編譯命令無法啟動，尚未執行 FB 測試。Python 本身不包含 C 編譯器。可在 PowerShell 先檢查：
+
+```powershell
+Get-Command cc, gcc, clang -ErrorAction SilentlyContinue
+```
+
+2026-11-02：腳本新增自動尋找 PATH 中 gcc／clang／cc（Windows 順序），也檢查 C:/msys64 下標準 UCRT64／MINGW64 GCC 路徑；不會自行安裝工具。可明確指定已存在的 Host 編譯器：
+
+```powershell
+python _Product/Tests/run_ch0_pid_test.py --cc "C:\msys64\ucrt64\bin\gcc.exe"
+```
+
+上述為範例路徑，請以實際安裝位置為準。`--cc` 接受單一執行檔路徑；優先順序為 --cc → CC 環境變數 → 自動尋找，明確指定無效時會報錯，不靜默換另一個編譯器。CC 可保留編譯器旗標，完整路徑與空白需正確引用。找不到編譯器時提供簡短錯誤說明，不再只有 WinError traceback。
+
+MCUXpresso 的 `arm-none-eabi-gcc` 編譯的是 MCU 程式，不能用來產生 Windows 可執行的 Host 測試。腳本會拒絕明確指定該交叉編譯器。如果 Windows 編譯器不支援 ASan／UBSan，先不加 `--sanitize`；未啟用的 sanitizer 不列為通過。此輪腳本回歸在 Linux 執行，Windows 實際環境仍待確認。
 
 | 測項 | 預期結果／本次結果 |
 |---|---|
