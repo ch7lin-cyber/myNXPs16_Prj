@@ -1,4 +1,5 @@
 #include "product_pv_processing_adapter.h"
+#include "FbFinite.h"
 #include <limits.h>
 #include <math.h>
 #include <stddef.h>
@@ -13,11 +14,11 @@ static bool CurveValid(const FbInputLinearizationConfig *c)
     if (c->mode!=FB_INPUT_LINEARIZATION_VALUE && c->mode!=FB_INPUT_LINEARIZATION_DEVIATION)
         return false;
     if (p->curve.table==NULL || p->curve.count<2 || p->curve.count>PRODUCT_PV_CURVE_MAX_POINTS ||
-        !Policy(p->curve.policy) || (p->offset_enabled && !isfinite(p->offset)) ||
-        (p->limits_enabled && (!Policy(p->limit_policy) || !isfinite(p->limit_low) ||
-         !isfinite(p->limit_high) || p->limit_low>p->limit_high))) return false;
+        !Policy(p->curve.policy) || (p->offset_enabled && !FbFinite_Double(p->offset)) ||
+        (p->limits_enabled && (!Policy(p->limit_policy) || !FbFinite_Double(p->limit_low) ||
+         !FbFinite_Double(p->limit_high) || p->limit_low>p->limit_high))) return false;
     for (i=0;i<p->curve.count;++i)
-        if (!isfinite(p->curve.table[i].x) || !isfinite(p->curve.table[i].y) ||
+        if (!FbFinite_Double(p->curve.table[i].x) || !FbFinite_Double(p->curve.table[i].y) ||
             (i!=0 && p->curve.table[i].x<=p->curve.table[i-1].x)) return false;
     return true;
 }
@@ -71,7 +72,7 @@ static void Source(ProductPvProcessingAdapter *a, unsigned i, uint32_t now)
         d->linearization_status=FbInputLinearization_Execute(c,&in,&out);
         if (!out.valid) { d->status=PRODUCT_PV_SOURCE_LINEARIZATION; return; }
         rounded=out.value>=0 ? floor((double)out.value+0.5) : ceil((double)out.value-0.5);
-        if (!isfinite(rounded) || rounded<INT32_MIN || rounded>INT32_MAX) {
+        if (!FbFinite_Double(rounded) || rounded<INT32_MIN || rounded>INT32_MAX) {
             d->status=PRODUCT_PV_SOURCE_RANGE; return;
         }
         d->processed=(int32_t)rounded;

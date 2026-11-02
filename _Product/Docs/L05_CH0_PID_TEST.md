@@ -2,6 +2,8 @@
 
 ## 摘要
 
+2026-11-02 Redlib 連結修正：PV adapter、折線核心／包裝及斜率／限幅改用不依賴 Redlib 分類符號的有限值檢查，處理 `undefined reference to __isfinitef／__isfinited`。Host 單元與整合回歸通過；更新後需 Clean／Build，ARM 最終連結與 MCU 尚待確認。詳細見 [相容處理與測試紀錄](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbFinite.md)。
+
 2026-10-30：已建立 CH0 Sensor Snapshot → L05 既有 Alarm／Logic 鏈內 PID callback → ProductPidControllerAdapter → L04 FbPid 固定 MV 測試後端 → L05 診斷查詢。Host 整合與 ASan／UBSan 通過；原 CKLIB 封裝 mock 測試、Alarm／Logic／PV 串接回歸通過。本輪尚未執行 MCU 編譯或目標板實測。
 
 這是資料與呼叫鏈的測試，沒有 PID 算法，也不連結 CKLIB archive，不會自動呼叫 PWM／DAC／DO。實體 CKLIB 的架構相容性仍須另外解決。本版只接 CH0 原始溫度快照，不沿用 Alarm 的 RAW／PROCESSED 選擇，不修改原始量測值。
