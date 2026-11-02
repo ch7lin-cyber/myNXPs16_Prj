@@ -43,6 +43,7 @@
 #include "product_fb_schedule_integration.h"
 #include "product_status_led.h"
 #include "product_can_driver.h"
+#include "product_can_test.h"
 #include "product_temperature_input_types.h"
 
 static bool g_last_pwm_inhibited[4U] = {true, true, true, true};
@@ -622,6 +623,9 @@ void ProductApplication_Process(void)
     uint8_t input;
 
     ProductCanDriver_Process();
+#if PRODUCT_CAN_TEST_BUILD
+    ProductCanTest_Process(g_system_timestamp_ms);
+#endif
     ProductStatusLed_Process();
 #if !PRODUCT_SAFETY_TEST_EVK
     if (g_digital_input_due)

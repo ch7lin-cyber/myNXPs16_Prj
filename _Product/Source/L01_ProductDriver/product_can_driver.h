@@ -47,6 +47,8 @@ typedef struct
     bool rx_fifo_lost; /* Sticky until ProductCanDriver_Init(). */
 } ProductCanDiagnostics_t;
 
+/* All APIs are serialized in foreground; no ISR or concurrent callers. */
+
 /* Initialize the Classic CAN controller and message RAM. */
 bool ProductCanDriver_Init(void);
 

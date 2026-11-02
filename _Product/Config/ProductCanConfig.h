@@ -18,4 +18,15 @@
 #define PRODUCT_CAN_TX_QUEUE_DEPTH          (8U)
 #define PRODUCT_CAN_MAX_DATA_LENGTH         (8U)
 
+/* Dedicated diagnostic builds only. Both default to zero in product builds. */
+#ifndef PRODUCT_CAN_TEST_BUILD
+#define PRODUCT_CAN_TEST_BUILD 0
+#endif
+#ifndef PRODUCT_CAN_INTERNAL_LOOPBACK
+#define PRODUCT_CAN_INTERNAL_LOOPBACK 0
+#endif
+#if PRODUCT_CAN_INTERNAL_LOOPBACK && !PRODUCT_CAN_TEST_BUILD
+#error "Internal CAN loopback requires PRODUCT_CAN_TEST_BUILD=1"
+#endif
+
 #endif /* PRODUCT_CAN_CONFIG_H */

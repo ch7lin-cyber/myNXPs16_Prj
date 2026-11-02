@@ -1,0 +1,13 @@
+name: CAN transport host regression
+on:
+  push:
+    paths: ['_Product/Source/L01_ProductDriver/product_can*', '_Product/Config/ProductCanConfig.h', '_Product/Tests/Unit/test_product_can_driver.c', '_Product/Tests/Unit/mocks/can/**', '_Product/Tests/run_can_tests.py', '.github/workflows/can-transport.yml']
+  pull_request:
+    paths: ['_Product/Source/L01_ProductDriver/product_can*', '_Product/Config/ProductCanConfig.h', '_Product/Tests/Unit/test_product_can_driver.c', '_Product/Tests/Unit/mocks/can/**', '_Product/Tests/run_can_tests.py', '.github/workflows/can-transport.yml']
+  workflow_dispatch:
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 _Product/Tests/run_can_tests.py

@@ -65,3 +65,13 @@ compatible transceivers, proper bus termination, a shared bitrate, and a known
 CAN analyzer or peer. The single-node EVK boot can confirm initialization but
 cannot prove bus communication or ACK behavior. CANopen and the previously
 discussed 450-PDO schedule are outside this initial increment.
+
+## Automated regression and dedicated bench mode
+
+See [CAN_TRANSPORT_VALIDATION.md](CAN_TRANSPORT_VALIDATION.md) for the MCAN SDK
+mock regression, opt-in internal loopback and debugger-driven single-board /
+two-node diagnostic entry, expected counters and hardware PASS/FAIL procedures.
+Normal builds keep loopback and bench traffic disabled. Invalid RX DLC values
+above 8 are now rejected rather than truncated. Bus-off entries are counted
+from PSR transitions because the BO interrupt also signals recovery.
+Host tests do not establish physical ACK or MCU bus-off recovery success.

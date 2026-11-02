@@ -103,7 +103,7 @@ bool ProductCanDriver_Init(void)
     config.baudRateA = PRODUCT_CAN_BITRATE_BPS;
     config.enableCanfdNormal = false;
     config.enableCanfdSwitch = false;
-    config.enableLoopBackInt = false;
+    config.enableLoopBackInt = (PRODUCT_CAN_INTERNAL_LOOPBACK != 0);
     config.enableLoopBackExt = false;
     config.enableBusMon = false;
 
@@ -179,15 +179,14 @@ static void ProcessRx(void)
             break;
         }
         if ((received.xtd != 0U) || (received.rtr != 0U) ||
-            (received.fdf != 0U))
+            (received.fdf != 0U) || (received.brs != 0U) ||
+            (received.dlc > PRODUCT_CAN_MAX_DATA_LENGTH))
         {
             s_diagnostics.rx_invalid_frame++;
             continue;
         }
 
-        length = (received.dlc > PRODUCT_CAN_MAX_DATA_LENGTH)
-                     ? PRODUCT_CAN_MAX_DATA_LENGTH
-                     : (uint8_t)received.dlc;
+        length = (uint8_t)received.dlc;
         frame.identifier = (uint16_t)(received.id >> PRODUCT_CAN_STD_ID_SHIFT);
         frame.length = length;
         if (length > 0U)
@@ -244,8 +243,12 @@ static void UpdateErrorDiagnostics(void)
 
     if ((interrupt_status & CAN_IR_BO_MASK) != 0U)
     {
-        s_diagnostics.bus_off_events++;
         clear_flags |= CAN_IR_BO_MASK;
+    }
+    /* BO interrupt signals both entry and exit; count entries from PSR. */
+    if (bus_off && !s_previous_bus_off)
+    {
+        s_diagnostics.bus_off_events++;
     }
     if (s_previous_bus_off && !bus_off)
     {
@@ -353,3 +356,106 @@ bool ProductCanDriver_GetDiagnostics(ProductCanDiagnostics_t *diagnostics)
     *diagnostics = s_diagnostics;
     return true;
 }
+
+#if PRODUCT_CAN_TEST_BUILD
+#include "product_can_test.h"
+/* Intentionally compiled with the driver so IDE source lists need no changes. */
+volatile ProductCanTestWatch_t g_can_test_watch;
+static uint32_t s_test_target, s_test_deadline_start, s_test_baseline_completed;
+static bool s_test_waiting;
+static ProductCanFrame_t TestFrame(uint16_t id, uint32_t sequence)
+{
+    ProductCanFrame_t frame = {0};
+    frame.identifier = id;
+    frame.length = 8U;
+    frame.data[0] = (uint8_t)sequence;
+    frame.data[1] = (uint8_t)(sequence >> 8U);
+    frame.data[2] = (uint8_t)(sequence >> 16U);
+    frame.data[3] = (uint8_t)(sequence >> 24U);
+    frame.data[4] = 0xA5U; frame.data[5] = 0x5AU;
+    frame.data[6] = 0x00U; frame.data[7] = 0xFFU;
+    return frame;
+}
+void ProductCanTest_Process(uint32_t now_ms)
+{
+    ProductCanDiagnostics_t diagnostics;
+    ProductCanFrame_t frame, expected;
+    uint32_t command = g_can_test_watch.command;
+    if (!ProductCanDriver_GetDiagnostics(&diagnostics))
+    {
+        g_can_test_watch.state = 3U;
+        return;
+    }
+    g_can_test_watch.driver = diagnostics;
+    if (command != 0U)
+    {
+        g_can_test_watch.command = 0U;
+        if (command == 5U) { g_can_test_watch.state = 0U; return; }
+        if (command == 4U)
+        {
+            /* Explicit bench request only: clear INIT to start the hardware
+             * recovery sequence. PSR.BO clearing must be observed separately. */
+            if (diagnostics.bus_off)
+            {
+                MCAN_EnterNormalMode(CAN0);
+                g_can_test_watch.recovery_requests++;
+            }
+            return;
+        }
+        if ((command > 3U) || (g_can_test_watch.state == 1U) ||
+            ((command == 1U) != (PRODUCT_CAN_INTERNAL_LOOPBACK != 0)) ||
+            diagnostics.tx_in_flight || (diagnostics.tx_queue_pending != 0U))
+        { g_can_test_watch.state = 3U; return; }
+        s_test_target = g_can_test_watch.requested_frames;
+        if (s_test_target == 0U) { s_test_target = 1U; }
+        if (s_test_target > 100000U) { g_can_test_watch.state = 3U; return; }
+        g_can_test_watch.role = command;
+        g_can_test_watch.matched = 0U;
+        g_can_test_watch.submitted = 0U;
+        g_can_test_watch.unexpected = 0U;
+        g_can_test_watch.timeouts = 0U;
+        g_can_test_watch.state = 1U;
+        s_test_baseline_completed = diagnostics.tx_completed;
+        s_test_deadline_start = now_ms;
+        s_test_waiting = false;
+    }
+    if (g_can_test_watch.state != 1U) { return; }
+    while (ProductCanDriver_Receive(&frame))
+    {
+        uint16_t rx_id = (g_can_test_watch.role == 2U) ? 0x322U : 0x321U;
+        expected = TestFrame(rx_id, g_can_test_watch.matched);
+        if ((frame.identifier != expected.identifier) || (frame.length != 8U) ||
+            (memcmp(frame.data, expected.data, 8U) != 0) ||
+            (g_can_test_watch.matched >= s_test_target) ||
+            ((g_can_test_watch.role != 3U) && !s_test_waiting))
+        {
+            g_can_test_watch.unexpected++;
+            g_can_test_watch.state = 3U;
+            return;
+        }
+        if (g_can_test_watch.role == 3U)
+        {
+            frame.identifier = 0x322U;
+            if (!ProductCanDriver_Send(&frame)) { g_can_test_watch.state = 3U; return; }
+            g_can_test_watch.submitted++;
+        }
+        g_can_test_watch.matched++;
+        s_test_waiting = false;
+        s_test_deadline_start = now_ms;
+    }
+    if ((g_can_test_watch.role != 3U) && !s_test_waiting &&
+        (g_can_test_watch.submitted < s_test_target))
+    {
+        frame = TestFrame(0x321U, g_can_test_watch.submitted);
+        if (!ProductCanDriver_Send(&frame)) { g_can_test_watch.state = 3U; return; }
+        g_can_test_watch.submitted++;
+        s_test_waiting = true;
+        s_test_deadline_start = now_ms;
+    }
+    if ((g_can_test_watch.matched == s_test_target) &&
+        ((diagnostics.tx_completed - s_test_baseline_completed) == s_test_target))
+    { g_can_test_watch.state = 2U; }
+    else if ((uint32_t)(now_ms - s_test_deadline_start) >= 5000U)
+    { g_can_test_watch.timeouts++; g_can_test_watch.state = 3U; }
+}
+#endif
