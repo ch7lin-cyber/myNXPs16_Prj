@@ -7,6 +7,9 @@ Default communication settings:
     Data format:   RTU 8N1 / ASCII 7E1 (overridable)
     Request delay: 50 ms before each request
 
+Run from repository root (relative path):
+    python _Product\\Tools\\modbus_rtu_test_menu.py --port COM17 --slave 2 --baud 115200 --timeout 3
+
 Dependency:
     python -m pip install pyserial
 """
@@ -729,27 +732,27 @@ def run_menu(client: ModbusRtuClient) -> None:
     while True:
         print(
             "\n========== Modbus RTU/ASCII 診斷工具 ==========\n"
-            "1. Read channel PV and ADC diagnostics\n"
-            "3. Read arbitrary holding registers\n"
-            "6. Write holding register(s)\n"
-            "r1. Continue read register\n"
+            "03. Read arbitrary holding registers\n"
+            "06. Write holding register(s)\n"
+            "c1. Read channel PV and ADC diagnostics\n"
+            "c2. Continue read register\n"
             "q. Exit\n"
             "=========================================="
         )
         selection = input("Select: ").strip().lower()
         try:
-            if selection == "1":
-                read_channel_diagnostics(client)
-            elif selection == "3":
+            if selection == "03":
                 read_arbitrary_registers(client)
-            elif selection == "6":
+            elif selection == "06":
                 write_registers(client)
-            elif selection == "r1":
+            elif selection == "c1":
+                read_channel_diagnostics(client)
+            elif selection == "c2":
                 run_continuous_read_menu(client, continuous_settings)
             elif selection == "q":
                 return
             else:
-                print("Unknown selection. Use 1, 3, 6, r1, or q.")
+                print("Unknown selection. Use 03, 06, c1, c2, or q.")
         except (ValueError, ModbusError, serial.SerialException) as exc:
             print(f"ERROR: {exc}")
 
