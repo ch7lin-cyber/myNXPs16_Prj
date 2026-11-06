@@ -198,21 +198,31 @@ def configure_dut(cfg, x):
     else:
         raise ValueError("Unknown DUT menu selection")
 
-def configure_test(cfg):
-    while True:
-        print(f"""
-[1.3] Test settings
-[1.3.1] Step: {cfg.step} degC
-[1.3.2] PV sample interval: {cfg.interval}s
-[1.3.3] Samples per step: {cfg.samples}
-[1.3.4] Settle before sampling: {cfg.settle}s
-[q] Back""")
-        x = input("Select: ").strip().lower()
-        if x == "q": return
-        if x == "1.3.1": cfg.step = ask("Step degC", cfg.step, Decimal)
-        elif x == "1.3.2": cfg.interval = ask("Sample interval seconds", cfg.interval, float)
-        elif x == "1.3.3": cfg.samples = ask("Samples per step", cfg.samples, int)
-        elif x == "1.3.4": cfg.settle = ask("Settle seconds", cfg.settle, float)
+def configure_test(cfg, selection):
+    """Change one sampling setting directly from the main menu."""
+    if selection == "1.3.1":
+        value = ask("Step degC", cfg.step, Decimal)
+        if not value.is_finite() or value <= 0:
+            raise ValueError("Step must be positive and finite")
+        cfg.step = value
+    elif selection == "1.3.2":
+        value = ask("Sample interval seconds", cfg.interval, float)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("Sample interval must be positive and finite")
+        cfg.interval = value
+    elif selection == "1.3.3":
+        value = ask("Samples per step", cfg.samples, int)
+        if value < 1:
+            raise ValueError("Samples per step must be >= 1")
+        cfg.samples = value
+    elif selection == "1.3.4":
+        value = ask("Settle seconds", cfg.settle, float)
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Settle time must be nonnegative and finite")
+        cfg.settle = value
+    else:
+        raise ValueError("Unknown test setting")
+
 
 def preflight(cfg):
     points = cfg.points()
@@ -372,6 +382,7 @@ def main():
     [1.3.1] 溫度步階 [{cfg.step}]
     [1.3.2] PV 取樣間隔 [{cfg.interval}s]
     [1.3.3] 每階取樣次數 [{cfg.samples}]
+    [1.3.4] Settle before sampling [{cfg.settle}s]
   [1.4] 開始測試
 [q] 結束
 =============================================""")
@@ -386,8 +397,8 @@ def main():
                 cfg.start=ask("Start degC",cfg.start,Decimal)
                 cfg.end=ask("End degC",cfg.end,Decimal)
                 cfg.points()
-            elif x=="1.3":configure_test(cfg)
-            elif x in ("1.3.1","1.3.2","1.3.3"):configure_test(cfg)
+            elif x in ("1.3.1","1.3.2","1.3.3","1.3.4"):
+                configure_test(cfg, x)
             elif x=="1.4":sweep(cfg)
             elif x in ("1","1.2"):continue
             else:print("Unknown selection")
