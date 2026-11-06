@@ -152,47 +152,51 @@ def pv_test(cfg):
     finally:
         dut.close()
 
-def configure_dut(cfg):
-    while True:
-        print(f"""
-[1.1] DUT settings
-[1.1.1] PV address: {cfg.pv_address:04X}h
-[1.1.2] Sensor address: {cfg.sensor_address:04X}h
-[1.1.3] Sensor mode/value: {cfg.sensor_mode} / 0x{cfg.sensor_number():04X}
-[1.1.4] Read PV test
-[1.1.5] PV type: {cfg.pv_kind}
-[1.1.6] Word order: {cfg.word_order}
-[1.1.7] PV scale: {cfg.pv_scale}
-[1.1.8] Sensor write: {cfg.write_sensor}, Apply: {cfg.apply_address}
-[1.1.9] DUT port/slave: {cfg.dut_port}/{cfg.slave}
-[q] Back""")
-        x = input("Select: ").strip().lower()
-        if x == "q": return
-        if x == "1.1.1": cfg.pv_address = ask("PV address", f"0x{cfg.pv_address:04X}", number)
-        elif x == "1.1.2": cfg.sensor_address = ask("Sensor address", f"0x{cfg.sensor_address:04X}", number)
-        elif x == "1.1.3":
-            cfg.sensor_mode = "linked" if input("1=CALYS linked / 2=manual [2]: ").strip() == "1" else "manual"
-            if cfg.sensor_mode == "manual": cfg.sensor_value = ask("DUT Sensor code", cfg.sensor_value, number)
-        elif x == "1.1.4": pv_test(cfg)
-        elif x == "1.1.5":
-            kind = input("int16 / int32 / float32: ").strip().lower()
-            if kind not in ("int16", "int32", "float32"): raise ValueError("Invalid PV type")
-            cfg.pv_kind = kind
-        elif x == "1.1.6":
-            order = input("ABCD / CDAB: ").strip().upper()
-            if order not in ("ABCD", "CDAB"): raise ValueError("Invalid order")
-            cfg.word_order = order
-        elif x == "1.1.7": cfg.pv_scale = ask("PV scale", cfg.pv_scale, float)
-        elif x == "1.1.8":
-            cfg.write_sensor = input("Enable sensor write? YES/no: ").strip() == "YES"
-            if cfg.write_sensor:
-                a = input("Apply register address (blank = none): ").strip()
-                cfg.apply_address = number(a) if a else None
-                if a: cfg.apply_value = ask("Apply value", "0xA5A5", number)
-        elif x == "1.1.9":
-            cfg.dut_port = ask("DUT port", cfg.dut_port)
-            cfg.slave = ask("DUT slave", cfg.slave, int)
-        else: print("Unknown selection")
+def configure_dut(cfg, x):
+    """Handle one DUT menu action directly from the main menu."""
+    if x == "1.1.1":
+        cfg.pv_address = ask("PV address", f"0x{cfg.pv_address:04X}", number)
+    elif x == "1.1.2":
+        cfg.sensor_address = ask("Sensor address", f"0x{cfg.sensor_address:04X}", number)
+    elif x == "1.1.3":
+        choice = input("1=CALYS linked / 2=manual [current]: ").strip()
+        if choice not in ("", "1", "2"):
+            raise ValueError("Select 1 or 2")
+        if choice:
+            cfg.sensor_mode = "linked" if choice == "1" else "manual"
+        if cfg.sensor_mode == "manual":
+            cfg.sensor_value = ask("DUT Sensor code", cfg.sensor_value, number)
+    elif x == "1.1.4":
+        pv_test(cfg)
+    elif x == "1.1.5":
+        kind = input("int16 / int32 / float32: ").strip().lower()
+        if kind not in ("int16", "int32", "float32"):
+            raise ValueError("Invalid PV type")
+        cfg.pv_kind = kind
+    elif x == "1.1.6":
+        order = input("ABCD / CDAB: ").strip().upper()
+        if order not in ("ABCD", "CDAB"):
+            raise ValueError("Invalid word order")
+        cfg.word_order = order
+    elif x == "1.1.7":
+        scale = ask("PV scale", cfg.pv_scale, float)
+        if not math.isfinite(scale) or scale == 0:
+            raise ValueError("PV scale must be finite and nonzero")
+        cfg.pv_scale = scale
+    elif x == "1.1.8":
+        cfg.write_sensor = input("Enable sensor write? YES/no: ").strip() == "YES"
+        if cfg.write_sensor:
+            a = input("Apply register address (blank = none): ").strip()
+            cfg.apply_address = number(a) if a else None
+            if a:
+                cfg.apply_value = ask("Apply value", "0xA5A5", number)
+    elif x == "1.1.9":
+        cfg.dut_port = ask("DUT port", cfg.dut_port)
+        cfg.slave = ask("DUT slave", cfg.slave, int)
+        if not 1 <= cfg.slave <= 247:
+            raise ValueError("DUT slave must be 1..247")
+    else:
+        raise ValueError("Unknown DUT menu selection")
 
 def configure_test(cfg):
     while True:
@@ -355,6 +359,11 @@ def main():
     [1.1.2] 設定 DUT Sensor Address [{cfg.sensor_address:04X}h]
     [1.1.3] 設定 DUT Sensor type [0x{cfg.sensor_number():04X}]
     [1.1.4] 讀 PV 測試
+    [1.1.5] PV type [{cfg.pv_kind}]
+    [1.1.6] Word order [{cfg.word_order}]
+    [1.1.7] PV scale [{cfg.pv_scale}]
+    [1.1.8] Sensor write [{cfg.write_sensor}], Apply [{f'{cfg.apply_address:04X}h' if cfg.apply_address is not None else 'None'}]
+    [1.1.9] DUT port/slave [{cfg.dut_port}/{cfg.slave}]
   [1.2] CALYS 1500 設定
     [1.2.1] 設定 CALYS SENSOR TYPE [{cfg.sensor.kind}-{cfg.sensor.name}]
     [1.2.2] 設定 CALYS CJC [{cfg.cjc}]
@@ -369,10 +378,8 @@ def main():
         x=input("Select: ").strip().lower()
         try:
             if x=="q":break
-            elif x=="1.1":configure_dut(cfg)
             elif x in ("1.1.1","1.1.2","1.1.3","1.1.4","1.1.5","1.1.6","1.1.7","1.1.8","1.1.9"):
-                print("Open [1.1] for DUT settings and PV format options")
-                configure_dut(cfg)
+                configure_dut(cfg, x)
             elif x=="1.2.1":choose_sensor(cfg)
             elif x=="1.2.2":configure_calys(cfg)
             elif x=="1.2.3":
