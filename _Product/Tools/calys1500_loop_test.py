@@ -284,20 +284,23 @@ def main(argv=None):
 
     try:
         while True:
-            print("\n0 CALYS 1500 相關")
-            print("    [0.1.0] 自動通訊測試")
-            print("    [0.1.1] 改 CALYS port")
-            print("  [0.2] 改 DUT port")
+            print("\n==========CALYS 1500 / DUT  測試工具 ================")
+            print("[0] CALYS 1500 相關")
+            print("  [0.1] 自動通訊測試")
+            print("  [0.2] 修改 CALYS port")
             print("  [0.3] 改 CALYS Sensor type")
             print("  [0.4] 設定輸出值")
-            print("\n[1] 選通道／Sensor（直接寫 DUT）")
-            print("    [1.1.0] 十點自動測試")
+            print("\n[1] DUT 相關")
+            print("  [1.1] 修改 DUT COM PORT")
+            print("  [1.2] 選通道／Sensor（直接寫 DUT）")
+            print("    [1.2.1] 校正後十點自動測試")
             print("\n[2] 自動校正（依接線類別；預設只預覽）／選通道")
             print("  [2.1] 電壓／mV")
             print("  [2.2] RTD 三線")
             print("  [2.3] 熱電偶 TC")
             print("  [2.4] 電流")
-            print("q 結束")
+            print("\n[q] 結束")
+            print("================================================")
             print(f"CALYS={calys_port or '未指定'} DUT={dut_port or '未指定'} "
                   f"CH={channel} Sensor={selected.label if selected else '未選'}")
             action = input("選項：").strip()
@@ -306,13 +309,14 @@ def main(argv=None):
                     break
                 if action == "0":
                     continue
-                if action == "0.1.0":
+                if action == "0.1":
                     # Only probe the designated calibrator port; do not send SCPI
                     # to arbitrary devices sharing the computer's serial ports.
                     device = connect()
-                    print("通訊成功：", device.query("*IDN?"))
+                    print("通訊成功：", device.identity)
+                    device.show_status()
                     save_ports()
-                elif action == "0.1.1":
+                elif action == "0.2":
                     if calys:
                         calys.close()
                         calys = None
@@ -320,20 +324,22 @@ def main(argv=None):
                     print("可用 ports：", ", ".join(p.device for p in list_ports.comports()))
                     calys_port = input("CALYS port：").strip()
                     save_ports()
-                elif action == "0.2":
+                elif action == "1.1":
                     dut_port = input("DUT port：").strip()
                     save_ports()
                 elif action == "0.3":
                     sensor = select_sensor()
                     connect().configure(sensor, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     selected = sensor
+                    connect().verify_configuration(sensor, settings)
                 elif action == "0.4":
                     if selected is None:
                         raise ValueError("請先選擇 Sensor")
                     value = validate(selected, input(f"輸出值 ({selected.unit})："))
                     connect().configure(selected, **{key: settings[key] for key in ("cjc", "fixed_cjc", "current_supply")})
                     connect().output(selected, value)
-                elif action == "1":
+                    connect().verify_output(selected, value)
+                elif action == "1.2":
                     candidate = int(input("通道 0／1／2／3："))
                     if candidate not in range(4):
                         raise ValueError("通道必須是 0～3")
@@ -357,9 +363,9 @@ def main(argv=None):
                     print(f"DUT CH{channel} Sensor type 已寫入並讀回確認："
                           f"{selected.label} ({selected.code}, 0x{selected.code:04X})；"
                           "已送 Apply Key，ADC 套用／量測狀態請查看診斷。")
-                elif action == "1.1.0":
+                elif action == "1.2.1":
                     if selected is None or channel is None:
-                        raise ValueError("請先用選單 1 選通道及 Sensor")
+                        raise ValueError("請先用選單 1.2 選通道及 Sensor")
                     if not dut_port:
                         dut_port = input("DUT port：").strip()
                     if dut_port.casefold() == calys_port.casefold() and calys_port:
