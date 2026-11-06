@@ -209,6 +209,60 @@ class Calys1500:
     def output(self, sensor, value):
         self.command(value_command(sensor, value))
 
+
+    def read_status(self, sensor=None):
+        """Read instrument state; fail closed on unsupported or malformed replies.
+
+        SCPI query support must be confirmed on the connected firmware.
+        No cached Python setting is presented as an instrument readback.
+        """
+        status = {"identity": self.query("*IDN?"),
+                  "function": self.query("SOUR:FUNC?").strip().upper()}
+        if sensor is not None:
+            if status["function"] != sensor.kind:
+                raise CalysError(f"CALYS function mismatch: {status['function']} != {sensor.kind}")
+            if sensor.kind == "TC":
+                status["sensor_type"] = self.query("SOUR:TC:TYPE?").strip().upper()
+                status["cjc"] = self.query("SOUR:TC:RJUN:TYPE?").strip().upper()
+            elif sensor.kind == "RTD":
+                status["sensor_type"] = self.query("SOUR:RTD:TYPE?").strip().upper()
+            elif sensor.kind in ("VOLT", "CURR"):
+                status["sensor_type"] = self.query(f"SOUR:{sensor.kind}:RANG?").strip().upper()
+            if sensor.kind in ("TC", "RTD", "VOLT", "CURR"):
+                status["setpoint"] = self.query(f"SOUR:{sensor.kind}?").strip()
+        self.check_error("狀態讀回")
+        return status
+
+    def show_status(self):
+        status = self.read_status()
+        for name, value in status.items():
+            print(f"  CALYS {name}: {value}")
+        return status
+
+    def verify_configuration(self, sensor, settings=None):
+        settings = settings or {}
+        state = self.read_status(sensor)
+        if state.get("sensor_type") != sensor.token.upper():
+            raise CalysError(f"CALYS Sensor mismatch: {state.get('sensor_type')} != {sensor.token}")
+        if sensor.kind == "TC":
+            expected_cjc = settings.get("cjc", "INT").upper()
+            if state.get("cjc") != expected_cjc:
+                raise CalysError(f"CALYS CJC mismatch: {state.get('cjc')} != {expected_cjc}")
+        return state
+
+    def verify_output(self, sensor, value):
+        state = self.read_status(sensor)
+        try:
+            actual = numeric(state["setpoint"].split()[0])
+        except (ValueError, KeyError, InvalidOperation) as exc:
+            raise CalysError(f"CALYS output readback invalid: {state.get('setpoint')}") from exc
+        expected = validate(sensor, value)
+        if sensor.unit in ("mV", "mA"):
+            expected /= 1000
+        if abs(actual - expected) > max(Decimal("0.000001"), abs(expected) * Decimal("0.000001")):
+            raise CalysError(f"CALYS output mismatch: {actual} != {expected}")
+        return state
+
     def close(self):
         try:
             if self.remote:
