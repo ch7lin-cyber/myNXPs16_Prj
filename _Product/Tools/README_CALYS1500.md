@@ -70,34 +70,39 @@ python _Product\Tools\calys1500_loop_test.py --calys-port COM20 --dut-port COM8 
 ### 2.5 操作選單
 
 ```text
-0 CALYS 1500 相關
-    [0.1.0] 自動通訊測試
-    [0.1.1] 改 CALYS port
-  [0.2] 改 DUT port
+==========CALYS 1500 / DUT  測試工具 ================
+[0] CALYS 1500 相關
+  [0.1] 自動通訊測試
+  [0.2] 修改 CALYS port
   [0.3] 改 CALYS Sensor type
   [0.4] 設定輸出值
 
-[1] 選通道／Sensor（直接寫 DUT）
-    [1.1.0] 十點自動測試
+[1] DUT 相關
+  [1.1] 修改 DUT COM PORT
+  [1.2] 選通道／Sensor（直接寫 DUT）
+    [1.2.1] 校正後十點自動測試
 
 [2] 自動校正（依接線類別；預設只預覽）／選通道
   [2.1] 電壓／mV
   [2.2] RTD 三線
   [2.3] 熱電偶 TC
   [2.4] 電流
-q 結束
+
+[q] 結束
+================================================
 ```
 
-- `1`：選通道及 Sensor，立即對 DUT 用 FC10 寫入 Sensor type、目前 CJC source 及 `0xA5A5` Apply Key；讀回正確才更新選擇。讀回不是 ADC 硬體套用完成的證明，請用診斷確認。
-- `0.2`：修改 DUT port。
-- `0.3`：只改 CALYS Sensor type；不寫 DUT。
-- `0.4`：設定 CALYS 輸出，並重新套用本次啟動的 CJC 模式；不寫 DUT。
-- `1.1.0`：重新設定 CALYS 及 DUT，執行十點測試，逐點等待新成功 ADC 樣本，結果寫入 CSV。
-- `2`：選 CH，再以 `[2.1]`～`[2.4]` 選接線類別，並以 `[P0]`、`[P1]` 等 ID 選擇類別內的唯一韌體 Profile 與代表 Sensor。P0 必須從 `[2.1]` 選 `0-50mV`，工具固定輸出 `0 mV／50 mV`；禁止以 TC 溫度端點取代電氣校正點。工具等待每點 5 筆新鮮穩定 ADC 樣本，請韌體擷取零點／跨度，顯示 Profile target 與增益修正比例並保存 JSON。預設只預覽並 Abort，不寫 NVM。
-- 要允許寫入 NVM，需另外以 `--allow-calibration-apply` 啟動；預覽後還要逐筆輸入 `APPLY_CHn_PROFILE_p`。Apply 命令不重送，結果會讀回 Profile 校正槽驗證。若來源值、CALYS/DUT 端子和參考標準尚未驗證，請勿開啟此參數。低／高來源值要依該 Profile 的韌體 target µV 及已驗證標準輸入；除 P0 固定點外，程式目前不推測或換算未驗證的來源值。
-- 初步分組：TC Profile 0/1/3/7、RTD Profile 2/5/8/9、電壓／mV Profile 0/4、電流 Profile 6。TC 與電壓／mV 共用 Profile 0，執行期間同槽只處理一次。物理端子文字仍須依現場接線圖確認。
-- 穩定判定預設每點 5 筆、最大範圍 20 µV、逾時 30 秒；可用 `--calibration-timeout`、`--calibration-stability-uv` 調整。校正 JSON 存入 `--results`。
-- `q`：關閉連線，CALYS 以 LOC 解除遠端控制；輸出值不會自動歸零。
+- `0.1`：查詢 CALYS 身分（*IDN?）及目前輸出功能（SOUR:FUNC?）。
+- `0.2`：修改 CALYS COM port。
+- `0.3`：設定 CALYS Sensor Type，並查詢功能、型別及 TC CJC 以核對。
+- `0.4`：設定 CALYS 輸出值並嘗試查詢回讀確認。
+- `1.1`：修改 DUT COM port。
+- `1.2`：選通道及 Sensor，對 DUT 使用 FC10 寫入 Sensor type、保留 CJC source，送出 Apply Key 並讀回確認。
+- `1.2.1`：執行校正後十點自動測試，逐點保存 CSV 與摘要。
+- `2`：進入校正選通道流程，接著選擇 `2.1`～`2.4` 接線類別；預設預覽，不寫入 NVM。若允許 NVM Apply，仍需 `--allow-calibration-apply` 及逐筆確認。
+- `q`：解除遠端控制並結束；CALYS 輸出不會自動歸零。
+
+**狀態讀回注意：** 新增 `SOUR:FUNC?`、`SOUR:TC:TYPE?`、`SOUR:TC:RJUN:TYPE?`、`SOUR:RTD:TYPE?`、`SOUR:VOLT:RANG?`、`SOUR:CURR:RANG?` 及 `SOUR:<kind>?` 查詢。這些查詢的實機支援性與數值回覆單位仍須依 CALYS 1500 韌體/SCPI 手冊及實機確認；查詢失敗會顯示錯誤，不能視為核對成功。設定值回讀不等同於獨立量測輸出精度。
 
 手動在 CALYS 面板改 CSF 後，若工具再次設定 TC Sensor／輸出，會依啟動參數覆寫 CSF。因此要停用補償，請明確加 `--cjc DIS`。
 
