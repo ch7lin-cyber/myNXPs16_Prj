@@ -263,7 +263,7 @@ def preflight(cfg):
         estimate = len(points) * (cfg.settle + cfg.samples * cfg.interval)
         print(f"Points={len(points)}, samples={len(points)*cfg.samples}, minimum estimate={estimate:.1f}s")
         print("CALYS setpoint is not independently measured actual output.")
-        if input("Start sweep (START): ").strip() != "START":
+        if input("Start 60-point pretest (START): ").strip() != "START":
             raise ValueError("Test cancelled")
         return device, dut, points, estimate
     except BaseException:
@@ -274,13 +274,13 @@ def preflight(cfg):
 FIELDS = ["timestamp","step_index","sample_index","calys_setpoint","calys_actual",
           "dut_pv","delta","sensor_type","dut_sensor_type","read_status","error"]
 
-def result_path(cfg):
+def result_path(cfg, phase="full"):
     folder = Path(cfg.results)
     folder.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     label = re.sub(r"[^A-Za-z0-9_-]", "_", cfg.sensor.name)
     for index in range(1,10000):
-        path = folder / f"{stamp}_{index:03d}_{cfg.sensor.kind}-{label}.csv"
+        path = folder / f"{stamp}_{index:03d}_{cfg.sensor.kind}-{label}_{phase}.csv"
         if not path.exists(): return path
     raise RuntimeError("No free filename sequence")
 
@@ -302,14 +302,77 @@ def summarize(path, rows):
                         min([x for x in ds if x<0],default=""),max(map(abs,ds))])
     print("Summary:", summary)
 
-def sweep(cfg):
-    device,dut,points,estimate = preflight(cfg)
-    path = result_path(cfg)
+
+def run_pretest(cfg, device, dut):
+    """60 evenly spaced inclusive setpoints; 60 seconds is a target, not a hard deadline."""
+    points = [cfg.start + (cfg.end - cfg.start) * Decimal(i) / Decimal(59)
+              for i in range(60)]
+    path = result_path(cfg, "pretest")
     rows = []
     started = time.monotonic()
-    previous_elapsed = None
-    print("CSV:", path)
+    print(f"Pretest: 60 points, target 60 seconds; output/serial latency may extend it. CSV: {path}")
+    with path.open("w", newline="", encoding="utf-8-sig") as stream:
+        writer = csv.DictWriter(stream, fieldnames=FIELDS)
+        writer.writeheader()
+        stream.flush()
+        try:
+            for index, point in enumerate(points, 1):
+                row = dict(timestamp=datetime.now().astimezone().isoformat(),
+                           step_index=index, sample_index=1, calys_setpoint=str(point),
+                           calys_actual="N/A", dut_pv="", delta="",
+                           sensor_type=f"{cfg.sensor.kind}-{cfg.sensor.name}",
+                           dut_sensor_type=f"0x{cfg.sensor_number():04X}",
+                           read_status="OK", error="")
+                try:
+                    device.output(cfg.sensor, point)
+                    device.verify_output(cfg.sensor, point)
+                    # Do not skip steps if the instrument is slower than the 1-second target.
+                    time.sleep(max(0.0, started + index - time.monotonic()))
+                    qty = 1 if cfg.pv_kind == "int16" else 2
+                    pv = decode_pv(dut.read_holding_registers(cfg.pv_address, qty),
+                                   cfg.pv_kind, cfg.word_order, cfg.pv_scale)
+                    row["dut_pv"] = pv
+                    row["delta"] = float(Decimal(str(pv)) - point)
+                except Exception as exc:
+                    row["read_status"] = "ERROR"
+                    row["error"] = str(exc)
+                finally:
+                    rows.append(row)
+                    writer.writerow(row)
+                    stream.flush()
+                elapsed = time.monotonic() - started
+                print(f"[PRE {index}/60] set={point} PV={row['dut_pv']} "
+                      f"status={row['read_status']} elapsed={elapsed:.1f}s")
+                if row["read_status"] != "OK":
+                    print("Pretest stopped on error; full sweep is blocked.")
+                    break
+        finally:
+            summarize(path, rows)
+    errors = sum(r["read_status"] != "OK" for r in rows)
+    valid = len(rows) == 60 and errors == 0
+    print(f"Pretest complete: {len(rows)}/60, errors={errors}, "
+          f"duration={time.monotonic()-started:.1f}s")
+    print("Pretest CSV:", path.resolve())
+    if valid:
+        print("All 60 Modbus reads succeeded; this does not certify measurement accuracy.")
+    return valid
+
+def sweep(cfg):
+    device,dut,points,estimate = preflight(cfg)
+    rows = []
+    path = None
     try:
+        if not run_pretest(cfg, device, dut):
+            print("Full sweep cancelled: pretest did not pass.")
+            return
+        print("Review pretest CSV and per-step summary before continuing.")
+        if input("Confirm data and start full sweep (START): ").strip() != "START":
+            print("Full sweep cancelled by operator; pretest data preserved.")
+            return
+        path = result_path(cfg, "full")
+        started = time.monotonic()
+        print("Full sweep CSV:", path)
+
         with path.open("w", newline="", encoding="utf-8-sig") as f:
             writer = csv.DictWriter(f, fieldnames=FIELDS)
             writer.writeheader(); f.flush()
@@ -341,9 +404,10 @@ def sweep(cfg):
                 remaining = max(0,(len(points)-step_index)*mean)
                 print(f"[{step_index}/{len(points)}] CALYS={setpoint} elapsed={elapsed:.1f}s remaining≈{remaining:.1f}s")
     except KeyboardInterrupt:
-        print("Interrupted; partial CSV preserved")
+        print("Interrupted; completed CSV rows preserved")
     finally:
-        summarize(path,rows)
+        if path is not None:
+            summarize(path,rows)
         print("CALYS retains last setpoint unless safe output explicitly selected.")
         if cfg.safe_output=="zero":
             try:
