@@ -1,7 +1,7 @@
 # APP 更新配套：DirectUpdate
 
 APP 分支：**branch2_ver2_directUpdate**。搭配 Bootloader：`ch7lin-cyber/myNXP_bootLoader` 的 **006_NXP_55S16_IAP_DirectUpdate**。
-Bootloader 版本：00.02.00。C#：`004_WindowsForms_CSharp` **0.4.6 / FileVersion 0.4.6.0**，同一支 EXE 支援兩模式。
+Bootloader 版本：00.02.01。C#：`004_WindowsForms_CSharp` **0.4.6 / FileVersion 0.4.6.0**，同一支 EXE 支援兩模式。
 
 | 項目 | 設定 |
 |---|---|
@@ -35,3 +35,11 @@ APP USB/RS485 切換流程沿用共用庫；本文件不會把已停用的 USB �
 ## 專案清理
 
 使用者已確認基準可編譯／燒錄且APP啟動成功。本次只清除根目錄Debug/Release的已追蹤輸出，新增忽略規則並更新配套分支名稱；APP .cproject、linker邊界、runtime及PlatformCore版本不變。請在IDE Clean/Rebuild重新產生本機輸出。
+
+## 簽章／信任根預留（Bootloader 00.02.01）
+
+兩份未啟用的簽章驗證紀錄：副本0 `0x3C400..0x3CA00`、副本1 `0x3CA00..0x3D000`，各1536 bytes。APP仍從0x8000到0x3C000，208 KiB不變；metadata兩頁不變。補充linker以絕對符號顯示保留區，不產生額外APP資料段。
+
+公鑰信任根雜湊依NXP PFR/CMPA保護機制另作製造佈署；韌體簽署私鑰僅在離線簽署端/HSM，不放APP/Bootloader/C#。這次不寫PFR、不存金鑰、不生成簽章，也沒有啟用驗簽或防降版；既有C# 0.4.6.0與BIN仍可用。保留區目前只由Bootloader的一般更新寫入白名單排除，不是硬體讀寫保護。
+
+完整格式、憑證容量限制與後續工作請看Bootloader的 `_Bootloader/docs/security_reservation.md`。
