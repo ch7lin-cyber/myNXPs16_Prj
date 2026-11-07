@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 calys_results/
 calys1500_ports.json
+/Debug/
+/Release/
+*.o
+*.d
+*.su
+*.axf
+*.elf
+*.map

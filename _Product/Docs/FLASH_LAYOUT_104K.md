@@ -1,3 +1,5 @@
+> 歷史 Staging／002／005 設計參考。006 現行配置請以 `FW_UPDATE_LAYOUT.md` 為準。
+
 # APP／OTA 暫存區擴大為 104 KiB
 
 2026-10-23：以主專案 `d8e828a` 為基準，只調整 Flash 分區與相應容量檢查。編譯最佳化設定、PID／CKLIB、USB／RS485 功能與 PlatformCore 子模組版本維持基準。
@@ -45,3 +47,4 @@ OTA1 的 48-byte header 存於暫存區開頭，因此最大 APP BIN 為 `106496
 - 新增最大 106448-byte 映像、超限拒絕、metadata／Bootloader 邊界及舊 PENDING 拒絕測試。
 - Windows 容量邊界與舊 Bootloader 拒絕測試已加入；本環境無 .NET SDK，尚未執行。
 - MCU／MCUXpresso 編譯連結及 USB／RS485 上板更新尚未驗證。
+

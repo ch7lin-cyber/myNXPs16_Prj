@@ -1,6 +1,6 @@
 # APP 更新配套：DirectUpdate
 
-APP 分支：**branch2_ver2_directUpdate**。搭配 Bootloader：`ch7lin-cyber/myNXP_bootLoader` 的 **006_NXP55S16_IAP_DirectUpdate**。
+APP 分支：**branch2_ver2_directUpdate**。搭配 Bootloader：`ch7lin-cyber/myNXP_bootLoader` 的 **006_NXP_55S16_IAP_DirectUpdate**。
 Bootloader 版本：00.02.00。C#：`004_WindowsForms_CSharp` **0.4.6 / FileVersion 0.4.6.0**，同一支 EXE 支援兩模式。
 
 | 項目 | 設定 |
@@ -30,3 +30,8 @@ Direct：邊接收邊覆寫 APP；FINISH 驗證通過才標記 ACTIVE。沒有 s
 APP USB/RS485 切換流程沿用共用庫；本文件不會把已停用的 USB 重新啟用，是否含 USB 依實際建置配置。
 
 已檢查 `.cproject` 與 linker 邊界一致；APP 的完整 ARM 編譯/連結及板上更新待實測。其他既有建置相依（例如 CKLIB）不由此容量修改解決。
+
+
+## 專案清理
+
+使用者已確認基準可編譯／燒錄且APP啟動成功。本次只清除根目錄Debug/Release的已追蹤輸出，新增忽略規則並更新配套分支名稱；APP .cproject、linker邊界、runtime及PlatformCore版本不變。請在IDE Clean/Rebuild重新產生本機輸出。
