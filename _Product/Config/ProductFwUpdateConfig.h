@@ -1,3 +1,4 @@
+/* branch2_ver1_staging -> 005_NXP_55S16_IAP_Staging; see ../Docs/FW_UPDATE_LAYOUT.md. */
 #ifndef PRODUCT_FW_UPDATE_CONFIG_H
 #define PRODUCT_FW_UPDATE_CONFIG_H
 
