@@ -1,7 +1,7 @@
-/* Supplemental to MCUXpresso's managed linker. OTA1 has a 48-byte header. */
-ASSERT(ORIGIN(PROGRAM_FLASH) == 0x8000, "APP must link at 0x8000 for boot005")
-ASSERT(LENGTH(PROGRAM_FLASH) == 0x1A000, "APP partition must remain 104 KiB; boot005 >= 00.01.11 required")
-ASSERT(_image_end <= 0x8000 + 0x1A000 - 48, "APP payload exceeds OTA1 capacity")
+/* Supplemental to MCUXpresso's managed linker. DirectUpdate stores the raw payload at APP base. */
+ASSERT(ORIGIN(PROGRAM_FLASH) == 0x8000, "APP must link at 0x8000 for boot006")
+ASSERT(LENGTH(PROGRAM_FLASH) == 0x34000, "APP partition must remain 208 KiB; boot006 DirectUpdate required")
+ASSERT(_image_end <= 0x3C000, "APP payload exceeds DirectUpdate APP boundary")
 ASSERT(ORIGIN(SRAMX) + LENGTH(SRAMX) <= 0x04003FC0, "APP overlaps boot request mailbox")
 
 /* The MCAN message RAM is a hardware-visible reservation in SRAMX. */
