@@ -9,7 +9,7 @@ import math
 import re
 import struct
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict, fields
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -88,6 +88,131 @@ class Config:
         if points[-1] != self.end:
             points.append(self.end)
         return points
+
+CONFIG_VERSION = 1
+DEFAULT_CONFIG_PATH = Path(__file__).with_name("calys1500_linearity_settings.json")
+DECIMAL_FIELDS = {"start", "end", "step"}
+CONFIG_FIELDS = {f.name for f in fields(Config)}
+
+def config_dict(cfg):
+    result = asdict(cfg)
+    for key in DECIMAL_FIELDS:
+        result[key] = str(result[key])
+    return {"version": CONFIG_VERSION, "settings": result}
+
+def validated_config(data):
+    """Validate a complete JSON profile before replacing the live configuration."""
+    if not isinstance(data, dict) or data.get("version") != CONFIG_VERSION:
+        raise ValueError("Unsupported configuration version")
+    values = data.get("settings")
+    if not isinstance(values, dict) or set(values) != CONFIG_FIELDS:
+        raise ValueError("Configuration must contain exactly the supported settings")
+    for key in DECIMAL_FIELDS:
+        if not isinstance(values[key], str):
+            raise ValueError(f"{key} must be a decimal string")
+        values[key] = Decimal(values[key])
+    integer_fields = {"slave", "baud", "pv_address", "sensor_address", "sensor_value",
+                      "apply_value", "sensor_code", "samples"}
+    float_fields = {"timeout", "pv_scale", "interval", "settle"}
+    string_fields = {"dut_port", "calys_port", "sensor_mode", "pv_kind", "word_order",
+                     "cjc", "fixed_cjc", "results", "safe_output"}
+    for key in integer_fields:
+        if type(values[key]) is not int:
+            raise ValueError(f"{key} must be an integer")
+    for key in float_fields:
+        if type(values[key]) not in (float, int):
+            raise ValueError(f"{key} must be numeric")
+    for key in string_fields:
+        if not isinstance(values[key], str):
+            raise ValueError(f"{key} must be a string")
+    if type(values["write_sensor"]) is not bool:
+        raise ValueError("write_sensor must be a boolean")
+    if values["apply_address"] is not None and type(values["apply_address"]) is not int:
+        raise ValueError("apply_address must be an integer or null")
+    cfg = Config(**values)
+    if not cfg.calys_port.strip() or not cfg.dut_port.strip():
+        raise ValueError("COM port names must not be empty")
+    if cfg.calys_port.casefold() == cfg.dut_port.casefold():
+        raise ValueError("CALYS and DUT ports must be different")
+    if not 1 <= cfg.slave <= 247 or cfg.baud <= 0:
+        raise ValueError("Invalid slave or baud")
+    if not math.isfinite(cfg.timeout) or cfg.timeout <= 0:
+        raise ValueError("Invalid timeout")
+    if cfg.pv_kind not in ("int16", "int32", "float32"):
+        raise ValueError("Invalid PV type")
+    if cfg.word_order not in ("ABCD", "CDAB") or cfg.sensor_mode not in ("manual", "linked"):
+        raise ValueError("Invalid word order or sensor mode")
+    if cfg.cjc not in ("DIS", "INT", "FIX") or cfg.safe_output not in ("leave", "zero"):
+        raise ValueError("Invalid CJC or safe output mode")
+    if not Decimal(cfg.fixed_cjc).is_finite():
+        raise ValueError("Invalid fixed CJC")
+    if cfg.sensor_code not in SENSORS or SENSORS[cfg.sensor_code].token is None:
+        raise ValueError("Unknown/unverified CALYS sensor code")
+    for key in ("pv_address", "sensor_address", "sensor_value", "apply_value"):
+        if not 0 <= getattr(cfg, key) <= 65535:
+            raise ValueError(f"Invalid {key}")
+    if cfg.apply_address is not None and not 0 <= cfg.apply_address <= 65535:
+        raise ValueError("Invalid apply_address")
+    if cfg.pv_address + (cfg.pv_kind != "int16") > 65535:
+        raise ValueError("PV registers exceed address space")
+    if not math.isfinite(cfg.pv_scale) or cfg.pv_scale == 0:
+        raise ValueError("Invalid PV scale")
+    if not math.isfinite(cfg.interval) or cfg.interval <= 0 or cfg.samples < 1:
+        raise ValueError("Invalid sampling settings")
+    if not math.isfinite(cfg.settle) or cfg.settle < 0:
+        raise ValueError("Invalid settle time")
+    if not cfg.results.strip():
+        raise ValueError("Results path is empty")
+    cfg.points()  # Also validates finite range, positive step, sensor limits, point count.
+    return cfg
+
+def profile_action(cfg, action):
+    if action == "0.4":
+        print(json.dumps(config_dict(cfg), ensure_ascii=False, indent=2))
+    elif action == "0.2":
+        if input("恢復預設值？輸入 RESET 確認: ").strip() == "RESET":
+            cfg = Config()
+            print("已恢復程式內預設值；未連線或寫入任何硬體")
+    elif action == "0.1":
+        path = Path(input(f"JSON 路徑 [{DEFAULT_CONFIG_PATH}]: ").strip() or DEFAULT_CONFIG_PATH)
+        try:
+            candidate = validated_config(json.loads(path.read_text(encoding="utf-8")))
+            cfg = candidate
+            print(f"已載入並驗證: {path}；未連線或寫入任何硬體")
+        except (OSError, ValueError, TypeError, ArithmeticError) as exc:
+            print(f"載入失敗，原設定保持不變: {exc}")
+    elif action == "0.3":
+        path = Path(input(f"儲存 JSON 路徑 [{DEFAULT_CONFIG_PATH}]: ").strip() or DEFAULT_CONFIG_PATH)
+        try:
+            validated_config(config_dict(cfg))
+            if path.exists() and input("檔案已存在，輸入 OVERWRITE 覆寫: ").strip() != "OVERWRITE":
+                print("取消儲存")
+                return cfg
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(config_dict(cfg), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"已儲存: {path}")
+        except (OSError, ValueError, TypeError, ArithmeticError) as exc:
+            print(f"儲存失敗: {exc}")
+    return cfg
+
+def profile_menu(cfg):
+    while True:
+        print(f"""
+[0] 測試設定檔管理
+  [0.1] 載入設定檔 (JSON)
+  [0.2] 恢復系統預設值
+  [0.3] 儲存目前設定 (JSON)
+  [0.4] 顯示目前設定
+  [q] 返回主選單
+預設檔案: {DEFAULT_CONFIG_PATH}""")
+        action = input("Select: ").strip().lower()
+        if action == "q":
+            return cfg
+        if action in ("0.1", "0.2", "0.3", "0.4"):
+            cfg = profile_action(cfg, action)
+        else:
+            print("無效選項")
+
 
 def calys_connect(cfg):
     return Calys1500(cfg.calys_port, timeout=cfg.timeout)
@@ -427,6 +552,11 @@ def main():
     while True:
         print(f"""
 ========== CALYS 1500 / DUT 線性度測試 ==========
+[0] 測試設定檔管理
+  [0.1] 載入設定檔 (JSON)
+  [0.2] 恢復系統預設值
+  [0.3] 儲存目前設定 (JSON)
+  [0.4] 顯示目前設定
 [1] 線性度測試
   [1.1] DUT設定
     [1.1.1] 設定 DUT PV 通道 Address [{cfg.pv_address:04X}h]
@@ -453,6 +583,12 @@ def main():
         x=input("Select: ").strip().lower()
         try:
             if x=="q":break
+            elif x in ("0","0.1","0.2","0.3","0.4"):
+                if x == "0":
+                    cfg = profile_menu(cfg)
+                else:
+                    # Direct choices also work without entering a nested menu.
+                    cfg = profile_action(cfg, x)
             elif x in ("1.1.1","1.1.2","1.1.3","1.1.4","1.1.5","1.1.6","1.1.7","1.1.8","1.1.9"):
                 configure_dut(cfg, x)
             elif x=="1.2.1":choose_sensor(cfg)
