@@ -236,8 +236,6 @@ class Calys1500:
                 status["sensor_type"] = self.query("SOUR:RTD:TYPE?").strip().upper()
             elif sensor.kind in ("VOLT", "CURR"):
                 status["sensor_type"] = self.query(f"SOUR:{sensor.kind}:RANG?").strip().upper()
-            if sensor.kind in ("TC", "RTD", "VOLT", "CURR"):
-                status["setpoint"] = self.query(f"SOUR:{sensor.kind}?").strip()
         self.check_error("狀態讀回")
         return status
 
@@ -254,22 +252,22 @@ class Calys1500:
             raise CalysError(f"CALYS Sensor mismatch: {state.get('sensor_type')} != {sensor.token}")
         if sensor.kind == "TC":
             expected_cjc = settings.get("cjc", "INT").upper()
-            if state.get("cjc") != expected_cjc:
+            actual_cjc = {"DISABLED": "DIS", "INTERNAL": "INT", "FIXED": "FIX",
+                          "OFF": "DIS", "ON": "INT"}.get(state.get("cjc"), state.get("cjc"))
+            if actual_cjc != expected_cjc:
                 raise CalysError(f"CALYS CJC mismatch: {state.get('cjc')} != {expected_cjc}")
         return state
 
     def verify_output(self, sensor, value):
-        state = self.read_status(sensor)
-        try:
-            actual = numeric(state["setpoint"].split()[0])
-        except (ValueError, KeyError, InvalidOperation) as exc:
-            raise CalysError(f"CALYS output readback invalid: {state.get('setpoint')}") from exc
-        expected = validate(sensor, value)
-        if sensor.unit in ("mV", "mA"):
-            expected /= 1000
-        if abs(actual - expected) > max(Decimal("0.000001"), abs(expected) * Decimal("0.000001")):
-            raise CalysError(f"CALYS output mismatch: {actual} != {expected}")
-        return state
+        """Confirm command acceptance, not actual output or setpoint readback.
+
+        SOUR:TC? did not respond on CALYS1500 firmware 1507D I03 0148 A.
+        Do not query an unverified SCPI command or mislabel ERR? as measurement.
+        """
+        validate(sensor, value)
+        self.check_error("輸出指令")
+        return {"command_accepted": True, "setpoint_readback": "unsupported",
+                "actual_output": "not measured"}
 
     def close(self):
         try:
