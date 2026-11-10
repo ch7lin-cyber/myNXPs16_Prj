@@ -50,7 +50,7 @@ class Config:
     calys_timeout: float = 10.0
     calys_trace: bool = False
     pv_address: int = 0x1000
-    sensor_address: int = 0x1004
+    sensor_address: int = 0x1007
     sensor_value: int = 1
     sensor_mode: str = "manual"
     write_sensor: bool = False
@@ -335,16 +335,54 @@ def configure_dut(cfg, x):
         cfg.pv_address = ask("PV address", f"0x{cfg.pv_address:04X}", number)
     elif x == "1.1.2":
         cfg.sensor_address = ask("Sensor address", f"0x{cfg.sensor_address:04X}", number)
-    elif x == "1.1.3":
+    elif x in ("1.1.3", "1.1.4"):
+        # Both choices write immediately. WITH APPLY preserves the CJC register
+        # between Sensor Type and Apply (same layout as the ten-point tool).
         choice = input("1=CALYS linked / 2=manual [current]: ").strip()
         if choice not in ("", "1", "2"):
             raise ValueError("Select 1 or 2")
-        if choice:
-            cfg.sensor_mode = "linked" if choice == "1" else "manual"
-        if cfg.sensor_mode == "manual":
-            cfg.sensor_value = ask("DUT Sensor code", cfg.sensor_value, number)
-    elif x == "1.1.4":
-        pv_test(cfg)
+        mode = ("linked" if choice == "1" else "manual" if choice == "2" else cfg.sensor_mode)
+        value = (cfg.sensor_code if mode == "linked" else
+                 ask("DUT Sensor code", cfg.sensor_value, number))
+        if not 0 <= value <= 65535:
+            raise ValueError("Sensor Type must be 0..65535")
+        if not 0 <= cfg.sensor_address <= 65533 and x == "1.1.4":
+            raise ValueError("WITH APPLY requires Sensor, CJC, Apply consecutive addresses")
+        if not 0 <= cfg.sensor_address <= 65535:
+            raise ValueError("Invalid Sensor address")
+        apply_value = cfg.apply_value
+        if x == "1.1.4":
+            apply_value = ask("Apply value", f"0x{cfg.apply_value:04X}", number)
+            if not 0 <= apply_value <= 65535:
+                raise ValueError("Apply value must be 0..65535")
+            print(f"DUT FC10: {cfg.sensor_address:04X}h Sensor={value:04X}h, "
+                  f"{cfg.sensor_address+1:04X}h CJC=保留原值, "
+                  f"{cfg.sensor_address+2:04X}h Apply={apply_value:04X}h")
+            if input("[1] 確認寫入 / [0] 取消: ").strip() != "1":
+                print("DUT write cancelled")
+                return
+        else:
+            print(f"DUT FC06: {cfg.sensor_address:04X}h Sensor={value:04X}h")
+        dut = dut_connect(cfg)
+        try:
+            if x == "1.1.4":
+                cjc = dut.read_holding_registers(cfg.sensor_address + 1, 1)[0]
+                if not 0 <= cjc <= 3:
+                    raise ValueError(f"Unexpected DUT CJC source: {cjc}; write cancelled")
+                dut.write_multiple_registers(cfg.sensor_address, [value, cjc, apply_value])
+            else:
+                dut.write_single_register(cfg.sensor_address, value)
+            actual = dut.read_holding_registers(cfg.sensor_address, 1)[0]
+            if actual != value:
+                raise ValueError(f"DUT Sensor readback mismatch: {actual:04X}h != {value:04X}h")
+            cfg.sensor_mode = mode
+            if mode == "manual":
+                cfg.sensor_value = value
+            if x == "1.1.4":
+                cfg.apply_value = apply_value
+            print(f"DUT Sensor Type written and read back: {actual:04X}h")
+        finally:
+            dut.close()
     elif x == "1.1.5":
         kind = input("int16 / int32 / float32: ").strip().lower()
         if kind not in ("int16", "int32", "float32"):
@@ -361,12 +399,7 @@ def configure_dut(cfg, x):
             raise ValueError("PV scale must be finite and nonzero")
         cfg.pv_scale = scale
     elif x == "1.1.8":
-        cfg.write_sensor = input("Enable sensor write? YES/no: ").strip() == "YES"
-        if cfg.write_sensor:
-            a = input("Apply register address (blank = none): ").strip()
-            cfg.apply_address = number(a) if a else None
-            if a:
-                cfg.apply_value = ask("Apply value", "0xA5A5", number)
+        pv_test(cfg)
     elif x == "1.1.9":
         cfg.dut_port = ask("DUT port", cfg.dut_port)
         cfg.slave = ask("DUT slave", cfg.slave, int)
@@ -428,17 +461,12 @@ def preflight(cfg):
         qty = 1 if cfg.pv_kind == "int16" else 2
         registers = dut.read_holding_registers(cfg.pv_address, qty)
         print("DUT PV:", decode_pv(registers, cfg.pv_kind, cfg.word_order, cfg.pv_scale))
-        if cfg.write_sensor:
-            print(f"DUT sensor write: {cfg.sensor_address:04X}h = {cfg.sensor_number():04X}h")
-            if input("Confirm DUT sensor write (WRITE): ").strip() != "WRITE":
-                raise ValueError("DUT write cancelled")
-            dut.write_single_register(cfg.sensor_address, cfg.sensor_number())
-            if dut.read_holding_registers(cfg.sensor_address, 1)[0] != cfg.sensor_number():
-                raise ValueError("DUT sensor readback mismatch")
-            if cfg.apply_address is not None:
-                if input(f"Apply {cfg.apply_address:04X}h={cfg.apply_value:04X}h (APPLY): ").strip() != "APPLY":
-                    raise ValueError("Apply cancelled")
-                dut.write_single_register(cfg.apply_address, cfg.apply_value)
+        # [1.4] is read-only: do not change Sensor Type or Apply here.
+        current_sensor = dut.read_holding_registers(cfg.sensor_address, 1)[0]
+        if current_sensor != cfg.sensor_number():
+            raise ValueError(f"DUT Sensor Type mismatch: {current_sensor:04X}h "
+                             f"!= expected {cfg.sensor_number():04X}h; configure [1.1.3]/[1.1.4]")
+        print(f"DUT Sensor Type verified: {current_sensor:04X}h")
         estimate = len(points) * (cfg.settle + cfg.samples * cfg.interval)
         print(f"Points={len(points)}, samples={len(points)*cfg.samples}, minimum estimate={estimate:.1f}s")
         print("CALYS setpoint is not independently measured actual output.")
@@ -622,11 +650,11 @@ def main():
     [1.1.1] 設定 DUT PV 通道 Address [{cfg.pv_address:04X}h]
     [1.1.2] 設定 DUT Sensor Address [{cfg.sensor_address:04X}h]
     [1.1.3] 設定 DUT Sensor type [0x{cfg.sensor_number():04X}]
-    [1.1.4] 讀 PV 測試
+    [1.1.4] 設定 DUT Sensor type WITH APPLY [0x{cfg.sensor_number():04X}]
     [1.1.5] PV type [{cfg.pv_kind}]
     [1.1.6] Word order [{cfg.word_order}]
     [1.1.7] PV scale [{cfg.pv_scale}]
-    [1.1.8] Sensor write [{cfg.write_sensor}], Apply [{f'{cfg.apply_address:04X}h' if cfg.apply_address is not None else 'None'}]
+    [1.1.8] 讀 PV 測試
     [1.1.9] DUT port/slave [{cfg.dut_port}/{cfg.slave}]
   [1.2] CALYS 1500 設定
     [1.2.1] 設定 CALYS SENSOR TYPE [{cfg.sensor.kind}-{cfg.sensor.name}]
