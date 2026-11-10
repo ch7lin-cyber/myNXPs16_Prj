@@ -66,6 +66,21 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## [1.2.4] 輸出值與 [1.2.5] 自動通訊測試（2026-11-10）
+
+- `1.2.4`：連接 CALYS，讀取目前 Function／Sensor／CJC／設定值，輸入輸出值並以 `OUTPUT` 確認；重新設定所選 Sensor/CJC、核對讀回後設定輸出，最後查詢輸出設定值。**會改變 CALYS 實際輸出，請先確認接線及負載安全**；結束後 LOC 不會自動歸零。
+- `1.2.5`：只進行 CALYS 身分、目前 Function 及 `ERR?` 查詢，不設定輸出或改變 DUT。
+- `--calys-timeout 10`：CALYS SCPI 查詢逾時（秒），預設 10 秒，與 DUT timeout 分開。
+- `--calys-trace`：列印 CALYS TX／RX，方便診斷通訊。
+- 上述兩個參數亦納入 JSON 設定檔 `calys_timeout`／`calys_trace`，載入仍不連線或操作硬體。舊版 JSON 缺少新欄位時，需重新儲存新版完整設定檔。
+- **狀態：程式已實作，待 CALYS 1500 實機驗證 SCPI 查詢格式及設定值讀回。**
+
+啟動範例：
+
+```powershell
+python _Product\\Tools\\calys1500_linearity_test.py --calys-port COM20 --dut-port COM17 --calys-timeout 10 --calys-trace
+```
+
 ## 啟動（專案根目錄）
 
 ```powershell
