@@ -557,57 +557,82 @@ def summarize(path, rows):
 
 
 def run_pretest(cfg, device, dut):
-    """60 evenly spaced inclusive setpoints; 60 seconds is a target, not a hard deadline."""
+    """60 evenly spaced inclusive setpoints, using the configured sampling schedule."""
     points = [cfg.start + (cfg.end - cfg.start) * Decimal(i) / Decimal(59)
               for i in range(60)]
     path = result_path(cfg, "pretest")
     rows = []
     started = time.monotonic()
-    print(f"Pretest: 60 points, target 60 seconds; output/serial latency may extend it. CSV: {path}")
+    estimate = len(points) * (cfg.settle + cfg.samples * cfg.interval)
+    print(f"Pretest: 60 points, {cfg.samples} samples/point, "
+          f"settle={cfg.settle}s, interval={cfg.interval}s, "
+          f"minimum estimate={estimate:.1f}s (excluding communication). CSV: {path}")
     with path.open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
         stream.flush()
         try:
             for index, point in enumerate(points, 1):
-                row = dict(timestamp=datetime.now().astimezone().isoformat(),
-                           step_index=index, sample_index=1, calys_setpoint=str(point),
-                           calys_actual="N/A", dut_pv="", delta="",
-                           sensor_type=f"{cfg.sensor.kind}-{cfg.sensor.name}",
-                           dut_sensor_type=f"0x{cfg.sensor_number():04X}",
-                           read_status="OK", error="")
+                step_started = time.monotonic()
                 try:
                     device.output(cfg.sensor, point)
                     device.verify_output(cfg.sensor, point)
-                    # Do not skip steps if the instrument is slower than the 1-second target.
-                    time.sleep(max(0.0, started + index - time.monotonic()))
-                    qty = 1 if cfg.pv_kind == "int16" else 2
-                    pv = decode_pv(dut.read_holding_registers(cfg.pv_address, qty),
-                                   cfg.pv_kind, cfg.word_order, cfg.pv_scale)
-                    row["dut_pv"] = pv
-                    row["delta"] = float(Decimal(str(pv)) - point)
                 except Exception as exc:
-                    row["read_status"] = "ERROR"
-                    row["error"] = str(exc)
-                finally:
+                    row = dict(timestamp=datetime.now().astimezone().isoformat(),
+                               step_index=index, sample_index=0,
+                               calys_setpoint=str(point), calys_actual="N/A",
+                               dut_pv="", delta="",
+                               sensor_type=f"{cfg.sensor.kind}-{cfg.sensor.name}",
+                               dut_sensor_type=f"0x{cfg.sensor_number():04X}",
+                               read_status="ERROR", error=str(exc))
                     rows.append(row)
                     writer.writerow(row)
                     stream.flush()
-                elapsed = time.monotonic() - started
-                print(f"[PRE {index}/60] set={point} PV={row['dut_pv']} "
-                      f"status={row['read_status']} elapsed={elapsed:.1f}s")
-                if row["read_status"] != "OK":
-                    print("Pretest stopped on error; full sweep is blocked.")
+                    print(f"[PRE {index}/60] CALYS error: {exc}")
+                    break
+                time.sleep(cfg.settle)
+                point_failed = False
+                for sample_index in range(1, cfg.samples + 1):
+                    target = step_started + cfg.settle + sample_index * cfg.interval
+                    time.sleep(max(0.0, target - time.monotonic()))
+                    row = dict(timestamp=datetime.now().astimezone().isoformat(),
+                               step_index=index, sample_index=sample_index,
+                               calys_setpoint=str(point), calys_actual="N/A",
+                               dut_pv="", delta="",
+                               sensor_type=f"{cfg.sensor.kind}-{cfg.sensor.name}",
+                               dut_sensor_type=f"0x{cfg.sensor_number():04X}",
+                               read_status="OK", error="")
+                    try:
+                        qty = 1 if cfg.pv_kind == "int16" else 2
+                        pv = decode_pv(dut.read_holding_registers(cfg.pv_address, qty),
+                                       cfg.pv_kind, cfg.word_order, cfg.pv_scale)
+                        row["dut_pv"] = pv
+                        row["delta"] = float(Decimal(str(pv)) - point)
+                    except Exception as exc:
+                        row["read_status"] = "ERROR"
+                        row["error"] = str(exc)
+                        point_failed = True
+                    rows.append(row)
+                    writer.writerow(row)
+                    stream.flush()
+                    print(f"[PRE {index}/60 sample {sample_index}/{cfg.samples}] "
+                          f"set={point} PV={row['dut_pv']} status={row['read_status']} "
+                          f"elapsed={time.monotonic()-started:.1f}s")
+                    if point_failed:
+                        break
+                if point_failed:
+                    print("Pretest stopped on read error; full sweep is blocked.")
                     break
         finally:
             summarize(path, rows)
-    errors = sum(r["read_status"] != "OK" for r in rows)
-    valid = len(rows) == 60 and errors == 0
-    print(f"Pretest complete: {len(rows)}/60, errors={errors}, "
+    errors = sum(row["read_status"] != "OK" for row in rows)
+    expected_samples = 60 * cfg.samples
+    valid = len(rows) == expected_samples and errors == 0
+    print(f"Pretest complete: {len(rows)}/{expected_samples} samples, errors={errors}, "
           f"duration={time.monotonic()-started:.1f}s")
     print("Pretest CSV:", path.resolve())
     if valid:
-        print("All 60 Modbus reads succeeded; this does not certify measurement accuracy.")
+        print("All pretest reads succeeded; this does not certify measurement accuracy.")
     return valid
 
 def sweep(cfg):
