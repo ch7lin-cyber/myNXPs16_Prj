@@ -66,6 +66,19 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## CALYS 1500 實機回覆修正（2026-11-10）
+
+實機記錄（CALYS1500 1507D I03 0148 A）確認：
+
+| 查詢 | 回覆 | 處理 |
+|---|---|---|
+| `SOUR:FUNC?` | `TCOUPLE` | 正規化為 TC |
+| `SOUR:TC:TYPE?` | `K` | 用於 Sensor Type 核對 |
+| `SOUR:TC:RJUN:TYPE?` | `DISABLED` | 正規化為 DIS |
+| `SOUR:TC?` | 逾時、無回覆 | 已停止使用，不再阻擋輸出設定 |
+
+`verify_output()` 現僅透過 `ERR?` 確認 SCPI 沒有回報錯誤，**不是 CALYS 設定值讀回，也不是實際輸出量測**。測試 CSV 的 `calys_actual` 仍為 `N/A`。設定值查詢替代指令尚待原廠手冊或實機驗證。此修正尚未完成完整實機回歸測試。
+
 ## [1.2.1] Sensor Type 立即套用修正（2026-11-10）
 
 選擇 TC／RTD 及 Sensor code 後，立即向 CALYS 發送 `configure()` 指令並讀回核對；**只有設定成功才更新主選單的 Sensor 與預設量程**。先以 `SOUR:FUNC?` 讀取目前功能，不要求它與準備選擇的 Sensor 相同。新增 `TCOUPLE → TC` 等 SCPI Function 名稱正規化，避免把儀器的 `TCOUPLE` 誤判成不相容。
