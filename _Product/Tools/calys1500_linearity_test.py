@@ -292,7 +292,10 @@ def calys_output_test(cfg):
         print("Current CALYS function:", device.show_status())
         value = Decimal(str(ask(f"Output {cfg.sensor.unit}", cfg.start, Decimal)))
         validate(cfg.sensor, value)
-        if input(f"Confirm CALYS output {value} {cfg.sensor.unit} (OUTPUT): ").strip() != "OUTPUT":
+        print(f"即將設定 CALYS 輸出：{value} {cfg.sensor.unit}")
+        print("[1] 確認輸出")
+        print("[0] 取消")
+        if input("Select [0]: ").strip() != "1":
             print("Output cancelled")
             return
         device.configure(cfg.sensor, cjc=cfg.cjc, fixed_cjc=cfg.fixed_cjc)
