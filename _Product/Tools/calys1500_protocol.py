@@ -107,6 +107,14 @@ def value_command(sensor, value):
     return f"SOUR:{sensor.kind} {value:f}"
 
 
+def normalize_function(value):
+    """Map instrument SCPI function names to internal Sensor.kind identifiers."""
+    name = value.strip().upper()
+    return {"TCOUPLE": "TC", "THERMOCOUPLE": "TC",
+            "RES": "RTD", "RESISTANCE": "RTD", "RTD": "RTD",
+            "VOLTAGE": "VOLT", "CURRENT": "CURR"}.get(name, name)
+
+
 class CalysError(RuntimeError):
     pass
 
@@ -219,7 +227,7 @@ class Calys1500:
         status = {"identity": self.query("*IDN?"),
                   "function": self.query("SOUR:FUNC?").strip().upper()}
         if sensor is not None:
-            if status["function"] != sensor.kind:
+            if normalize_function(status["function"]) != sensor.kind:
                 raise CalysError(f"CALYS function mismatch: {status['function']} != {sensor.kind}")
             if sensor.kind == "TC":
                 status["sensor_type"] = self.query("SOUR:TC:TYPE?").strip().upper()
