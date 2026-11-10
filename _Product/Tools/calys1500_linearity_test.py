@@ -289,7 +289,7 @@ def calys_output_test(cfg):
     device = calys_connect(cfg)
     try:
         print("CALYS:", device.identity)
-        print("Current status:", device.read_status(cfg.sensor))
+        print("Current CALYS function:", device.show_status())
         value = Decimal(str(ask(f"Output {cfg.sensor.unit}", cfg.start, Decimal)))
         validate(cfg.sensor, value)
         if input(f"Confirm CALYS output {value} {cfg.sensor.unit} (OUTPUT): ").strip() != "OUTPUT":
@@ -298,7 +298,8 @@ def calys_output_test(cfg):
         device.configure(cfg.sensor, cjc=cfg.cjc, fixed_cjc=cfg.fixed_cjc)
         device.verify_configuration(cfg.sensor, {"cjc": cfg.cjc})
         device.output(cfg.sensor, value)
-        print("Output verified:", device.verify_output(cfg.sensor, value))
+        print("Output command status:", device.verify_output(cfg.sensor, value))
+        print("注意：僅確認 SCPI ERR? 無錯誤，非實際輸出量測或設定值回讀")
         print("CALYS may retain this output after LOC")
     finally:
         device.close()
@@ -414,7 +415,9 @@ def preflight(cfg):
     try:
         state = device.read_status(cfg.sensor)
         print("CALYS readback:", state)
-        if cfg.sensor.kind == "TC" and state.get("cjc") != cfg.cjc:
+        actual_cjc = {"DISABLED": "DIS", "INTERNAL": "INT", "FIXED": "FIX",
+                      "OFF": "DIS", "ON": "INT"}.get(state.get("cjc"), state.get("cjc"))
+        if cfg.sensor.kind == "TC" and actual_cjc != cfg.cjc:
             raise ValueError("CALYS CJC mismatch: configure 1.2.2 first")
         if state.get("sensor_type") != cfg.sensor.token.upper():
             raise ValueError("CALYS sensor mismatch: configure 1.2.1 first")
