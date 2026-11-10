@@ -237,23 +237,34 @@ def show_calys(cfg):
         device.close()
 
 def choose_sensor(cfg):
+    """Select and immediately configure CALYS; commit selection only after readback."""
+    device = calys_connect(cfg)
     try:
-        print("CALYS readback:", show_calys(cfg))
-    except Exception as exc:
-        print("Readback unavailable:", exc)
-    print("1. TC  2. RTD")
-    kind = {"1": "TC", "2": "RTD"}.get(input("Class: ").strip())
-    if not kind:
-        return
-    choices = [s for s in SENSORS.values() if s.kind == kind and s.token is not None]
-    for sensor in choices:
-        print(f"{sensor.code:3d} {sensor.label:10} {sensor.low}..{sensor.high} {sensor.unit}")
-    code = ask("CALYS sensor code", cfg.sensor_code, number)
-    if code not in [s.code for s in choices]:
-        raise ValueError("Invalid/unverified CALYS sensor")
-    cfg.sensor_code = code
-    cfg.start, cfg.end = Decimal(cfg.sensor.low), Decimal(cfg.sensor.high)
-    print("Sensor selected; range reset to sensor limits")
+        # Read the current function without requiring it to match the future selection.
+        print("CALYS current status:", device.show_status())
+        print("1. TC  2. RTD")
+        kind = {"1": "TC", "2": "RTD"}.get(input("Class: ").strip())
+        if not kind:
+            return
+        choices = [sensor for sensor in SENSORS.values()
+                   if sensor.kind == kind and sensor.token is not None]
+        for sensor in choices:
+            print(f"{sensor.code:3d} {sensor.label:10} "
+                  f"{sensor.low}..{sensor.high} {sensor.unit}")
+        default_code = cfg.sensor_code if cfg.sensor.kind == kind else choices[0].code
+        code = ask("CALYS sensor code", default_code, number)
+        if code not in [sensor.code for sensor in choices]:
+            raise ValueError("Invalid/unverified CALYS sensor")
+        selected = SENSORS[code]
+        print(f"Configuring CALYS: {selected.kind}-{selected.name} ({selected.token})")
+        device.configure(selected, cjc=cfg.cjc, fixed_cjc=cfg.fixed_cjc)
+        state = device.verify_configuration(selected, {"cjc": cfg.cjc})
+        cfg.sensor_code = code
+        cfg.start, cfg.end = Decimal(selected.low), Decimal(selected.high)
+        print("CALYS configuration verified:", state)
+        print(f"Sensor and range updated: {selected.name} {cfg.start}..{cfg.end}")
+    finally:
+        device.close()
 
 def configure_calys(cfg):
     try:
