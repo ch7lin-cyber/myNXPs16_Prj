@@ -66,6 +66,12 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## [1.2.1] Sensor Type 立即套用修正（2026-11-10）
+
+選擇 TC／RTD 及 Sensor code 後，立即向 CALYS 發送 `configure()` 指令並讀回核對；**只有設定成功才更新主選單的 Sensor 與預設量程**。先以 `SOUR:FUNC?` 讀取目前功能，不要求它與準備選擇的 Sensor 相同。新增 `TCOUPLE → TC` 等 SCPI Function 名稱正規化，避免把儀器的 `TCOUPLE` 誤判成不相容。
+
+**待實機驗證：** CALYS 韌體是否支援 `SOUR:RTD:TYPE?`、`SOUR:RTD?` 等狀態查詢；若查詢失敗，程式不會宣稱已完成核對，需依實際 TX/RX 及儀器手冊調整。
+
 ## [1.2.4] 輸出值與 [1.2.5] 自動通訊測試（2026-11-10）
 
 - `1.2.4`：連接 CALYS，讀取目前 Function／Sensor／CJC／設定值，輸入輸出值並以 `OUTPUT` 確認；重新設定所選 Sensor/CJC、核對讀回後設定輸出，最後查詢輸出設定值。**會改變 CALYS 實際輸出，請先確認接線及負載安全**；結束後 LOC 不會自動歸零。
