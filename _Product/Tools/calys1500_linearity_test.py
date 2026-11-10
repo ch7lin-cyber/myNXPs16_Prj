@@ -46,6 +46,10 @@ class Config:
     calys_port: str = "COM20"
     slave: int = 2
     baud: int = 115200
+    dut_mode: str = "ascii"
+    dut_bytesize: int = 7
+    dut_parity: str = "E"
+    dut_stopbits: int = 1
     timeout: float = 3.0
     calys_timeout: float = 10.0
     calys_trace: bool = False
@@ -91,6 +95,15 @@ class Config:
             points.append(self.end)
         return points
 
+def normalize_dut_port(value):
+    """Accept Windows COM23 or the shorthand 23; preserve other device paths."""
+    name = str(value).strip()
+    if re.fullmatch(r"(?i:com)\\d+", name):
+        return "COM" + name[3:]
+    if re.fullmatch(r"\\d+", name):
+        return "COM" + name
+    return name
+
 CONFIG_VERSION = 1
 DEFAULT_CONFIG_PATH = Path(__file__).with_name("calys1500_linearity_settings.json")
 DECIMAL_FIELDS = {"start", "end", "step"}
@@ -113,11 +126,11 @@ def validated_config(data):
         if not isinstance(values[key], str):
             raise ValueError(f"{key} must be a decimal string")
         values[key] = Decimal(values[key])
-    integer_fields = {"slave", "baud", "pv_address", "sensor_address", "sensor_value",
+    integer_fields = {"slave", "baud", "dut_bytesize", "dut_stopbits", "pv_address", "sensor_address", "sensor_value",
                       "apply_value", "sensor_code", "samples"}
     float_fields = {"timeout", "calys_timeout", "pv_scale", "interval", "settle"}
     string_fields = {"dut_port", "calys_port", "sensor_mode", "pv_kind", "word_order",
-                     "cjc", "fixed_cjc", "results", "safe_output"}
+                     "cjc", "fixed_cjc", "results", "safe_output", "dut_mode", "dut_parity"}
     for key in integer_fields:
         if type(values[key]) is not int:
             raise ValueError(f"{key} must be an integer")
@@ -136,8 +149,13 @@ def validated_config(data):
     cfg = Config(**values)
     if not cfg.calys_port.strip() or not cfg.dut_port.strip():
         raise ValueError("COM port names must not be empty")
+    cfg.dut_port = normalize_dut_port(cfg.dut_port)
     if cfg.calys_port.casefold() == cfg.dut_port.casefold():
         raise ValueError("CALYS and DUT ports must be different")
+    if cfg.dut_mode not in ("rtu", "ascii") or cfg.dut_bytesize not in (7, 8):
+        raise ValueError("Invalid DUT mode or data bits")
+    if cfg.dut_parity not in ("N", "E", "O") or cfg.dut_stopbits not in (1, 2):
+        raise ValueError("Invalid DUT parity or stop bits")
     if not 1 <= cfg.slave <= 247 or cfg.baud <= 0:
         raise ValueError("Invalid slave or baud")
     if not math.isfinite(cfg.calys_timeout) or cfg.calys_timeout <= 0:
@@ -226,7 +244,16 @@ def calys_connect(cfg):
 def dut_connect(cfg):
     if cfg.dut_port.casefold() == cfg.calys_port.casefold():
         raise ValueError("CALYS and DUT cannot share the same COM port")
-    return ModbusRtuClient(cfg.dut_port, cfg.slave, cfg.baud, cfg.timeout, show_frames=False)
+    port = normalize_dut_port(cfg.dut_port)
+    print(f"DUT: {port} / Modbus {cfg.dut_mode.upper()} / {cfg.baud} / "
+          f"{cfg.dut_bytesize}{cfg.dut_parity}{cfg.dut_stopbits} / slave {cfg.slave}")
+    try:
+        return ModbusRtuClient(port, cfg.slave, cfg.baud, cfg.timeout,
+                               mode=cfg.dut_mode, bytesize=cfg.dut_bytesize,
+                               parity=cfg.dut_parity, stopbits=cfg.dut_stopbits,
+                               show_frames=False)
+    except OSError as exc:
+        raise OSError(f"無法開啟 DUT {port}；請確認 COM 名稱、裝置管理員與其他軟體是否佔用: {exc}") from exc
 
 def show_calys(cfg):
     device = calys_connect(cfg)
@@ -401,10 +428,24 @@ def configure_dut(cfg, x):
     elif x == "1.1.8":
         pv_test(cfg)
     elif x == "1.1.9":
-        cfg.dut_port = ask("DUT port", cfg.dut_port)
-        cfg.slave = ask("DUT slave", cfg.slave, int)
-        if not 1 <= cfg.slave <= 247:
-            raise ValueError("DUT slave must be 1..247")
+        port = normalize_dut_port(ask("DUT port (23 or COM23)", cfg.dut_port))
+        slave = ask("DUT slave", cfg.slave, int)
+        mode = ask("Modbus mode (ascii/rtu)", cfg.dut_mode).strip().lower()
+        baud = ask("Baud rate", cfg.baud, int)
+        default_bits = cfg.dut_bytesize if mode == cfg.dut_mode else (7 if mode == "ascii" else 8)
+        default_parity = cfg.dut_parity if mode == cfg.dut_mode else ("E" if mode == "ascii" else "N")
+        bits = ask("Data bits (7/8)", default_bits, int)
+        parity = ask("Parity (N/E/O)", default_parity).strip().upper()
+        stop = ask("Stop bits (1/2)", cfg.dut_stopbits, int)
+        if not 1 <= slave <= 247 or mode not in ("ascii", "rtu") or baud <= 0:
+            raise ValueError("Invalid DUT slave/mode/baud")
+        if bits not in (7, 8) or parity not in ("N", "E", "O") or stop not in (1, 2):
+            raise ValueError("Invalid serial data format")
+        if not port or port.casefold() == cfg.calys_port.casefold():
+            raise ValueError("Invalid DUT port or same as CALYS port")
+        cfg.dut_port, cfg.slave, cfg.dut_mode, cfg.baud = port, slave, mode, baud
+        cfg.dut_bytesize, cfg.dut_parity, cfg.dut_stopbits = bits, parity, stop
+        print(f"DUT communication: {port} / {mode.upper()} / {baud} / {bits}{parity}{stop}")
     else:
         raise ValueError("Unknown DUT menu selection")
 
@@ -655,7 +696,7 @@ def main():
     [1.1.6] Word order [{cfg.word_order}]
     [1.1.7] PV scale [{cfg.pv_scale}]
     [1.1.8] 讀 PV 測試
-    [1.1.9] DUT port/slave [{cfg.dut_port}/{cfg.slave}]
+    [1.1.9] DUT 通訊 [{normalize_dut_port(cfg.dut_port)}/{cfg.slave}, {cfg.dut_mode.upper()} {cfg.baud} {cfg.dut_bytesize}{cfg.dut_parity}{cfg.dut_stopbits}]
   [1.2] CALYS 1500 設定
     [1.2.1] 設定 CALYS SENSOR TYPE [{cfg.sensor.kind}-{cfg.sensor.name}]
     [1.2.2] 設定 CALYS CJC [{cfg.cjc}]
