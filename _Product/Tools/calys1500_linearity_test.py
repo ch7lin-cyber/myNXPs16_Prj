@@ -351,8 +351,13 @@ def pv_test(cfg):
     try:
         qty = 1 if cfg.pv_kind == "int16" else 2
         registers = dut.read_holding_registers(cfg.pv_address, qty)
-        print("Registers:", [f"{x:04X}h" for x in registers],
-              "PV:", decode_pv(registers, cfg.pv_kind, cfg.word_order, cfg.pv_scale))
+        pv = decode_pv(registers, cfg.pv_kind, cfg.word_order, cfg.pv_scale)
+        print("FC03 Read Holding Registers")
+        print(f"Address : {cfg.pv_address:04X}h")
+        print(f"Quantity: {qty}")
+        for offset, value in enumerate(registers):
+            print(f"{cfg.pv_address + offset:04X}h = 0x{value:04X} ({value})")
+        print(f"PV = {pv:.3f}")
     finally:
         dut.close()
 
