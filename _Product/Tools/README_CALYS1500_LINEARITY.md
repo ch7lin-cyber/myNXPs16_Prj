@@ -66,6 +66,16 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## DUT Sensor Type 立即寫入（2026-11-10）
+
+- `[1.1.3]`：選擇 Sensor Type 後立即以 **Modbus FC06** 寫入 `Sensor Address`，再 FC03 讀回確認；無 Apply。
+- `[1.1.4]`：選擇 Sensor Type、輸入 Apply 值（預設 `A5A5h`），顯示寫入計畫並要求 `1` 確認。以 **Modbus FC10** 一次寫入 `Sensor Address`、原 CJC Source、Apply，保留 CJC 原值，之後讀回 Sensor Type。輸入 `0` 或其他內容取消。
+- `[1.1.8]`：原本的讀 PV 測試移至此項。
+- 預設 Sensor Address 改為 **1007h**（CH0，沿用十點測試工具）；CHn 通常為 `1007h + CH×10h`，使用前應確認實際 Register Map。
+- `[1.4]`：**不再寫入 Sensor Type／Apply**，只讀回 DUT Sensor Type 並與目前設定比對；不一致則阻止測試。
+- 既有 JSON 欄位 `write_sensor`／`apply_address` 暫為向下相容保留欄位，不再控制 [1.4] 寫入；新設定檔應使用 Sensor Address 1007h 或實際 DUT 位址。
+- **狀態：已實作，尚待 DUT 實機驗證。** FC03 讀回一致不代表量測鏈已完成切換，仍需確認新 PV 樣本及實際量測。
+
 ## CALYS 1500 實機回覆修正（2026-11-10）
 
 實機記錄（CALYS1500 1507D I03 0148 A）確認：
