@@ -132,22 +132,46 @@ PV = 27.700
 python _Product\\Tools\\calys1500_linearity_test.py --calys-port COM20 --dut-port COM17 --calys-timeout 10 --calys-trace
 ```
 
-## 啟動（專案根目錄）
+## 啟動與命令列參數（專案根目錄）
+
+先安裝相依套件：
 
 ```powershell
 python -m pip install pyserial
-python _Product\Tools\calys1500_linearity_test.py --calys-port COM20 --dut-port COM17 --results calys_results
 ```
+
+**目前 DUT（Modbus ASCII／115200／7E1）使用範例：**
+
+```powershell
+python _Product\Tools\calys1500_linearity_test.py --calys-port COM20 --dut-port COM23 --calys-timeout 10 --calys-trace
+```
+
+### 參數一覽
+
+| 參數 | 預設值 | 說明 |
+|---|---|---|
+| `--calys-port COM20` | `COM20` | CALYS 1500 的序列埠 |
+| `--dut-port COM23` | `COM17` | DUT 的序列埠；此範例使用 COM23 |
+| `--calys-timeout 10` | `10.0` 秒 | CALYS SCPI 查詢與序列通訊逾時 |
+| `--calys-trace` | 未啟用 | 顯示 CALYS TX／RX 指令與回覆，方便診斷 |
+| `--results calys_results` | `calys_results` | 預測試、完整測試 CSV 與摘要輸出目錄 |
+| `-h`、`--help` | — | 顯示 argparse 提供的命令列說明 |
+
+未指定 `--calys-trace` 時，不顯示詳細 CALYS TX／RX；`--calys-timeout` 必須為大於 0 的有限秒數。
+
+DUT 的 **ASCII／RTU、115200、7E1／8N1、Slave ID** 不是上述啟動參數，請在主選單 `[1.1.9]` 設定，或透過 `[0.1]` 載入 JSON 設定檔。程式目前的 DUT 通訊預設為 ASCII／115200／7E1，Slave ID 預設為 2，實際設備若為 Slave 1 請自行修改。
+
+注意：`[0.2]` 恢復預設值會還原 Config 內的預設 COM Port，不會保留啟動時指定的 COM23；載入 JSON 也可能覆蓋命令列指定的 COM Port／CALYS timeout／trace。設定後請核對主選單或使用 `[0.4]` 顯示目前設定。
 
 ## 使用流程
 
-1. [1.1] 設定 DUT PV 位址（預設 1000h）、Sensor Type 位址（預設 1004h）、Sensor 數字（預設 0x0001）。
-2. 在主選單 [1.1.5]～[1.1.7] 可設定 PV 解碼為 Signed INT16（1 register）、Signed INT32（2 registers）或 IEEE754 Float32（2 registers，預設）；32-bit 可選 ABCD 或 CDAB，另有 Scale（預設 1.0）。[1.1.4] 可先測讀 PV。
-3. DUT Sensor Type 預設為手動數字，亦可選擇沿用 CALYS Sensor code。**預設不寫入 DUT Sensor Type**；需在 [1.1.8] 顯式啟用並確認。Apply 位址由使用者指定，未設定不會自行推測。
+1. [1.1] 設定 DUT PV 位址（預設 1000h）、Sensor Type 位址（預設 1007h）、Sensor 數字（預設 0x0001）。
+2. 在主選單 [1.1.5]～[1.1.7] 可設定 PV 解碼為 Signed INT16（1 register）、Signed INT32（2 registers）或 IEEE754 Float32（2 registers，預設）；32-bit 可選 ABCD 或 CDAB，另有 Scale（預設 1.0）。[1.1.8] 可先測讀 PV。
+3. DUT Sensor Type 預設為手動數字，亦可選擇沿用 CALYS Sensor code。[1.1.3] 會立即以 FC06 寫入 DUT；[1.1.4] 會先確認後以 FC10 寫入 Sensor Type、保留原 CJC Source 與 Apply 值。
 4. [1.2.1] 選擇 TC/RTD，再從已驗證 CALYS Sensor 表選型別；切換後溫度範圍重設為該 Sensor 的 low/high。[1.2.2] 設定 CJC DIS/INT/FIX 並讀回核對；[1.2.3] 可縮小起訖溫度以進行短測。
 5. [1.3] 設定步階（0.1°C）、取樣間隔（0.5 秒）、每階筆數（2）、穩定等待（1 秒）。
-6. [1.4] 進行測試前檢查：CALYS 身分、Function/Sensor/CJC 讀回、DUT PV 解碼、可選 Sensor 寫入及 Apply 確認；顯示總階數、總樣本與最低預估時間。輸入 START 才開始。
-7. 每階設定 CALYS、核對設定值回讀、等待穩定、讀取 DUT PV。逐筆 flush CSV，顯示已耗時與動態預估剩餘時間。Ctrl+C 會保存部分結果與摘要。
+6. [1.4] 進行測試前檢查：CALYS 身分、Function/Sensor/CJC 讀回、DUT PV 解碼、DUT Sensor Type 唯讀確認；顯示總階數、總樣本與最低預估時間。輸入 START 才開始。
+7. 每階設定 CALYS、檢查 SCPI 錯誤狀態、等待穩定、讀取 DUT PV。逐筆 flush CSV，顯示已耗時與動態預估剩餘時間。Ctrl+C 會保存部分結果與摘要。
 
 ## [1.4] 兩階段測試（2026-11-07 更新）
 
