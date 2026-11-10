@@ -47,6 +47,8 @@ class Config:
     slave: int = 2
     baud: int = 115200
     timeout: float = 3.0
+    calys_timeout: float = 10.0
+    calys_trace: bool = False
     pv_address: int = 0x1000
     sensor_address: int = 0x1004
     sensor_value: int = 1
@@ -113,7 +115,7 @@ def validated_config(data):
         values[key] = Decimal(values[key])
     integer_fields = {"slave", "baud", "pv_address", "sensor_address", "sensor_value",
                       "apply_value", "sensor_code", "samples"}
-    float_fields = {"timeout", "pv_scale", "interval", "settle"}
+    float_fields = {"timeout", "calys_timeout", "pv_scale", "interval", "settle"}
     string_fields = {"dut_port", "calys_port", "sensor_mode", "pv_kind", "word_order",
                      "cjc", "fixed_cjc", "results", "safe_output"}
     for key in integer_fields:
@@ -125,6 +127,8 @@ def validated_config(data):
     for key in string_fields:
         if not isinstance(values[key], str):
             raise ValueError(f"{key} must be a string")
+    if type(values["calys_trace"]) is not bool:
+        raise ValueError("calys_trace must be a boolean")
     if type(values["write_sensor"]) is not bool:
         raise ValueError("write_sensor must be a boolean")
     if values["apply_address"] is not None and type(values["apply_address"]) is not int:
@@ -136,6 +140,8 @@ def validated_config(data):
         raise ValueError("CALYS and DUT ports must be different")
     if not 1 <= cfg.slave <= 247 or cfg.baud <= 0:
         raise ValueError("Invalid slave or baud")
+    if not math.isfinite(cfg.calys_timeout) or cfg.calys_timeout <= 0:
+        raise ValueError("Invalid CALYS timeout")
     if not math.isfinite(cfg.timeout) or cfg.timeout <= 0:
         raise ValueError("Invalid timeout")
     if cfg.pv_kind not in ("int16", "int32", "float32"):
@@ -215,7 +221,7 @@ def profile_menu(cfg):
 
 
 def calys_connect(cfg):
-    return Calys1500(cfg.calys_port, timeout=cfg.timeout)
+    return Calys1500(cfg.calys_port, timeout=cfg.calys_timeout, trace=cfg.calys_trace)
 
 def dut_connect(cfg):
     if cfg.dut_port.casefold() == cfg.calys_port.casefold():
@@ -266,6 +272,37 @@ def configure_calys(cfg):
         print("Verified:", device.verify_configuration(cfg.sensor, {"cjc": cfg.cjc}))
     finally:
         device.close()
+
+def calys_output_test(cfg):
+    """Set a manual CALYS output with SCPI verification and no DUT changes."""
+    device = calys_connect(cfg)
+    try:
+        print("CALYS:", device.identity)
+        print("Current status:", device.read_status(cfg.sensor))
+        value = Decimal(str(ask(f"Output {cfg.sensor.unit}", cfg.start, Decimal)))
+        validate(cfg.sensor, value)
+        if input(f"Confirm CALYS output {value} {cfg.sensor.unit} (OUTPUT): ").strip() != "OUTPUT":
+            print("Output cancelled")
+            return
+        device.configure(cfg.sensor, cjc=cfg.cjc, fixed_cjc=cfg.fixed_cjc)
+        device.verify_configuration(cfg.sensor, {"cjc": cfg.cjc})
+        device.output(cfg.sensor, value)
+        print("Output verified:", device.verify_output(cfg.sensor, value))
+        print("CALYS may retain this output after LOC")
+    finally:
+        device.close()
+
+def calys_communication_test(cfg):
+    """Identity, function, and error readback without changing the output."""
+    device = calys_connect(cfg)
+    try:
+        print("CALYS communication OK:", device.identity)
+        print("Instrument state:", device.show_status())
+        device.check_error("自動通訊測試")
+        print("CALYS ERR? = 0")
+    finally:
+        device.close()
+
 
 def pv_test(cfg):
     dut = dut_connect(cfg)
@@ -547,8 +584,14 @@ def main():
     parser.add_argument("--calys-port",default="COM20")
     parser.add_argument("--dut-port",default="COM17")
     parser.add_argument("--results",default="calys_results")
+    parser.add_argument("--calys-timeout",type=float,default=10.0,
+                        help="CALYS SCPI query timeout in seconds (default: 10)")
+    parser.add_argument("--calys-trace",action="store_true",help="Show CALYS TX/RX")
     args=parser.parse_args()
-    cfg=Config(calys_port=args.calys_port,dut_port=args.dut_port,results=args.results)
+    if not math.isfinite(args.calys_timeout) or args.calys_timeout <= 0:
+        parser.error("--calys-timeout must be finite and positive")
+    cfg=Config(calys_port=args.calys_port,dut_port=args.dut_port,results=args.results,
+               calys_timeout=args.calys_timeout,calys_trace=args.calys_trace)
     while True:
         print(f"""
 ========== CALYS 1500 / DUT 線性度測試 ==========
@@ -572,6 +615,8 @@ def main():
     [1.2.1] 設定 CALYS SENSOR TYPE [{cfg.sensor.kind}-{cfg.sensor.name}]
     [1.2.2] 設定 CALYS CJC [{cfg.cjc}]
     [1.2.3] 起點／終點 [{cfg.start}..{cfg.end}]
+    [1.2.4] 設定輸出值
+    [1.2.5] 自動通訊測試
   [1.3] 測試設定
     [1.3.1] 溫度步階 [{cfg.step}]
     [1.3.2] PV 取樣間隔 [{cfg.interval}s]
@@ -593,6 +638,8 @@ def main():
                 configure_dut(cfg, x)
             elif x=="1.2.1":choose_sensor(cfg)
             elif x=="1.2.2":configure_calys(cfg)
+            elif x=="1.2.4":calys_output_test(cfg)
+            elif x=="1.2.5":calys_communication_test(cfg)
             elif x=="1.2.3":
                 cfg.start=ask("Start degC",cfg.start,Decimal)
                 cfg.end=ask("End degC",cfg.end,Decimal)
