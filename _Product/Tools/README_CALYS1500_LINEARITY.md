@@ -66,6 +66,16 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## DUT Modbus RTU／ASCII 通訊設定（2026-11-10）
+
+`[1.1.9]` 現可設定 DUT COM Port、Slave、Modbus 模式（`ascii`／`rtu`）、Baud、Data Bits（7／8）、Parity（N／E／O）、Stop Bits（1／2）。
+
+- **目前預設：ASCII／115200／7E1**，適用於本次 DUT；選擇 RTU 時會建議 8N1，但仍可自行調整。
+- 輸入 COM 號碼 `23` 或 `COM23` 都會使用 Windows `COM23` 開啟，避免將純數字 `23` 誤當裝置名稱。
+- 設定儲存於 JSON（新增 `dut_mode`、`dut_bytesize`、`dut_parity`、`dut_stopbits`）。舊版 JSON 缺少新欄位時需重新儲存；載入不會開啟 COM 或操作 DUT。
+- 連線時顯示 Port／Modbus Mode／Baud／Frame／Slave。若仍無法開啟，請確認裝置管理員中的 COM 號碼，以及其他軟體是否仍占用同一個 COM。
+- **驗證狀態：程式已修改，尚未在實機確認 ASCII／7E1 讀寫。**
+
 ## DUT Sensor Type 立即寫入（2026-11-10）
 
 - `[1.1.3]`：選擇 Sensor Type 後立即以 **Modbus FC06** 寫入 `Sensor Address`，再 FC03 讀回確認；無 Apply。
