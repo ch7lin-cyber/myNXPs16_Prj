@@ -66,6 +66,18 @@
 
 **狀態：程式已實作，尚待 Mock 測試與實機操作驗證。** 設定檔載入只代表欄位合法，不代表 DUT Register Map、CALYS SCPI 或硬體接線已確認。開始測試前仍需 [1.4] 的測試前檢查。
 
+## [1.1.8] PV 讀取顯示格式（2026-11-10）
+
+PV 測試會將 **Register Address**（`1000h`）與 **Register Value**（`0x0115`）分開列印，並將 PV 工程值格式化為小數三位；不更動原始 Modbus 數值或 PV 解碼演算法。
+
+```text
+FC03 Read Holding Registers
+Address : 1000h
+Quantity: 1
+1000h = 0x0115 (277)
+PV = 27.700
+```
+
 ## DUT Modbus RTU／ASCII 通訊設定（2026-11-10）
 
 `[1.1.9]` 現可設定 DUT COM Port、Slave、Modbus 模式（`ascii`／`rtu`）、Baud、Data Bits（7／8）、Parity（N／E／O）、Stop Bits（1／2）。
