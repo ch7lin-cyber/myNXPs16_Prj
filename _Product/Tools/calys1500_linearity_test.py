@@ -98,9 +98,9 @@ class Config:
 def normalize_dut_port(value):
     """Accept Windows COM23 or the shorthand 23; preserve other device paths."""
     name = str(value).strip()
-    if re.fullmatch(r"(?i:com)\\d+", name):
+    if re.fullmatch(r"(?i:com)\d+", name):
         return "COM" + name[3:]
-    if re.fullmatch(r"\\d+", name):
+    if re.fullmatch(r"\d+", name):
         return "COM" + name
     return name
 
