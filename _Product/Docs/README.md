@@ -8,6 +8,23 @@
 | [測試類](測試類/) | 測試操作、注入方式、驗證步驟與判定紀錄 | 6 份 |
 | [尚未完成工作](OutstandingWork.md) | 跨功能／測試的待辦與待驗證事項 | 1 份 |
 
+## 圖解導覽
+
+圖以現有功能責任與條件分支為主。名義週期、未啟用項目、待串接與實測限制仍需搭配各文件文字判讀。
+
+| 主題 | 圖解內容 |
+|---|---|
+| [各層架構與時機](功能類/LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md) | 分層、開機、ISR／主迴圈、更新 pending、到期合併 |
+| [TC 與濾波資料流](功能類/TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md) | RAW／μV／CJC、Snapshot、FB 資料與收樣／清窗 |
+| [FB 排程](功能類/L05_FB_SCHEDULE.md) | enabled、到期、實際 dt、相位與晚到合併 |
+| [PV 處理鏈](功能類/L05_PV_PROCESSING.md) | 品質、折線、雙來源時間一致性及來源選擇 |
+| [Alarm／Logic](功能類/L05_ALARM_LOGIC.md) | Reset 命令受理、低掃描、實際結果 |
+| [Register 與通訊](功能類/RegisterMapToUartFlow.md) | FC03 讀回、設定 Apply／ACK、UART 舊格式回覆後切換 |
+| [CAN 傳輸](功能類/CAN_INTERNAL_MVP.md) | TX／RX 佇列、bus-off 與實際送達的差別 |
+| [CJC 來源](功能類/CjcSourceSelection.md) | 關閉、內部 TMP20 與未接入外部來源 |
+| [工廠校正](功能類/FactoryCalibrationSlots.md) | 明確 Apply、先保存後 RAM 生效、A／B Commit |
+| [DirectUpdate](功能類/FW_UPDATE_LAYOUT.md) | 直接覆寫、FINISH、ACTIVE 與中斷後 recovery |
+
 ## 功能類
 
 - [各層功能架構、主要函式與執行時機](功能類/LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md)

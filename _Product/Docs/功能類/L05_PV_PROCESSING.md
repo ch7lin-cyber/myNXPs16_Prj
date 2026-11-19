@@ -52,6 +52,26 @@ provider要從同一時間基準提供已保存的原始Snapshot，而不是更�
 
 單來源直通沒有Switch Over的sensor_low／high檢查，合法Sensor範圍由provider／既有量測服務負責。adapter不覆寫硬體Snapshot或把invalid舊PV提供控制。
 
+## 品質拒絕與來源選擇圖
+
+```mermaid
+flowchart TD
+    PROCESS["Process：每次建立新輸出"] --> ENABLE{"啟用且沒有 reset"}
+    ENABLE -->|否| STOP["清歷史，零值且無效，不讀 Provider"]
+    ENABLE -->|是| SOURCE["讀來源1，檢查品質、單位與年齡，處理折線"]
+    SOURCE --> SWITCH{"switch_enabled"}
+    SWITCH -->|否| SINGLE["來源1有效則發布，否則零值無效"]
+    SWITCH -->|是| SECOND["同樣處理來源2"]
+    SECOND --> ALIGN{"兩側皆有效但時間差超限"}
+    ALIGN -->|是| BAD["兩側標為 UNALIGNED"]
+    ALIGN -->|否| SELECT["依雙來源品質與 Switch Over 設定選值"]
+    BAD --> SELECT
+    SELECT --> OUTPUT["保存候選 PV、valid、selected、degraded 與診斷"]
+    SINGLE --> OUTPUT
+```
+
+雙側皆有效但時間不一致時，兩側都判無效，不偽裝成單側故障。真正單側失效時是否降級由 Switch Over 設定決定。預設為來源 CH0 旁路，不啟用雙來源切換，也未接正式 PID。
+
 ## Host驗證摘要與細則
 
 執行：`python _Product/Tests/run_pv_processing_tests.py`。可加`--sanitize`，本環境需`ASAN_OPTIONS=detect_leaks=0`（LeakSanitizer受/proc限制）。使用C99、Wall/Wextra/Werror與ASan／UBSan通過。

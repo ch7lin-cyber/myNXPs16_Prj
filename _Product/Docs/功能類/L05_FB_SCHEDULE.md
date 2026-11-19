@@ -57,6 +57,26 @@ callback 必須短小、不阻塞，不在 Tick ISR 呼叫，不使用動態記�
 純時間驅動的程序／計時則須依自己的契約處理。資料過期、超長 dt 和輸出安全處置另由產品定義。
 安全保護不應等待製程診斷的慢速排程；此排程器不替代既有 SafetyService。
 
+## 排程到期判斷圖
+
+```mermaid
+flowchart TD
+    START["ProductFbSchedule_Process(now_ms)"] --> TASK["依表順序取得下一任務"]
+    TASK --> ENABLE{"enabled"}
+    ENABLE -->|否| NEXT["檢查下一項"]
+    ENABLE -->|是| DUE{"距 last_release 已達 period"}
+    DUE -->|否| NEXT
+    DUE -->|是| DT["dt = now - last_call"]
+    DT --> PHASE["last_release 保持週期相位，last_call 更新為 now"]
+    PHASE --> CALLBACK["callback(context, dt)：僅執行一次"]
+    CALLBACK --> NEXT
+    NEXT --> MORE{"還有任務"}
+    MORE -->|是| TASK
+    MORE -->|否| END["返回主迴圈"]
+```
+
+晚到多個週期不補跑多次 callback。任務內是否接受新樣本，再由各 Adapter 的 sequence／品質規則決定。各層時基見[架構與執行時機](LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md)。
+
 ## 主機測試
 
 2026-10-10：使用 C99、`-Wall -Wextra -Werror -pedantic` 編譯並執行

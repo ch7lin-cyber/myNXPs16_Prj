@@ -12,6 +12,26 @@
 內部不是 AD7124／MCU 晶片溫度。每兩通道共用一顆 TMP20，端子與 TMP20 的溫差及通道間熱梯度仍需獨立驗證／校正，本次沒有加入各通道 CJC Offset。
 TMP20 電壓→溫度使用既有公式 Vout=1.8605−0.01177×T (V)。TC 冷端溫度→電勢使用既有各型 CJC 表；K 型表與主機測試已存在，本次未抄舊版程式。
 
+## TC 補償來源判斷圖
+
+```mermaid
+flowchart TD
+    TYPE["目前量測 Sensor type"] --> TC{"是否為 TC"}
+    TC -->|否| OTHER["RTD／V／mA 不走 CJC 電勢相加"]
+    TC -->|是| SOURCE{"CJC source"}
+    SOURCE -->|0| OFF["冷端等效電壓為零"]
+    SOURCE -->|1| GROUP["CH0／1 取 CJC_0，CH2／3 取 CJC_1"]
+    GROUP --> VALID{"內部來源可取得"}
+    VALID -->|否| ERROR["CJC 錯誤，不發布正常 TC 結果"]
+    VALID -->|是| EMF["冷端溫度查該 TC 類型的 CJC 表"]
+    SOURCE -->|2 或 3| ERROR
+    OFF --> SUM["TC 校正電壓加冷端等效電壓"]
+    EMF --> SUM
+    SUM --> TEMP["TC measurement table 換算溫度"]
+```
+
+外部來源入口仍預留，不自動回退內部 TMP20。完整 RAW、校正、中位數與 Snapshot 順序見[TC 資料流](TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md)；此圖聚焦來源選擇。
+
 ## Register Map
 
 | 通道 | CJC source | Apply Key |

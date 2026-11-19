@@ -187,24 +187,19 @@ Quantity      = 16
 ```mermaid
 sequenceDiagram
     participant PC as 上位機
-    participant DMA as UART/RS485 DMA
-    participant L03 as L03 Product Modbus
-    participant Slave as Modbus Slave
-    participant FC03 as FC03 Handler
+    participant DMA as UART／RS485 DMA
+    participant Protocol as Product Modbus／Slave／FC03
     participant Map as Register Adapter
     participant ADC as ADC Driver
-
     PC->>DMA: RTU FC03 Request
-    DMA->>L03: 完整 Frame 可取
-    L03->>Slave: ProcessRtuRequest
-    Slave->>FC03: ProcessPdu
-    FC03->>Map: ReadRegisters(0x4E00, 16)
+    DMA->>Protocol: 完整 Frame 可取
+    Protocol->>Protocol: 解析站號、CRC 與 FC03 PDU
+    Protocol->>Map: ReadRegisters(0x4E00, 16)
     Map->>ADC: GetDiagnostics(ADC0)
     ADC-->>Map: Diagnostics Snapshot
-    Map-->>FC03: uint16_t values
-    FC03-->>Slave: 建立 Response PDU
-    Slave-->>L03: 加入 Station / CRC
-    L03->>DMA: 非同步傳送
+    Map-->>Protocol: uint16_t values
+    Protocol->>Protocol: 建立回覆 PDU、站號與 CRC
+    Protocol->>DMA: 非同步傳送
     DMA-->>PC: RTU Response
 ```
 
@@ -275,6 +270,44 @@ FC10 可一次寫入多個 Register，適合將參數與 Apply Key 放在同一�
 | 位址不存在或跨越非法區域 | `0x02 Illegal Data Address` |
 | 值、格式或 Apply Key 不合法 | `0x03 Illegal Data Value` |
 | 內部服務無法完成 | 對應 Server Failure |
+
+### 設定寫入、Apply 與事件消費
+
+```mermaid
+flowchart TD
+    WRITE["FC06／FC10 寫入設定"] --> ADDRESS{"位址與寫入格式合法"}
+    ADDRESS -->|否| EXCEPTION["依錯誤原因回覆 Modbus exception"]
+    ADDRESS -->|是| VALUE{"設定值與跨欄位條件合法"}
+    VALUE -->|否| EXCEPTION
+    VALUE -->|是| PENDING["更新 Pending"]
+    PENDING --> KEY{"本次包含有效 Apply 請求"}
+    KEY -->|否| WAIT["保留 Pending，等待後續 Apply"]
+    KEY -->|是| APPLY["依該群組規則套用 Active／發布設定事件"]
+    APPLY --> CONSUMER["主迴圈 Consumer 套用硬體與所需 ACK"]
+    CONSUMER --> NVM["符合保存條件後由 NVM consumer 推進"]
+```
+
+這是具 Pending／Apply 契約的設定群組摘要。不同 Register 群組的支援範圍、原子性、ACK 與例外碼仍依其實作，不將所有命令或唯讀 monitor 套用成相同流程。
+
+### UART 參數先回覆、後切換
+
+```mermaid
+sequenceDiagram
+    participant Host as PC
+    participant L03 as Product Modbus
+    participant Apply as Serial Apply Service
+    participant HAL as Serial／RS485
+    Host->>L03: 寫入 UART 參數及 Apply
+    L03->>Apply: 受理設定變更
+    L03->>Apply: 提交目前回覆
+    Apply->>HAL: 依舊格式非同步送出
+    HAL-->>Host: 完成本次回覆
+    HAL-->>Apply: TX 完成狀態
+    Apply->>HAL: 套用新的串口格式
+    Host->>L03: 後續使用新格式通訊
+```
+
+順序圖是協議層摘要，不表示主機收到回覆後可忽略裝置端設定切換完成所需時間。實際狀態與逾時由 SerialConfigurationApplyService 管理。
 
 ## 7. UART 初始化與執行路徑
 

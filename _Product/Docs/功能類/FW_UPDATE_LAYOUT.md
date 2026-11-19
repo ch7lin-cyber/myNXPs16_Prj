@@ -24,6 +24,23 @@ Bootloader 版本：00.02.01。C#：`004_WindowsForms_CSharp` **0.4.6 / FileVers
 
 Direct：邊接收邊覆寫 APP；FINISH 驗證通過才標記 ACTIVE。沒有 staging/PENDING 續裝，中斷後重啟至 RS485 recovery 再完整下載。OTA1 header 由 C# 解析，不佔 APP Flash。
 
+## DirectUpdate 模式與中斷後路徑
+
+```mermaid
+flowchart TD
+    APP["執行中的 APP"] --> REQ["收到更新請求，依既有流程安全停機"]
+    REQ --> UPDATER["進入配套 Bootloader Updater"]
+    UPDATER --> DOWNLOAD["接收映像並直接覆寫 APP"]
+    DOWNLOAD --> INTERRUPT{"下載是否完成"}
+    INTERRUPT -->|否，中斷後重啟| RECOVERY["進入 RS485 recovery，重新完整下載"]
+    RECOVERY --> UPDATER
+    INTERRUPT -->|是| CHECK{"FINISH 驗證通過"}
+    CHECK -->|否| INVALID["不標記為 ACTIVE，處理錯誤／重新下載"]
+    CHECK -->|是| ACTIVE["標記 ACTIVE，依啟動操作執行 APP"]
+```
+
+此為本文 DirectUpdate 契約摘要，不代表啟用簽章驗證，也沒有 staging／PENDING 續裝。APP 起點與各保留區仍以前方精確位址表為準。
+
 ## 本次修改範圍
 
 同步修改 `.cproject` PROGRAM_FLASH size 與 `_Product/linker/app_update_assert.ld`；PID、量測與既有 FwUpdateApp 通訊介面不變。

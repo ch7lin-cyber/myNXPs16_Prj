@@ -100,6 +100,40 @@ FRAM 保存區為 `0x010000～0x0113FF`，與參數雙槽分離，共 5120 bytes
 寫入另一副本前先清除其 Commit，寫入並驗證本文後才寫 Commit。
 舊副本保留，開機以 CRC、版本、通道／Profile、目標與序號檢查選擇資料。
 
+## 校正套用與失敗保留流程
+
+```mermaid
+flowchart TD
+    SELECT["選取 channel 與 profile"] --> CAPTURE["穩定後擷取 pending 零點與跨度"]
+    CAPTURE --> PREVIEW["檢查跨度、方向與校正目標"]
+    PREVIEW --> APPLY{"是否明確要求 Factory Apply"}
+    APPLY -->|否| ABORT["預覽／Abort，不保存新校正"]
+    APPLY -->|是| STORE["保存並驗證 NVM"]
+    STORE --> OK{"保存與驗證成功"}
+    OK -->|否| FAIL["回 storage 錯誤，舊 RAM 校正不變"]
+    OK -->|是| ACTIVE["更新該組 RAM 校正與已校正標記"]
+    ACTIVE --> MEASURE["正常量測依 Sensor type 使用該 profile"]
+```
+
+工廠校正的保存先於 RAM 生效。一般參數 Pending／Apply 與此流程的保存順序不同，不應混用。
+
+## A／B 副本提交順序
+
+```mermaid
+flowchart TD
+    OLD["保留目前有效副本"] --> TARGET["選另一副本，先清除其 Commit"]
+    TARGET --> DATA["寫入新內容與 CRC"]
+    DATA --> VERIFY{"讀回驗證成功"}
+    VERIFY -->|否| KEEP["不提交新副本，保留舊資料"]
+    VERIFY -->|是| COMMIT["最後寫入 Commit marker"]
+    COMMIT --> BOOT["下次開機檢查 CRC、版本、目標及序號"]
+    BOOT --> CHOOSE{"有符合條件的有效紀錄"}
+    CHOOSE -->|是| LOAD["選取最新有效紀錄"]
+    CHOOSE -->|否| DEFAULT["使用直通預設，未校正"]
+```
+
+此圖是校正資料槽的冗餘保存，不是 APP 韌體的 A／B 映像。版本／目標不符與 CRC 回退仍依本節原有規則判定。
+
 ## 新增正式狀態寄存器
 
 原本 `0x4700～0x470D` 與 FRAM 測試 `0x4710～0x471C` 皆保留。

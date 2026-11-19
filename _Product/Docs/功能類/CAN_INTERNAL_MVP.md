@@ -42,6 +42,24 @@ allocations at `0x04001000`; the 64-byte boot request mailbox remains at
 - `ProductCanDriver_GetDiagnostics()` returns counters and current MCAN error
   state.
 
+## TX／RX 佇列與 bus-off 流向圖
+
+```mermaid
+flowchart TD
+    APP["應用呼叫 Send"] --> SPACE{"TX queue 有空間且輸入合法"}
+    SPACE -->|否| FAIL["回報失敗，不等待 ACK"]
+    SPACE -->|是| QUEUE["複製到有限 TX queue"]
+    QUEUE --> PROC["每輪 ProductCanDriver_Process"]
+    PROC --> BO{"MCAN 正處於 bus-off"}
+    BO -->|是| HOLD["保留 queue，不提交新的硬體 TX"]
+    BO -->|否| TX["硬體 TX 可用時提交佇列資料"]
+    BUS["CAN bus 收到 frame"] --> FIFO["MCAN RX FIFO"]
+    FIFO --> RX["ProcessRx：檢查 DLC，複製至軟體 RX queue"]
+    RX --> RECEIVE["應用 Receive 取出一筆"]
+```
+
+Send 成功僅表示入列成功，不代表 frame 已獲 ACK。佇列／FIFO 滿與失效 DLC 有各自診斷；離開 bus-off 後後續 Process 才能再送。CANopen 與 PDO 週期仍不在這條傳輸層圖的完成範圍。
+
 ## Basic error handling
 
 `ProductCanDriver_Process()` polls MCAN status on every foreground pass. It

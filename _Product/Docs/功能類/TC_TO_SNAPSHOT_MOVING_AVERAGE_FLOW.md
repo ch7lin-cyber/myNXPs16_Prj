@@ -239,6 +239,29 @@ if (ProductFbScheduleIntegration_GetCh0MovingAverage(&filtered) &&
 
 這個平均值目前不回寫 L03 Snapshot、不覆蓋 `1005h` 的 IIR PV，也不直接寫 PWM／DAC。後續要讓 PID、Alarm 或 Modbus 使用它，需在 L05 明確選擇來源並接上消費者；既有 CH0 Processed PV 路徑也不會自動包含此 MovingAverage。
 
+### MovingAverage 收樣與清窗的分支
+
+```mermaid
+flowchart TD
+    CALL["20 ms Adapter callback"] --> PROVIDER{"Provider 成功且樣本 valid"}
+    PROVIDER -->|否| CLEAR["首次進入無效：reset，清窗並標記等待恢復"]
+    PROVIDER -->|是| NEW{"首次接受或 sequence 已變"}
+    NEW -->|否| HOLD["sample_valid=0：跳過收樣，保留視窗"]
+    NEW -->|是| INPUT["送入 engineering_value，sample_valid=1"]
+    INPUT --> RESET{"初始化或無效後恢復"}
+    RESET -->|是| FIRST["reset=1：先清窗，再收本筆"]
+    RESET -->|否| APPEND["加入本筆，滿窗時替換最舊值"]
+    CLEAR --> EXEC["FbMovingAverage_Execute"]
+    HOLD --> EXEC
+    FIRST --> EXEC
+    APPEND --> EXEC
+    EXEC --> RESULT{"回傳 OK"}
+    RESULT -->|是| OUT["保存 output：average、count、valid"]
+    RESULT -->|否| ERROR["output 歸零無效，安排下次重建"]
+```
+
+圖中 count 是 sample_count 的簡稱。持續無效不需每拍重複 reset，視窗仍保持清空。L04 的跳過樣本與 L05 的品質清窗策略分別呈現。
+
 ## 5. 濾波參數與排程如何決定
 
 | 設定 | 目前來源 | 意義 |

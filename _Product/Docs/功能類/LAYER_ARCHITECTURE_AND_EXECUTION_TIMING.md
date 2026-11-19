@@ -54,6 +54,24 @@ flowchart TD
 
 初始化失敗會進入 `ProductBootHalt()`，不由該迴圈餵狗。一般功能表只描述初始化成功後的執行路徑。
 
+### 開機成功與失敗路徑
+
+```mermaid
+flowchart TD
+    BOOT["進入 APP main"] --> UPDATE["更新協議初始化"]
+    UPDATE --> BOARD["Pin、Clock、Peripheral 初始化"]
+    BOARD --> DRIVERS["PWM、DIO 及依組態啟用的產品 Driver"]
+    DRIVERS --> APP["ProductApplication 與通訊服務初始化"]
+    APP --> OK{"必要初始化是否成功"}
+    OK -->|否| HALT["ProductBootHalt：記錄錯誤，不餵狗"]
+    OK -->|是| TICK["設定 100 µs SysTick，啟動 runtime Watchdog"]
+    TICK --> READY{"時基與 Watchdog 是否就緒"}
+    READY -->|否| HALT
+    READY -->|是| RUN["進入前景主迴圈"]
+```
+
+此為開機摘要。各步驟依前表實際順序進行，任一步必要初始化失敗即停止，不代表先完成所有步驟才統一檢查。
+
 ## 4. 時基、主迴圈與中斷
 
 ### 4.1 100 µs 中斷只提供時基
@@ -94,6 +112,23 @@ flowchart TD
 | 8 | `ProductWatchdogDriver_Process(g_systemTick100us)` | 完成前述前景流程後，滿餵狗間隔才餵狗 |
 
 更新 pending 時，FC0／USB／更新入口仍可處理，但 Master 與 Application 的 tick／Process 會跳過。`usbTimeMs` 仍由主時基前進，產品 `g_system_timestamp_ms` 則隨 Application tick 暫停；不可把這兩個時鐘在所有模式下都當成相同。
+
+### 更新 pending 對主迴圈的影響
+
+```mermaid
+flowchart TD
+    LOOP["每輪前景：RS485 延後處理"] --> TICKS["補處理 1 ms tick"]
+    TICKS --> COMM["USB Modbus 與 FC0 Slave"]
+    COMM --> PENDING{"更新是否 pending"}
+    PENDING -->|否| NORMAL["FC1 Master 與 ProductApplication"]
+    PENDING -->|是| SKIP["跳過 Master／Application Process"]
+    NORMAL --> UP["ProductFwUpdate_Process"]
+    SKIP --> UP
+    UP --> WDT["檢查 Watchdog 餵狗間隔"]
+    WDT --> LOOP
+```
+
+此圖呈現主要分支，1 ms tick 內的 Master／Application 也各有 pending 判斷，不能由圖推定所有服務在模式切換那一輪共用同一次條件判定。
 
 ### 4.3 重要硬體事件與 ISR
 
@@ -279,6 +314,22 @@ CAN 現階段是傳輸及診斷 driver 路徑，不從 `ProductCanDriver_Process
 5. **新增演算法需安排資料依賴**：先更新量測，再運算，再交給下游；getter 只取快取，沒有隱含執行一次演算法。
 
 以上均為程式查核。本文未重新建置、未量測 MCU 執行時間，也未變更 ISR、排程或功能開關。
+
+### 到期多次時，計時與工作次數的差別
+
+```mermaid
+flowchart TD
+    DELAY["主迴圈延遲，硬體 tick 持續累計"] --> CATCHUP["main 補跑多次 Tick1ms"]
+    CATCHUP --> FLAG["週期計數到期，將 due 設為 true"]
+    FLAG --> MORE{"Process 前是否再次到期"}
+    MORE -->|是| SAME["due 仍為 true，不累積工作筆數"]
+    MORE -->|否| PROCESS["下一次 Process 消費旗標"]
+    SAME --> PROCESS
+    PROCESS --> ONCE["執行一次工作並清除 due"]
+    ONCE --> NEXT["等待下一次到期"]
+```
+
+FB scheduler 另依任務時間計算逾期，採一次 callback 與實際 elapsed_ms。兩者都不保證重播阻塞期間每一筆實際硬體樣本。
 
 ## 10. 原始碼與相關文件入口
 

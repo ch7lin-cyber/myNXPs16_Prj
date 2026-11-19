@@ -85,6 +85,24 @@ Adapter 保證兩次相同命令之間插入一次低電位掃描，讓 L04 看�
 
 停用或來源失效期間的命令也會送入 L04 並被消費，結果依當次 DISABLED／INVALID_INPUT 回報，不會在恢復時補做 Reset。清峰值在停用期間仍依 L04 契約有效。未建立 Modbus bit 解碼；未來每通道 Alarm Reset／Peak Clear 各 bit 應轉成對應單組 API。
 
+## Reset 命令受理與實際結果圖
+
+```mermaid
+flowchart TD
+    CMD["Command(reset=true)"] --> VALID{"實例、索引及命令槽合法"}
+    VALID -->|否| REJECT["回 false，未受理新命令"]
+    VALID -->|是| QUEUE["Reset pending 受理成功"]
+    QUEUE --> SCAN["等待下一個 Alarm／Logic 掃描"]
+    SCAN --> HIGH{"上一掃描已送 reset 高電位"}
+    HIGH -->|是| LOW["本拍送低電位，pending 留待下拍"]
+    LOW --> SCAN
+    HIGH -->|否| PULSE["送一次 reset 上升緣並消費 pending"]
+    PULSE --> FB["L04 依當拍啟用、品質與警報條件判定"]
+    FB --> READ["GetAlarm 讀取 status 與 alarm_active"]
+```
+
+命令受理成功不等於重置成功。條件仍成立可能 RESET_REJECTED；停用／無效時依 DISABLED／INVALID_INPUT 契約處理。Peak Clear 有獨立 pending 與邊緣控制，不能由 Reset 成功推定峰值已清除。
+
 ## 使用範例
 
 在 ProductFbScheduleIntegration_Init() 成功後、主迴圈設定階段執行：
