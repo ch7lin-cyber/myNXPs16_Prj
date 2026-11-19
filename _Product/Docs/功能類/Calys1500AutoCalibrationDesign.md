@@ -21,7 +21,7 @@
 
 目前已實作選單 2 的引導式兩點擷取與預覽，依本文件的接線類別和韌體 Profile 運作；完成的預覽／Apply 記錄為 JSON。低／高 CALYS 設定值由操作人輸入，程式不假設不同 Profile 的刺激轉換曲線。Apply 預設關閉，只有加 `--allow-calibration-apply` 並輸入逐次確認字串才會送出。現場線路、端子標示及標準源對應仍待產品板核實，這項人工確認不能代替實際校驗。
 
-自動校正應依韌體 Profile ID 選取，不以一組泛用 Gain 清單推測 Profile。以 `_Product/Docs/FactoryCalibrationSlots.md` 的映射為準：
+自動校正應依韌體 Profile ID 選取，不以一組泛用 Gain 清單推測 Profile。以 `_Product/Docs/功能類/FactoryCalibrationSlots.md` 的映射為準：
 
 | Profile | 路徑與 Gain | Sensor 對映 | 校正目標低／高（ADC µV） |
 |---:|---|---|---:|

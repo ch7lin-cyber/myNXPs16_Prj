@@ -54,4 +54,4 @@ Host 測試涵蓋 Pt100 100 ohm -> 約 50000 uV、Pt1000 1000 ohm ->
 
 十點報告的 RTD 預期 ADC uV 採 R×I（Pt1000 250 uA，其餘 RTD 500 uA），用來比較韌體提供的等效微伏，不宣稱實測外部參考電壓。RTD 自動校正仍為預留。
 
-工具方法見 [useMethod.md](../Tools/useMethod.md)，結果說明見 [Calys1500LoopTest.md](Calys1500LoopTest.md)。
+工具方法見 [useMethod.md](../../Tools/useMethod.md)，結果說明見 [Calys1500LoopTest.md](../測試類/Calys1500LoopTest.md)。

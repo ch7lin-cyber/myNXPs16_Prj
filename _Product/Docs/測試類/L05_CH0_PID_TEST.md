@@ -10,7 +10,7 @@ MCUXpresso 本機手動修正位置：Project Properties → C/C++ Build → Set
 
 依據：[GCC 10 最佳化與 LTO 說明](https://gcc.gnu.org/onlinedocs/gcc-10.1.0/gcc/Optimize-Options.html)。XML 設定已檢查，目標 ARM 工具鏈不在本環境，實際 Flash 餘量仍待使用者重建；若仍失敗，需以最新 map 的 `_image_end`、各 section 及符號大小決定下一步裁剪，不繞過 OTA 容量保護。
 
-2026-11-02 Redlib 連結修正：PV adapter、折線核心／包裝及斜率／限幅改用不依賴 Redlib 分類符號的有限值檢查，處理 `undefined reference to __isfinitef／__isfinited`。Host 單元與整合回歸通過；更新後需 Clean／Build，ARM 最終連結與 MCU 尚待確認。詳細見 [相容處理與測試紀錄](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbFinite.md)。
+2026-11-02 Redlib 連結修正：PV adapter、折線核心／包裝及斜率／限幅改用不依賴 Redlib 分類符號的有限值檢查，處理 `undefined reference to __isfinitef／__isfinited`。Host 單元與整合回歸通過；更新後需 Clean／Build，ARM 最終連結與 MCU 尚待確認。詳細見 [相容處理與測試紀錄](../../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbFinite.md)。
 
 2026-10-30：已建立 CH0 Sensor Snapshot → L05 既有 Alarm／Logic 鏈內 PID callback → ProductPidControllerAdapter → L04 FbPid 固定 MV 測試後端 → L05 診斷查詢。Host 整合與 ASan／UBSan 通過；原 CKLIB 封裝 mock 測試、Alarm／Logic／PV 串接回歸通過。本輪尚未執行 MCU 編譯或目標板實測。
 

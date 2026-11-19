@@ -2,7 +2,7 @@
 
 ## 摘要
 
-實作增補：L04 FbInputSwitchOver 已完成與 Host／ASan／UBSan 驗證。等號、KEEP 初始來源、平均期間故障與恢復採本專案正式契約，詳見 [規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbInputSwitchOver/README.md)。以下原盤點中的未實作／待定敘述是歷史規劃，不作目前 L04 完成狀態；L05／Register／NVM／MCU 尚未整合。
+實作增補：L04 FbInputSwitchOver 已完成與 Host／ASan／UBSan 驗證。等號、KEEP 初始來源、平均期間故障與恢復採本專案正式契約，詳見 [規格與方塊圖](../../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbInputSwitchOver/README.md)。以下原盤點中的未實作／待定敘述是歷史規劃，不作目前 L04 完成狀態；L05／Register／NVM／MCU 尚未整合。
 
 2026-10-22：依使用者 Register 表及重新讀取的 DTDM04 v1.5 第 3.3.4 節（頁 3-8～3-9），確認此功能為雙 Sensor 量測範圍切換，且中間區域會取兩來源的算術平均。**不是單純二選一 Selector，也不能把上下門檻直接當作一般遲滯帶。**
 

@@ -27,7 +27,7 @@
 
 ## 容量與時間設定
 
-修改 [_Product/Config/ProductAlarmLogicConfig.h](../Config/ProductAlarmLogicConfig.h)，或在所有相關編譯單元一致提供巨集：
+修改 [_Product/Config/ProductAlarmLogicConfig.h](../../Config/ProductAlarmLogicConfig.h)，或在所有相關編譯單元一致提供巨集：
 
 | 參數 | 預設值 | 意義 |
 |---|---:|---|
@@ -50,7 +50,7 @@ SV 由 SetSetpoint() 提供，單位同為 0.001°C，預設 0。啟用相對或
 
 ## 設定與結果 API
 
-由 ProductFbScheduleIntegration_GetAlarmLogicAdapter() 取得產品實例，再使用 [product_alarm_logic_adapter.h](../Source/L05_Application/product_alarm_logic_adapter.h) 的 API。回傳 false 表示設定／索引不合法或命令佇列已滿，呼叫端必須檢查。
+由 ProductFbScheduleIntegration_GetAlarmLogicAdapter() 取得產品實例，再使用 [product_alarm_logic_adapter.h](../../Source/L05_Application/product_alarm_logic_adapter.h) 的 API。回傳 false 表示設定／索引不合法或命令佇列已滿，呼叫端必須檢查。
 
 | API | 用途 |
 |---|---|

@@ -171,4 +171,4 @@ DUT 新增每通道來源：0 關閉、1 內部 TMP20（預設，CH0/1→CJC_0�
 
 銅線十點測試需同時設 CALYS `--cjc DIS` 與 DUT source=0；恢復感測器量測時設 DUT source=1。外部模式尚無資料來源，選到會回 CJC 無效 (9)，不使用 TMP20 替代。
 
-操作、NVM 相容性與驗證狀態見 [CjcSourceSelection.md](../Docs/CjcSourceSelection.md).
+操作、NVM 相容性與驗證狀態見 [CjcSourceSelection.md](../Docs/功能類/CjcSourceSelection.md).

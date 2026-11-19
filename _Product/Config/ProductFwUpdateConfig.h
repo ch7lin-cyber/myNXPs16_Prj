@@ -1,4 +1,4 @@
-/* branch2_ver2_directUpdate -> 006_NXP_55S16_IAP_DirectUpdate; see ../Docs/FW_UPDATE_LAYOUT.md. */
+/* branch2_ver2_directUpdate -> 006_NXP_55S16_IAP_DirectUpdate; see ../Docs/功能類/FW_UPDATE_LAYOUT.md. */
 #ifndef PRODUCT_FW_UPDATE_CONFIG_H
 #define PRODUCT_FW_UPDATE_CONFIG_H
 

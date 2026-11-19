@@ -2,7 +2,7 @@
 
 ## 摘要
 
-實作增補：L04 FbCascadeCoordinator 的MV→SV核心已完成並通過Host／ASan／UBSan，包括專案線性映射、絕對／偏差界限、Offset與明確時間濾波。非DTDM04完整公式／Filter Num相容結論；以下未實作敘述為原盤點歷史。詳見 [正式規格](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbCascadeCoordinator/README.md)。雙PID／L05、AT／校準、anti-windup、副控保護與產品持久化仍未完成。
+實作增補：L04 FbCascadeCoordinator 的MV→SV核心已完成並通過Host／ASan／UBSan，包括專案線性映射、絕對／偏差界限、Offset與明確時間濾波。非DTDM04完整公式／Filter Num相容結論；以下未實作敘述為原盤點歷史。詳見 [正式規格](../../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbCascadeCoordinator/README.md)。雙PID／L05、AT／校準、anti-windup、副控保護與產品持久化仍未完成。
 
 2026-10-22：依使用者提供的兩組 Cascade Register 欄位，對照先前已讀取的 DTDM04 v1.5 第 5.1.7 節（頁 5-9～5-10）。可確認需要 SV 轉換、上下限、Offset、濾波、主／副控 AT、一鍵校準及副控保護溫度。
 

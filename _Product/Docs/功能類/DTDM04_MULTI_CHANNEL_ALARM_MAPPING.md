@@ -2,7 +2,7 @@
 
 ## 摘要
 
-實作增補：L04 FbMultiChannelAlarm 已完成可變數量選取、全部有效政策、MAX−MIN、成立延遲、一次動作、Hold／Reset 及 Host／ASan／UBSan 驗證。依本專案定義失效恢復去重與人工重置，詳見 [規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Alarm/FbMultiChannelAlarm/README.md)。下方未實作／待定為原盤點歷史；SYSTEM 動作目標／回報、L05 provider、Register／NVM／MCU 仍未完成。
+實作增補：L04 FbMultiChannelAlarm 已完成可變數量選取、全部有效政策、MAX−MIN、成立延遲、一次動作、Hold／Reset 及 Host／ASan／UBSan 驗證。依本專案定義失效恢復去重與人工重置，詳見 [規格與方塊圖](../../../_Modules/PlatformCore/L04_FunctionBlock/Alarm/FbMultiChannelAlarm/README.md)。下方未實作／待定為原盤點歷史；SYSTEM 動作目標／回報、L05 provider、Register／NVM／MCU 仍未完成。
 
 2026-10-22：依使用者提供的 Multi-channel Alarm Parameters 表（mAlm1，僅主模組存在），配合先前讀取的 DTDM04 v1.5 第 4.2.3 節（頁 4-11），確認其比較選定 PV 的 MAX−MIN，並有動作種類、動作延遲與一次性保持。
 

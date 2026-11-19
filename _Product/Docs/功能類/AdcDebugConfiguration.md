@@ -45,4 +45,4 @@ CALYS 工具的 DUT wrapper 另預設等待 50 ms，搭配共用 client 合計�
 `STATUS=0x80` 表示當下尚未有新 ADC 資料；需搭配成功計數、目前故障及最近讀取結果判斷，不能單獨當成故障。
 `Latched ERROR OR` 是歷史累積值；目前故障以 Active fault／Last ERROR 與持續取樣狀態核對。PV 與 microvolts 在故障時可能保留先前有效值。
 
-完整啟動方法見 [useMethod.md](../Tools/useMethod.md)，十點差值與結果摘要見 [Calys1500LoopTest.md](Calys1500LoopTest.md)。
+完整啟動方法見 [useMethod.md](../../Tools/useMethod.md)，十點差值與結果摘要見 [Calys1500LoopTest.md](../測試類/Calys1500LoopTest.md)。

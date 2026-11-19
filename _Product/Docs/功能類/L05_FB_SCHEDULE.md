@@ -89,6 +89,6 @@ python3 _Product/Tests/run_alarm_logic_tests.py --sanitize
 
 ## MCU 驗證支援
 
-操作、資料匯出及判定方式見 [L05_CH0_MCU_VALIDATION.md](L05_CH0_MCU_VALIDATION.md)。
+操作、資料匯出及判定方式見 [L05_CH0_MCU_VALIDATION.md](../測試類/L05_CH0_MCU_VALIDATION.md)。
 Trace 預設停用；啟用時固定記憶體記錄且滿後停止，不改變 PWM/DAC。
 Host 測試通過不代表 MCU 實測通過；MCU 執行時間及實機整合仍為 NOT RUN。

@@ -14,7 +14,7 @@ python _Product/Tools/calys1500_loop_test.py --calys-port COM20 --dut-port COM8 
 
 目前測試使用 CALYS COM20、DUT COM8（RS-485 轉接器）；請依實際裝置修改。
 `--cjc DIS` 適用目前的銅線電勢測試，只關閉 CALYS TC 輸出端 CJC，不會關閉 DUT CJC。
-完整 Windows 啟動指令及兩支工具的參數見 [Tools/useMethod.md](../Tools/useMethod.md)。
+完整 Windows 啟動指令及兩支工具的參數見 [Tools/useMethod.md](../../Tools/useMethod.md)。
 請將 `calys1500_loop_test.py`、`calys1500_protocol.py`、`calys1500_expected.py` 與 `modbus_rtu_test_menu.py` 放在同一個 Tools 目錄。
 CALYS 固定 115200、8N1、無流量控制；DUT 預設 Modbus RTU、115200、8N1、slave 2。
 DUT 可用 `--dut-baud`、`--slave` 修改。兩台設備必須使用不同 port。
@@ -72,7 +72,7 @@ q 結束
 ```
 校正先選 CH，再輸入畫面標示的 `[2.1]`～`[2.4]` 接線類別，接著以 `[P0]`、`[P1]` 等 ID 選該類別的一個代表 Sensor／Profile。Profile 0 必須從 `[2.1]` 選擇 `0-50mV`，並固定使用 `0 mV／50 mV` 電氣標準點；TC 溫度輸出只能做量程驗證，不能覆蓋 P0 校正。同一 Profile 可由操作員主動重校。工具從韌體讀目標 µV 和校正槽，不複製另一份目標常數。
 
-預設是預覽模式：送 CALYS 低／高點、檢查 5 筆新鮮穩定 Raw ADC 樣本、由韌體擷取 pending 點、檢查跨度並輸出 JSON 記錄，最後 Abort，不寫 NVM。重校時不以舊校正造成的 PV Input Error 否決健康 Raw ADC。除 P0 固定點外，低／高 CALYS 設定值由操作人輸入，必須依校正標準和產品接線核對。若產品板上的端子對映、來源值及參考標準已驗證，啟動時加 `--allow-calibration-apply`，並於預覽後輸入 `APPLY_CHn_PROFILE_p` 才會讓韌體寫入。`0x4C00` 校正槽僅讀回，不直接寫入。詳見 [Calys1500AutoCalibrationDesign.md](Calys1500AutoCalibrationDesign.md)。
+預設是預覽模式：送 CALYS 低／高點、檢查 5 筆新鮮穩定 Raw ADC 樣本、由韌體擷取 pending 點、檢查跨度並輸出 JSON 記錄，最後 Abort，不寫 NVM。重校時不以舊校正造成的 PV Input Error 否決健康 Raw ADC。除 P0 固定點外，低／高 CALYS 設定值由操作人輸入，必須依校正標準和產品接線核對。若產品板上的端子對映、來源值及參考標準已驗證，啟動時加 `--allow-calibration-apply`，並於預覽後輸入 `APPLY_CHn_PROFILE_p` 才會讓韌體寫入。`0x4C00` 校正槽僅讀回，不直接寫入。詳見 [Calys1500AutoCalibrationDesign.md](../功能類/Calys1500AutoCalibrationDesign.md)。
 
 ## 對映與範圍
 
@@ -260,4 +260,4 @@ DUT 新增每通道來源：0 關閉、1 內部 TMP20（預設，CH0/1→CJC_0�
 
 銅線十點測試需同時設 CALYS `--cjc DIS` 與 DUT source=0；恢復感測器量測時設 DUT source=1。外部模式尚無資料來源，選到會回 CJC 無效 (9)，不使用 TMP20 替代。
 
-操作、NVM 相容性與驗證狀態見 [CjcSourceSelection.md](CjcSourceSelection.md).
+操作、NVM 相容性與驗證狀態見 [CjcSourceSelection.md](../功能類/CjcSourceSelection.md).

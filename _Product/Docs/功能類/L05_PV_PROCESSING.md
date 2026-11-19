@@ -15,7 +15,7 @@ flowchart TD
 
 **正式Sensor Snapshot provider、20ms CH0排程及Alarm的明確來源選擇已接入；正式PID、Register／NVM、實體輸出與MCU驗證仍未完成。** 預設旁路來源CH0、不開啟Switch Over，Alarm預設仍讀原始PV；不改寫原始Sensor工程值，Snapshot新增處理時間中繼資料。
 
-來源：[adapter介面](../Source/L05_Application/product_pv_processing_adapter.h)、[實作](../Source/L05_Application/product_pv_processing_adapter.c)。不引用CKLIB、板級Driver或寄存器位址。
+來源：[adapter介面](../../Source/L05_Application/product_pv_processing_adapter.h)、[實作](../../Source/L05_Application/product_pv_processing_adapter.c)。不引用CKLIB、板級Driver或寄存器位址。
 
 ## 參數與呼叫
 

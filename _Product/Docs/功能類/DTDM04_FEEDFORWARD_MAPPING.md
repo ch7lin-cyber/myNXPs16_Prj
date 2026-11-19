@@ -2,7 +2,7 @@
 
 ## 摘要
 
-實作增補：L04 FbFeedforward 已完成三階段與事件／Force核心並通過Host／ASan／UBSan；指數採明確tau與有限段正規化，第三段線性回零，取消與重觸發採專案契約。以下未實作／待定為原盤點背景，目前以 [正式規格與方塊圖](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbFeedforward/README.md) 為準。SYSTEM／L05、PID加總／熱冷分配、追蹤及Register／NVM／MCU未完成。
+實作增補：L04 FbFeedforward 已完成三階段與事件／Force核心並通過Host／ASan／UBSan；指數採明確tau與有限段正規化，第三段線性回零，取消與重觸發採專案契約。以下未實作／待定為原盤點背景，目前以 [正式規格與方塊圖](../../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbFeedforward/README.md) 為準。SYSTEM／L05、PID加總／熱冷分配、追蹤及Register／NVM／MCU未完成。
 
 2026-10-22：依使用者提供的 Feedforward Register 表，配合先前讀取的 DTDM04 v1.5 第 5.1.8 節（頁 5-11～5-13），確認此為事件觸發的三階段有號 MV 補償，不是一般設定值斜率或純加總。
 

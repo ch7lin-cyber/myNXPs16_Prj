@@ -2,7 +2,7 @@
 
 ## 摘要
 
-2026-10-27 用語統一：24 個模組為「L04 實作完成；Host 單元測試通過」；FbPid 為「L04 封裝完成；Host mock 單元測試通過」。產品串接與 MCU 實測分開追蹤，詳見 [狀態定義與逐項總表](../../_Modules/PlatformCore/L04_FunctionBlock/VERIFICATION_STATUS.md)。本次不重新執行全部歷史測試。
+2026-10-27 用語統一：24 個模組為「L04 實作完成；Host 單元測試通過」；FbPid 為「L04 封裝完成；Host mock 單元測試通過」。產品串接與 MCU 實測分開追蹤，詳見 [狀態定義與逐項總表](../../../_Modules/PlatformCore/L04_FunctionBlock/VERIFICATION_STATUS.md)。本次不重新執行全部歷史測試。
 
 L05增補：PV處理adapter已接正式Sensor Snapshot provider、20ms CH0排程與Alarm的RAW／PROCESSED明確來源選擇，涵蓋單位／時效／時間差、整組設定與來源變更歷史清除，Host整合與回歸通過。預設Alarm仍RAW；PID、Register／NVM、實體輸出及MCU仍未完成，不宣稱正式閉迴路上線。時間戳是樣本首次處理時間，非ADC精確擷取時間。
 

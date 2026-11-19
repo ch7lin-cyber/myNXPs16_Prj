@@ -68,7 +68,7 @@ discussed 450-PDO schedule are outside this initial increment.
 
 ## Automated regression and dedicated bench mode
 
-See [CAN_TRANSPORT_VALIDATION.md](CAN_TRANSPORT_VALIDATION.md) for the MCAN SDK
+See [CAN_TRANSPORT_VALIDATION.md](../測試類/CAN_TRANSPORT_VALIDATION.md) for the MCAN SDK
 mock regression, opt-in internal loopback and debugger-driven single-board /
 two-node diagnostic entry, expected counters and hardware PASS/FAIL procedures.
 Normal builds keep loopback and bench traffic disabled. Invalid RX DLC values

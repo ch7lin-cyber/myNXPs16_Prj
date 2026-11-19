@@ -2,7 +2,7 @@
 
 ## 摘要
 
-實作更新：L04 已新增 FbInputLinearization_Execute（FbSignalLinearization.h），完成 BYPASS／VALUE／DEVIATION、可選 Offset、輸出 CLAMP／ERROR 限制及有效性處理，並通過 Host 驗證。以下「未實作」敘述保留原規劃背景；以 [正式包裝契約](../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbSignalLinearization/README.md) 為目前 L04 狀態。L05 處理鏈、Register／NVM 及 MCU 仍未完成；DTDM04 Low／High 語意不作推定。
+實作更新：L04 已新增 FbInputLinearization_Execute（FbSignalLinearization.h），完成 BYPASS／VALUE／DEVIATION、可選 Offset、輸出 CLAMP／ERROR 限制及有效性處理，並通過 Host 驗證。以下「未實作」敘述保留原規劃背景；以 [正式包裝契約](../../../_Modules/PlatformCore/L04_FunctionBlock/Utility/FbSignalLinearization/README.md) 為目前 L04 狀態。L05 處理鏈、Register／NVM 及 MCU 仍未完成；DTDM04 Low／High 語意不作推定。
 
 Register 將折線表歸於 Input Module 是參數分類，並不決定程式層級。依本專案架構，Sensor Driver 不加入使用者折線表；感測器物理換算／CJC 留在量測鏈，通用折線運算留在 L04，L05 配置單通道處理鏈與點表。Register／NVM 仍走既有服務。
 

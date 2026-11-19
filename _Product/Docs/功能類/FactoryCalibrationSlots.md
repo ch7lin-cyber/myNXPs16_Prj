@@ -132,5 +132,5 @@ CRC 回退、FRAM busy、讀取失敗、DEBUG 兩種設定與 Modbus 介面。
 
 TC 的 ADC 電壓校正位於加入 DUT CJC 之前，CJC 必須獨立驗證。CALYS `--cjc DIS` 只停用 CALYS 補償，DUT PV 仍包含 DUT CJC。其他分段近似參考曲線的誤差需與儀器／ADC 誤差分開，不能視為獨立高精度校正標準。
 
-結果欄位與理論值依據見 [Calys1500LoopTest.md](Calys1500LoopTest.md)，啟動方法見 [useMethod.md](../Tools/useMethod.md)。
+結果欄位與理論值依據見 [Calys1500LoopTest.md](../測試類/Calys1500LoopTest.md)，啟動方法見 [useMethod.md](../../Tools/useMethod.md)。
 

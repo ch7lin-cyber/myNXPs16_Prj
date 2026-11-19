@@ -2,7 +2,7 @@
 
 ## Summary
 
-2026-10-25 單位更新：L05／L04公開PV與SV採0.001°C，只有L04 CKLIB邊界暫轉0.1°C，L05不得先除100。下一版待Colin將CKLIB統一至0.001°C；需確認實體版本後同步移除PID與AT的暫時轉換。MV仍為0.1%，SetParameter參數刻度未一併變更。詳見 [PID單位遷移清單](../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md)。
+2026-10-25 單位更新：L05／L04公開PV與SV採0.001°C，只有L04 CKLIB邊界暫轉0.1°C，L05不得先除100。下一版待Colin將CKLIB統一至0.001°C；需確認實體版本後同步移除PID與AT的暫時轉換。MV仍為0.1%，SetParameter參數刻度未一併變更。詳見 [PID單位遷移清單](../../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md)。
 
 L04 owns the reusable `FbPid` function block and is the only layer that includes or calls CKLIB. L05 maps product PV/SV and configuration into `FbPid`, invokes it on the product schedule, and publishes MV plus validity/diagnostics. L05 must not include CKLIB headers or expose CKLIB handles. The adapter is not yet connected to a product PV source, output consumer, or schedule registration.
 
