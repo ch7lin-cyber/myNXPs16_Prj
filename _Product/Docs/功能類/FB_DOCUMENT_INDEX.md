@@ -15,6 +15,7 @@
 
 | 範圍 | 文件 |
 |---|---|
+| L01～L05 功能分層、主迴圈／ISR／週期與 FB 任務執行順序 | [各層架構與執行時機](LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md) |
 | TC 電壓轉溫度、Snapshot 儲存與 L05／L04 MovingAverage 串接資料流 | [資料流與新增濾波實例說明](TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md) |
 | PID目前0.1°C相容轉換與Colin下一版0.001°C待辦 | [PID單位邊界](../../../_Modules/PlatformCore/L04_FunctionBlock/Control/FbPid/README.md) |
 | L05 輸入折線→Switch Over→PV候選與整合測試 | [L05_PV_PROCESSING.md](L05_PV_PROCESSING.md) |
