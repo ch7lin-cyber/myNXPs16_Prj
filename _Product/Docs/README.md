@@ -4,12 +4,13 @@
 
 | 分類 | 內容 | 數量 |
 |---|---|---|
-| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 32 份 |
+| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 33 份 |
 | [測試類](測試類/) | 測試操作、注入方式、驗證步驟與判定紀錄 | 6 份 |
 | [尚未完成工作](OutstandingWork.md) | 跨功能／測試的待辦與待驗證事項 | 1 份 |
 
 ## 功能類
 
+- [TC 電壓、溫度 Snapshot 與 L05 MovingAverage 資料流](功能類/TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md)
 - [APP 線上更新與 RS485 入口](功能類/APP_ONLINE_UPDATE.md)
 - [ADC 除錯資訊編譯開關](功能類/AdcDebugConfiguration.md)
 - [Internal CAN first implementation](功能類/CAN_INTERNAL_MVP.md)
