@@ -4,7 +4,7 @@
 
 | 分類 | 內容 | 數量 |
 |---|---|---|
-| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 34 份 |
+| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 35 份 |
 | [測試類](測試類/) | 測試操作、注入方式、驗證步驟與判定紀錄 | 6 份 |
 | [尚未完成工作](OutstandingWork.md) | 跨功能／測試的待辦與待驗證事項 | 1 份 |
 
@@ -14,6 +14,7 @@
 
 | 主題 | 圖解內容 |
 |---|---|
+| [系統分層功能堆疊](功能類/SYSTEM_LAYER_FUNCTION_STACK.md) | L01～L05 層內功能、主要函式、共用 FB 庫與實際呼叫支線 |
 | [各層架構與時機](功能類/LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md) | 分層、開機、ISR／主迴圈、更新 pending、到期合併 |
 | [TC 與濾波資料流](功能類/TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md) | RAW／μV／CJC、Snapshot、FB 資料與收樣／清窗 |
 | [FB 排程](功能類/L05_FB_SCHEDULE.md) | enabled、到期、實際 dt、相位與晚到合併 |
@@ -26,6 +27,8 @@
 | [DirectUpdate](功能類/FW_UPDATE_LAYOUT.md) | 直接覆寫、FINISH、ACTIVE 與中斷後 recovery |
 
 ## 功能類
+
+- [系統分層功能堆疊圖與函式清單](功能類/SYSTEM_LAYER_FUNCTION_STACK.md)
 
 - [各層功能架構、主要函式與執行時機](功能類/LAYER_ARCHITECTURE_AND_EXECUTION_TIMING.md)
 - [TC 電壓、溫度 Snapshot 與 L05 MovingAverage 資料流](功能類/TC_TO_SNAPSHOT_MOVING_AVERAGE_FLOW.md)

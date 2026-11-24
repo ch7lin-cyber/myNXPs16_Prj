@@ -16,6 +16,8 @@
 
 ## 2. 分層功能與呼叫關係
 
+層內功能方塊與函式分類另見[系統分層功能堆疊圖](SYSTEM_LAYER_FUNCTION_STACK.md)，本篇著重呼叫時機與時間。
+
 | 層級 | 產品／共用程式位置 | 目前功能 | 誰決定執行時間 |
 |---|---|---|---|
 | 硬體、SDK 與 Config Tools | `board/`、`source/generated/`、`drivers/`、`device/`、`startup/` | Pin mux、clock、周邊初始化、SDK driver 與中斷派送 | 開機初始化、硬體事件及 L01 呼叫 |
