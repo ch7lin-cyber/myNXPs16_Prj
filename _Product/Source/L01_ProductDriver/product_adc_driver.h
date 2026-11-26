@@ -107,6 +107,8 @@ typedef struct
     uint8_t consecutive_clean_samples;
     uint8_t device_id;
     bool initialized;
+    /* Last rejected acquisition remains unhealthy until a clean accepted sample. */
+    bool sample_fault_active;
 #if PRODUCT_ADC_DEBUG_ENABLE
     bool configuration_registers_valid;
     bool discard_pending;

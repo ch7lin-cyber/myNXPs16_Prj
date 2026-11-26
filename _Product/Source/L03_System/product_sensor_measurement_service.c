@@ -1,4 +1,5 @@
 #include "product_sensor_measurement_service.h"
+#include "ProductSensorMeasurementConfig.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -31,7 +32,6 @@
 
 #define PRODUCT_SENSOR_MEDIAN_WINDOW           (5U)
 #define PRODUCT_SENSOR_INPUT_COUNT             (4U)
-#define PRODUCT_INPUT_ERROR_NONE               (61U)
 #define PRODUCT_INPUT_ERROR_FAIL               (32U)
 #define PRODUCT_INPUT_ERROR_AMBIENT            (9U)
 #define PRODUCT_INPUT_ERROR_BAD_CALIBRATION    (139U)
@@ -54,6 +54,14 @@ typedef struct
     uint8_t median_next;
     bool median_initialized;
     bool filter_initialized;
+    bool source_known;
+    bool source_online;
+    bool source_fault;
+    bool has_seen_sequence;
+    bool has_processed_sequence;
+    bool source_time_valid;
+    uint32_t seen_sequence;
+    uint32_t last_source_ms;
 } ProductSensorMeasurementState_t;
 
 static ProductSensorMeasurementState_t
@@ -292,14 +300,46 @@ static bool UpdateErrorMonitor(uint8_t channel, uint16_t error)
     ProductSensorMeasurementState_t *state = &g_measurement_state[channel];
     product_temperature_input_monitor_t monitor;
 
+    (void)ProductModbusRegisterAdapter_SetMeasurementQuality(channel,
+        state->snapshot.quality_flags, state->snapshot.recovery_good_samples,
+        state->snapshot.sample_sequence, state->snapshot.sample_age_ms,
+        state->snapshot.quality_revision);
     monitor.unfilteredProcessValue = state->snapshot.valid ?
         state->unfiltered_value : 0.0F;
-    monitor.filteredProcessValue = state->filter_initialized ?
+    monitor.filteredProcessValue = state->snapshot.valid && state->filter_initialized ?
         state->filtered_value : 0.0F;
     monitor.inputError = error;
     state->snapshot.input_error = error;
     return ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
         channel, &monitor);
+}
+
+static void InvalidateMeasurement(ProductSensorMeasurementState_t *state,
+                                  uint16_t flags)
+{
+    if (state->snapshot.valid || state->snapshot.recovery_good_samples != 0U ||
+        state->snapshot.quality_flags != flags)
+        ++state->snapshot.quality_revision;
+    state->snapshot.valid = false;
+    state->snapshot.quality_flags = flags;
+    state->snapshot.recovery_good_samples = 0U;
+    state->snapshot.engineering_value = 0;
+    state->unfiltered_value = 0.0F;
+    state->filtered_value = 0.0F;
+    state->median_initialized = false;
+    state->filter_initialized = false;
+}
+
+bool ProductSensorMeasurementService_SetSourceHealth(
+    uint8_t channel, bool online, bool sample_fault)
+{
+    ProductSensorMeasurementState_t *state;
+    if (channel >= PRODUCT_SENSOR_INPUT_COUNT) return false;
+    state = &g_measurement_state[channel];
+    state->source_known = true;
+    state->source_online = online;
+    state->source_fault = sample_fault;
+    return true;
 }
 
 void ProductSensorMeasurementService_Initialize(void)
@@ -311,8 +351,11 @@ void ProductSensorMeasurementService_Initialize(void)
     {
         g_measurement_state[channel].last_sensor_type =
             PRODUCT_SENSOR_TYPE_OFF;
-        g_measurement_state[channel].snapshot.input_error =
-            PRODUCT_INPUT_ERROR_MEASUREMENT;
+        g_measurement_state[channel].snapshot.input_error = PRODUCT_INPUT_ERROR_MEASUREMENT;
+        g_measurement_state[channel].snapshot.quality_flags =
+            PRODUCT_SENSOR_QUALITY_NO_SAMPLE | PRODUCT_SENSOR_QUALITY_SOURCE_UNKNOWN;
+        g_measurement_state[channel].snapshot.sample_age_ms = UINT32_MAX;
+        (void)UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_MEASUREMENT);
     }
 }
 
@@ -324,20 +367,20 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
     FactoryCalibrationProfile_t calibration_profile;
     AnalogInputSample_t sample;
     SensorConversionResult_t result;
-    product_temperature_input_monitor_t monitor;
     int32_t calibrated_uv;
     int32_t cjc_millicelsius = 0L;
     float unfiltered;
     float time_constant;
     float sample_period;
 
-    if ((channel >= PRODUCT_SENSOR_INPUT_COUNT) ||
-        !ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
+    if (channel >= PRODUCT_SENSOR_INPUT_COUNT) return false;
+    state = &g_measurement_state[channel];
+    if (!ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
             channel, &product_configuration))
     {
-        return false;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_FAIL);
     }
-    state = &g_measurement_state[channel];
     if (state->last_sensor_type != product_configuration.sensorType ||
         state->last_cjc_source != product_configuration.cjcSource ||
         state->last_cjc_offset_centi_c !=
@@ -347,44 +390,77 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
         state->last_cjc_source = product_configuration.cjcSource;
         state->last_cjc_offset_centi_c =
             product_configuration.cjcOffsetCentiC;
-        state->last_sample_sequence = 0U;
-        state->median_initialized = false;
-        state->filter_initialized = false;
-        state->snapshot.valid = false;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_RECOVERING);
+        /* Reconfiguration cannot requalify an ADC sample from the old domain. */
+        state->has_processed_sequence = state->has_seen_sequence;
+        state->last_sample_sequence = state->seen_sequence;
+        state->snapshot.input_error = PRODUCT_INPUT_ERROR_RECOVERING;
     }
+    state->snapshot.sensor_type = product_configuration.sensorType;
     if (product_configuration.sensorType == PRODUCT_SENSOR_TYPE_OFF)
     {
-        (void)memset(&state->snapshot, 0, sizeof(state->snapshot));
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_DISABLED);
         state->snapshot.sensor_type = PRODUCT_SENSOR_TYPE_OFF;
         state->snapshot.input_error = PRODUCT_INPUT_ERROR_NONE;
-        monitor.unfilteredProcessValue = 0.0F;
-        monitor.filteredProcessValue = 0.0F;
-        monitor.inputError = PRODUCT_INPUT_ERROR_NONE;
-        return ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
-            channel, &monitor);
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_NONE);
     }
     if (!AnalogInputService_GetLatestByInput(channel, &sample))
     {
+        state->snapshot.sample_age_ms = UINT32_MAX;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_NO_SAMPLE);
         return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_MEASUREMENT);
     }
-    if ((state->last_sample_sequence == sample.sequence) &&
-        state->snapshot.valid)
+    /* Check the old age before refreshing a new sequence. A foreground gap
+     * must clear old filters even when a new sample is already available. */
+    if ((!state->has_seen_sequence || state->seen_sequence != sample.sequence) &&
+        timed && state->source_time_valid &&
+        (uint32_t)(now_ms - state->last_source_ms) >= PRODUCT_SENSOR_STALE_TIMEOUT_MS)
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_STALE);
+    if (!state->has_seen_sequence || state->seen_sequence != sample.sequence)
     {
-        return true;
+        state->has_seen_sequence = true;
+        state->seen_sequence = sample.sequence;
+        state->last_source_ms = now_ms;
+        state->source_time_valid = timed;
     }
+    state->snapshot.sample_age_ms = (timed && state->source_time_valid) ?
+        (uint32_t)(now_ms - state->last_source_ms) : UINT32_MAX;
+    if (!state->source_known || !state->source_online || state->source_fault)
+    {
+        state->has_processed_sequence = true;
+        state->last_sample_sequence = sample.sequence; /* quarantine cached sample */
+        uint16_t flags = state->source_known ? PRODUCT_SENSOR_QUALITY_SOURCE_FAULT :
+                                               PRODUCT_SENSOR_QUALITY_SOURCE_UNKNOWN;
+        if (timed && state->snapshot.sample_age_ms >= PRODUCT_SENSOR_STALE_TIMEOUT_MS)
+            flags |= PRODUCT_SENSOR_QUALITY_STALE;
+        InvalidateMeasurement(state, flags);
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_SOURCE_FAULT);
+    }
+    if (timed && state->snapshot.sample_age_ms >= PRODUCT_SENSOR_STALE_TIMEOUT_MS)
+    {
+        state->has_processed_sequence = true;
+        state->last_sample_sequence = sample.sequence;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_STALE);
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_STALE);
+    }
+    if (state->has_processed_sequence && state->last_sample_sequence == sample.sequence)
+        return UpdateErrorMonitor(channel, state->snapshot.input_error);
+    state->has_processed_sequence = true;
+    state->last_sample_sequence = sample.sequence;
     if (!ProductSensorMeasurementService_ResolveConfiguration(
             product_configuration.sensorType, &conversion_configuration,
             &calibration_profile))
     {
         state->last_sample_sequence = sample.sequence;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
         return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_FAIL);
     }
     if (!FactoryCalibrationService_Convert(channel, calibration_profile,
             sample.microvolts, &calibrated_uv))
     {
         state->last_sample_sequence = sample.sequence;
-        return UpdateErrorMonitor(channel,
-                                  PRODUCT_INPUT_ERROR_BAD_CALIBRATION);
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_BAD_CALIBRATION);
     }
     state->snapshot.raw_code = sample.raw_code;
     state->snapshot.uncalibrated_uv = sample.microvolts;
@@ -411,6 +487,7 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
                  cjc_index, &cjc_temperature_centi_c)))
         {
             state->snapshot.conversion_flags = SENSOR_FLAG_CJC_ERROR;
+            InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
             return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_AMBIENT);
         }
         cjc_temperature_centi_c += product_configuration.cjcOffsetCentiC;
@@ -419,18 +496,35 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
     }
     conversion_configuration.cold_junction_compensation_disabled =
         (product_configuration.cjcSource == EVENT_CJC_SOURCE_DISABLED);
+    if (!SensorConversionService_Convert(&conversion_configuration,
+            calibrated_uv, cjc_millicelsius, &result) || result.flags != 0U)
+    {
+        state->snapshot.conversion_flags = result.flags;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
+        return UpdateErrorMonitor(channel,
+            ConversionError(conversion_configuration.type, result.flags));
+    }
     if (!SensorConversionService_Convert(
             &conversion_configuration,
             FilterMedian(state, calibrated_uv, sample.sequence),
-            cjc_millicelsius, &result))
+            cjc_millicelsius, &result) || result.flags != 0U)
     {
         state->last_sample_sequence = sample.sequence;
         state->snapshot.conversion_flags = result.flags;
+        InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
         return UpdateErrorMonitor(
             channel,
             ConversionError(conversion_configuration.type, result.flags));
     }
 
+    if (state->snapshot.recovery_good_samples < PRODUCT_SENSOR_RECOVERY_GOOD_SAMPLES)
+        ++state->snapshot.recovery_good_samples;
+    if (state->snapshot.recovery_good_samples < PRODUCT_SENSOR_RECOVERY_GOOD_SAMPLES)
+    {
+        state->snapshot.quality_flags = PRODUCT_SENSOR_QUALITY_RECOVERING;
+        return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_RECOVERING);
+    }
+    state->snapshot.quality_flags = 0U;
     unfiltered = IsTemperatureType(conversion_configuration.type) ?
         ((float)result.engineering_value / 1000.0F) :
         ((float)result.engineering_value);
@@ -457,11 +551,7 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
         ConversionError(conversion_configuration.type, result.flags);
     state->snapshot.valid = true;
 
-    monitor.unfilteredProcessValue = unfiltered;
-    monitor.filteredProcessValue = state->filtered_value;
-    monitor.inputError = state->snapshot.input_error;
-    return ProductModbusRegisterAdapter_SetTemperatureInputMonitorForChannel(
-        channel, &monitor);
+    return UpdateErrorMonitor(channel, state->snapshot.input_error);
 }
 
 bool ProductSensorMeasurementService_Process(uint8_t channel)

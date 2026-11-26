@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define PRODUCT_INPUT_ERROR_NONE (61U)
+
 typedef struct
 {
     int32_t engineering_value;
@@ -14,6 +16,8 @@ typedef struct
     uint32_t conversion_flags;
     uint16_t sensor_type;
     bool valid;
+    uint16_t quality_flags;
+    uint32_t quality_revision;
 } ProductSensorMeasurementSnapshot_t;
 
 bool ProductSensorMeasurementService_GetSnapshot(

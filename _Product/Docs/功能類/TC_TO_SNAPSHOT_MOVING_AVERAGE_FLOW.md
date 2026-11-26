@@ -1,5 +1,7 @@
 # TC 電壓、溫度 Snapshot 與 L05 MovingAverage 資料流
 
+> 2026-11-26 更新：已加入來源健康、500 ms 過期、3 筆新有效樣本恢復與各級濾波清除。品質旗標、寄存器與 Host／實機範圍見[感測器失效與恢復](SENSOR_DISCONNECT_RECOVERY.md)。下列原始串接說明已依新策略修訂。
+
 ## 1. 本文範圍與版本
 
 本文依 `branch2_ver2_directUpdate` 的 `a20dff4540a4f9a97e202f4800a83743da23fecb` 及其 PlatformCore 子模組 `73adb19bbb71016b4d4be750c5e42b2e33fa4a0c` 說明現有程式。本文新增文件，未新增或改動濾波程式。
@@ -105,10 +107,10 @@ bool available = ProductSensorMeasurementService_GetSnapshot(0U, &snapshot);
 | `processed_timestamp_valid` | 使用 `ProcessAt()` 才能取得有效時間；重複序號不刷新時間 |
 | `sensor_type` | 說明工程值應如何解讀，也用於檢查切換感測器後是否需重建濾波狀態 |
 | `valid` | 轉換可提供結果的旗標，不能單獨取代範圍、錯誤碼與資料新鮮度檢查 |
-| `input_error`／`conversion_flags` | 正常量測錯誤碼為 **61**，不是 0；超規格仍可能有 `valid=true` 的數值與非零 flags |
+| `input_error`／`conversion_flags` | 正常量測錯誤碼為 **61**，不是 0；超規格／超量程現標為無效，保留非零 flags 與原錯誤碼 |
 | `calibrated_uv` | 中位數處理前的當筆校正電壓，不是送進 TC 表的中位數結果 |
 
-部分早期錯誤路徑只更新 `input_error`，可能保留上一筆快照內容。因此新控制鏈若需嚴格品質，還應檢查正常錯誤碼、flags 與資料年齡，不能將保留的舊數值當成最新正常量測。
+失效路徑現在會清除有效性與工程值，重設中位數／IIR，並經 quality_revision 通知 L05 清除平均視窗。控制鏈仍須檢查正常錯誤碼、flags、型別與資料年齡，不能單看數值。
 
 ### 3.3 與其他資料區的差別
 
@@ -158,7 +160,7 @@ flowchart TD
     O --> GET["GetCh0MovingAverage：複製結果給使用者"]
 ```
 
-這張圖描述現有 CH0 實例。`ReadCh0Sample()` 目前只轉接 `sample_sequence`、`engineering_value` 與 `valid`，沒有另外檢查 sensor type、61 正常碼、flags 或超時；新增正式控制用途時需在 Provider／Adapter 補齊用途所需的品質規則。
+這張圖描述現有 CH0 實例。`ReadCh0Sample()` 轉接 sequence／工程值，並使用 SnapshotUsable 檢查溫度型別、valid、quality_flags、61 正常碼、conversion_flags、時間戳與年齡。
 
 ### 4.3 初始化：實例、緩衝區與視窗
 
@@ -195,7 +197,7 @@ FbMovingAverage_Init(&adapter->fb_state,
 ProductSensorMeasurementService_GetSnapshot(0U, &snapshot);
 sample->sample_sequence = snapshot.sample_sequence;
 sample->engineering_value = snapshot.engineering_value;
-sample->valid = snapshot.valid;
+sample->valid = SnapshotUsable(&snapshot); /* 型別、品質與時間 */
 ```
 
 這是欄位對映摘錄，完整函式另有指標與 API 失敗處理。Adapter 在 callback 中的處理順序為：
@@ -290,7 +292,7 @@ MovingAverage 沒有 `dt_seconds` 輸入，callback 的 `elapsed_ms` 目前只�
 5. **加入一筆排程**：指定 enabled、period、callback 與新實例 context。callback 可沿用 `ProductFbMovingAverageAdapter_Process`。選擇直接加入 `g_tasks[]` 或擴充任務巨集其中一條路徑，避免同一實例被註冊兩次。
 6. **檢查容量與建置**：目前 `g_task_states` 容量使用 `PRODUCT_FB_SCHEDULE_TASK_COUNT`，增加 task 時要同步相應容量定義；L04 `.c` 與 include path 需進入所有預定組態，只有 include Header 不等於完成連結。
 7. **公開產品輸出**：新增對應 getter 或通道化 getter，返回平均、valid、來源序號／時間等必要品質資訊。後續消費者應在濾波之後執行；需要同拍依賴時，明確安排 `g_tasks[]` 順序或同一 callback 內的處理順序。
-8. **定義重設邊界**：來源通道、sensor type、單位、校正版本等影響數值意義的變更應重建視窗，避免不同資料域混算。現有 Adapter 只有 sequence／valid 對映，若品質未呈現無效，僅改設定不一定會自動察覺所有邊界。
+8. **定義重設邊界**：來源通道、sensor type、單位、校正版本等影響數值意義的變更應重建視窗，避免不同資料域混算。目前已透過 quality_revision 處理 Sensor type／CJC 變更與來源失效；新來源、校正版本或其他資料域變更仍需明確納入重設邊界。
 
 任務註冊的形狀如下，名稱是新增時的示意，不代表目前已有該 CH1 API：
 
@@ -346,3 +348,4 @@ flowchart TD
 - [量測 Snapshot 公開結構](../../Source/L03_System/product_sensor_measurement_service.h)
 
 以上相對連結跟隨目前分支與其子模組。本文開頭記錄查核版本，後續程式調整時需同步檢查資料單位、品質判斷、ODR、排程及輸出位置。
+

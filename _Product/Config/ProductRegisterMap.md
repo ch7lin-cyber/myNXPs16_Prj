@@ -462,3 +462,8 @@ Read the existing Input Error register at `0x1002 + channel * 0x10`
 If both flags are set, 143 takes precedence. Existing CJC, table/conversion,
 and factory-calibration errors keep their original codes. Classification uses
 unfiltered calibrated measurements; PV remains readable during range errors.
+
+
+## 感測器品質監看（2026-11-26）
+
+FC03／04唯讀：CH0=49A0h、CH1=49A8h、CH2=49B0h、CH3=49B8h，每通道8 words。+0品質flags、+1恢復筆數、+2／3樣本sequence、+4／5資料age(ms)、+6／7失效revision；U32高word在前。未知age為FFFFFFFFh。新增輸入錯誤碼144過期、145恢復中、146來源異常／未知，正常仍61。完整bit、恢復與測試規則見[感測器失效與恢復](../Docs/功能類/SENSOR_DISCONNECT_RECOVERY.md)。

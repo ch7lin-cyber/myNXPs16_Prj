@@ -51,6 +51,7 @@ typedef struct _product_modbus_register_context
         pendingConfig[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
     uint16_t
         configurationRevision[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT];
+    uint16_t measurementQuality[PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT][8U];
     uint16_t diagnosticFaultIndex;
     uint16_t diagnosticResetResult;
     uint16_t diagnosticResetLastCode;
@@ -140,6 +141,12 @@ static product_modbus_register_context_t s_registerContext =
     .dacFailedChannel = PRODUCT_MODBUS_DAC_FAILED_CHANNEL_NONE,
     .pendingDigitalOutputMask = 0U,
     .digitalOutputPendingMask = 0U,
+    .measurementQuality = {
+        {0x0041U, 0U, 0U, 0U, 0xFFFFU, 0xFFFFU, 0U, 0U},
+        {0x0041U, 0U, 0U, 0U, 0xFFFFU, 0xFFFFU, 0U, 0U},
+        {0x0041U, 0U, 0U, 0U, 0xFFFFU, 0xFFFFU, 0U, 0U},
+        {0x0041U, 0U, 0U, 0U, 0xFFFFU, 0xFFFFU, 0U, 0U}
+    },
     .diagnosticResetResult = PRODUCT_DIAGNOSTICS_RESET_RESULT_READY,
     .lowVoltageMonitor =
     {
@@ -1275,6 +1282,18 @@ static ModbusExceptionCode_t ReadRegisters(
     if ((registerContext == NULL) || (values == NULL))
     {
         return MODBUS_EXCEPTION_SERVER_DEVICE_FAILURE;
+    }
+
+    if (starting_address >= 0x49A0U && starting_address < 0x49C0U)
+    {
+        uint16_t offset = (uint16_t)(starting_address - 0x49A0U);
+        if (quantity == 0U || quantity > (uint16_t)(0x49C0U - starting_address))
+            return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+        /* One foreground request sees a coherent copied monitor image. */
+        for (index = 0U; index < quantity; ++index)
+            values[index] = registerContext->measurementQuality[(offset + index) / 8U]
+                                                                  [(offset + index) % 8U];
+        return MODBUS_EXCEPTION_NONE;
     }
 
     if (starting_address >= 0x7000U && starting_address <= 0x7053U)
@@ -2839,3 +2858,19 @@ void ProductModbusRegisterAdapter_SetLowVoltageMonitor(
     }
 }
 
+
+/* RAM monitor only: never persisted and never writable by protocol. */
+bool ProductModbusRegisterAdapter_SetMeasurementQuality(
+    uint8_t channel, uint16_t flags, uint16_t good_samples,
+    uint32_t sequence, uint32_t age_ms, uint32_t revision)
+{
+    uint16_t *image;
+    if (channel >= PRODUCT_MODBUS_TEMPERATURE_INPUT_COUNT) return false;
+    image = s_registerContext.measurementQuality[channel];
+    image[0] = flags;
+    image[1] = good_samples;
+    image[2] = (uint16_t)(sequence >> 16U); image[3] = (uint16_t)sequence;
+    image[4] = (uint16_t)(age_ms >> 16U); image[5] = (uint16_t)age_ms;
+    image[6] = (uint16_t)(revision >> 16U); image[7] = (uint16_t)revision;
+    return true;
+}

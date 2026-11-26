@@ -38,7 +38,7 @@ int main(void)
     FbPid_Deinit(&fb);
     assert(!ProductFbScheduleIntegration_ConfigureCh0PidTest(true,30000,100));
     assert(ProductFbScheduleIntegration_Init(0));
-    sample.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; sample.valid=true;
+    sample.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; sample.valid=true; sample.input_error=61;
     sample.processed_timestamp_valid=true; sample.engineering_value=25123;
     Fresh(20);
     assert(Read().controller.output.status==FB_PID_STATUS_DISABLED);
@@ -62,7 +62,7 @@ int main(void)
     sample.valid=false; Fresh(120); assert(!Read().controller.output_valid);
     sample.valid=true; Fresh(140); assert(Read().controller.output_valid);
     sample.input_error=1; Fresh(160); assert(!Read().controller.output_valid);
-    sample.input_error=0; sample.conversion_flags=1; Fresh(180); assert(!Read().controller.output_valid);
+    sample.input_error=61; sample.conversion_flags=1; Fresh(180); assert(!Read().controller.output_valid);
     sample.conversion_flags=0; sample.sensor_type=65535; Fresh(200); assert(!Read().controller.output_valid);
     sample.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; sample.processed_timestamp_valid=false;
     Fresh(220); assert(!Read().controller.output_valid);

@@ -30,7 +30,7 @@ int main(void)
     FbAlarm_DefaultConfig(&alarm);
     alarm.mode=FB_ALARM_MODE_ABSOLUTE_HIGH; alarm.alarm_high=30000;
     alarm.options=FB_ALARM_OPTION_PEAK;
-    snapshot.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; snapshot.valid=true;
+    snapshot.input_error=61U; snapshot.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; snapshot.valid=true;
     snapshot.processed_timestamp_valid=true; snapshot.processed_timestamp_ms=10;
     snapshot.engineering_value=25000; snapshot.sample_sequence=1;
     c.maximum_age_ms=1000; c.maximum_skew_ms=20;

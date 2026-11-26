@@ -53,6 +53,9 @@ bool ProductFbMovingAverageAdapter_Init(
     ProductFbMovingAverageSampleProvider_t sample_provider,
     void *sample_provider_context);
 
+/* Clear history/output immediately while retaining callback diagnostics. */
+bool ProductFbMovingAverageAdapter_Reset(ProductFbMovingAverageAdapter_t *adapter);
+
 /* Suitable for ProductFbScheduleTask_t.callback. The first version is CH0 PV. */
 void ProductFbMovingAverageAdapter_Process(void *context,
                                            uint32_t elapsed_ms);

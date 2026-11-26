@@ -5,6 +5,7 @@
 #include "product_fb_moving_average_adapter.h"
 #include "product_fb_schedule.h"
 #include "product_sensor_measurement_service.h"
+#include "ProductSensorMeasurementConfig.h"
 #include "product_temperature_input_types.h"
 #include "DigitalInputService.h"
 
@@ -35,6 +36,15 @@ static bool IsTemperatureSensor(uint16_t sensor_type)
     }
 }
 
+static bool SnapshotUsable(const ProductSensorMeasurementSnapshot_t *snapshot)
+{
+    return snapshot->valid && snapshot->quality_flags == 0U &&
+        snapshot->input_error == PRODUCT_INPUT_ERROR_NONE &&
+        snapshot->conversion_flags == 0U && snapshot->processed_timestamp_valid &&
+        (uint32_t)(g_fb_now_ms - snapshot->processed_timestamp_ms) <
+            PRODUCT_SENSOR_STALE_TIMEOUT_MS && IsTemperatureSensor(snapshot->sensor_type);
+}
+
 static bool ReadProcessingSample(void *context, uint16_t source, ProductPvSourceSample *sample)
 {
     ProductSensorMeasurementSnapshot_t snapshot;
@@ -46,8 +56,7 @@ static bool ReadProcessingSample(void *context, uint16_t source, ProductPvSource
     sample->timestamp_ms=snapshot.processed_timestamp_ms;
     sample->unit=IsTemperatureSensor(snapshot.sensor_type) ?
         PRODUCT_PV_MILLICELSIUS : PRODUCT_PV_UNSUPPORTED_UNIT;
-    sample->valid=snapshot.valid && snapshot.processed_timestamp_valid &&
-        snapshot.input_error==0U && snapshot.conversion_flags==0U;
+    sample->valid=SnapshotUsable(&snapshot);
     return true;
 }
 
@@ -157,7 +166,7 @@ static bool ReadAlarmSample(void *context, uint8_t channel, ProductAlSample_t *s
     if (!ProductSensorMeasurementService_GetSnapshot(channel, &snapshot)) return false;
     sample->pv = snapshot.engineering_value;
     sample->sequence = snapshot.sample_sequence;
-    sample->valid = snapshot.valid;
+    sample->valid = SnapshotUsable(&snapshot);
     switch (snapshot.sensor_type)
     {
         case PRODUCT_SENSOR_TYPE_TC_B: case PRODUCT_SENSOR_TYPE_TC_C:
@@ -187,6 +196,8 @@ static bool ReadLogicDi(void *context, uint8_t index, bool *value)
 
 static ProductFbMovingAverageAdapter_t g_ch0_moving_average_adapter;
 static ProductFbSchedule_t g_schedule;
+static uint32_t g_ch0_measurement_revision;
+static bool g_ch0_ma_source_valid;
 static ProductFbScheduleTaskState_t g_task_states[
     PRODUCT_FB_SCHEDULE_TASK_COUNT];
 
@@ -236,7 +247,7 @@ static bool ReadCh0Sample(void *context,
     }
     sample->sample_sequence = snapshot.sample_sequence;
     sample->engineering_value = snapshot.engineering_value;
-    sample->valid = snapshot.valid;
+    sample->valid = SnapshotUsable(&snapshot);
 #if PRODUCT_FB_CH0_TRACE_ENABLED
     g_trace_provider_ok = true;
     g_trace_sample = *sample;
@@ -313,6 +324,8 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
 {
     ProductPvProcessingConfig pv_config={0};
     g_fb_now_ms=now_ms;
+    g_ch0_measurement_revision=0U;
+    g_ch0_ma_source_valid=false;
     pv_config.source[0]=0U;
     pv_config.source[1]=1U;
     pv_config.maximum_age_ms=200U;
@@ -364,7 +377,22 @@ ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(vo
 
 void ProductFbScheduleIntegration_Process(uint32_t now_ms)
 {
+    ProductSensorMeasurementSnapshot_t measurement;
+    bool source_valid;
     g_fb_now_ms=now_ms;
+    source_valid = ProductSensorMeasurementService_GetSnapshot(0U, &measurement);
+    if (source_valid)
+    {
+        if (measurement.quality_revision != g_ch0_measurement_revision)
+        {
+            (void)ProductFbMovingAverageAdapter_Reset(&g_ch0_moving_average_adapter);
+            g_ch0_measurement_revision = measurement.quality_revision;
+        }
+        source_valid = SnapshotUsable(&measurement);
+    }
+    if (!source_valid && g_ch0_ma_source_valid)
+        (void)ProductFbMovingAverageAdapter_Reset(&g_ch0_moving_average_adapter);
+    g_ch0_ma_source_valid=source_valid;
 #if PRODUCT_FB_CH0_TRACE_ENABLED
     size_t i;
     g_trace_now_ms = now_ms;

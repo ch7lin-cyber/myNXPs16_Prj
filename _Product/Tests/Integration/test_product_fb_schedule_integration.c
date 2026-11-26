@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "product_sensor_measurement_service.h"
+#include "product_temperature_input_types.h"
 #include "DigitalInputService.h"
 
 static ProductSensorMeasurementSnapshot_t g_snapshot;
@@ -51,6 +52,10 @@ int main(void)
     g_snapshot.sample_sequence = 1U;
     g_snapshot.engineering_value = 100;
     g_snapshot.valid = true;
+    g_snapshot.input_error = 61U;
+    g_snapshot.sensor_type = PRODUCT_SENSOR_TYPE_TC_K;
+    g_snapshot.processed_timestamp_valid = true;
+    g_snapshot.processed_timestamp_ms = 100U;
 
     ProductFbScheduleIntegration_Process(119U);
     diagnostics = GetDiagnostics();
@@ -133,6 +138,33 @@ int main(void)
     assert(diagnostics.callback_count == 1U);
     assert(diagnostics.last_elapsed_ms == 20U);
     assert((output.sample_count == 1U) && (output.average == 40.0));
+
+    /* Quality epoch clears MA even if invalid and recovery occurred between callbacks. */
+    g_snapshot.processed_timestamp_ms=530U;
+    ++g_snapshot.sample_sequence; g_snapshot.engineering_value=100;
+    ProductFbScheduleIntegration_Process(540U);
+    assert(GetOutput().sample_count==2U);
+    ++g_snapshot.quality_revision;
+    ++g_snapshot.sample_sequence; g_snapshot.engineering_value=900;
+    g_snapshot.processed_timestamp_ms=550U;
+    ProductFbScheduleIntegration_Process(560U);
+    assert(GetOutput().sample_count==1U && GetOutput().average==900.0);
+    g_snapshot.valid=false;
+    ProductFbScheduleIntegration_Process(561U); /* not yet due, clear immediately */
+    assert(!GetOutput().valid && GetOutput().sample_count==0U);
+    g_snapshot.valid=true; ++g_snapshot.sample_sequence;
+    g_snapshot.processed_timestamp_ms=570U;
+    ProductFbScheduleIntegration_Process(580U); assert(GetOutput().valid);
+    ProductFbScheduleIntegration_Process(1070U); /* age==500 */
+    assert(!GetOutput().valid);
+    g_snapshot.processed_timestamp_ms=1080U; ++g_snapshot.sample_sequence;
+    ProductFbScheduleIntegration_Process(1090U); assert(GetOutput().valid);
+    g_snapshot.quality_flags=1U;
+    ProductFbScheduleIntegration_Process(1091U); assert(!GetOutput().valid);
+    g_snapshot.quality_flags=0U; g_snapshot.input_error=0U;
+    ProductFbScheduleIntegration_Process(1110U); assert(!GetOutput().valid);
+    g_snapshot.input_error=61U; g_snapshot.sensor_type=PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    ProductFbScheduleIntegration_Process(1130U); assert(!GetOutput().valid);
 
     puts("PASS: L05 CH0 MovingAverage integration timing, sample gating, invalid recovery, and reset");
     return 0;

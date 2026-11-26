@@ -49,7 +49,7 @@ int main(void)
     g_snapshot.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; g_snapshot.input_error=142;
     ProductFbScheduleIntegration_Process(320);
     ProductFbScheduleIntegration_GetCh0ProcessedPv(&out); assert(!out.valid);
-    g_snapshot.input_error=0; g_snapshot.processed_timestamp_valid=false;
+    g_snapshot.input_error=61; g_snapshot.processed_timestamp_valid=false;
     ProductFbScheduleIntegration_Process(340);
     ProductFbScheduleIntegration_GetCh0ProcessedPv(&out); assert(!out.valid);
     g_snapshot.processed_timestamp_valid=true;

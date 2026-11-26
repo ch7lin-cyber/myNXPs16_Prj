@@ -1468,6 +1468,30 @@ static void TestCjcOffsetPendingApply(void)
            MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
 }
 
+static void TestMeasurementQualityRegisters(void)
+{
+    ModbusSlaveRegisterInterface_t interface;
+    uint16_t image[32], value=0x1234U;
+    ProductModbusRegisterAdapter_GetInterface(&interface);
+    for (uint8_t ch=0U; ch<4U; ++ch)
+        assert(ProductModbusRegisterAdapter_SetMeasurementQuality(ch,
+            (uint16_t)(1U<<ch), ch, 0x12340000UL+ch, 0xABCD0000UL+ch, 0x98760000UL+ch));
+    assert(interface.read_holding_registers(interface.context,0x49A0U,32U,image)==MODBUS_EXCEPTION_NONE);
+    for (uint8_t ch=0U; ch<4U; ++ch)
+    {
+        uint16_t *p=&image[ch*8U];
+        assert(p[0]==(1U<<ch) && p[1]==ch);
+        assert(p[2]==0x1234U && p[3]==ch && p[4]==0xABCDU && p[5]==ch);
+        assert(p[6]==0x9876U && p[7]==ch);
+    }
+    assert(interface.read_input_registers(interface.context,0x49BFU,1U,image)==MODBUS_EXCEPTION_NONE);
+    assert(interface.read_holding_registers(interface.context,0x49BFU,2U,image)==MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.read_holding_registers(interface.context,0x49A0U,0U,image)==MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.write_single_register(interface.context,0x49A0U,value)==MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(interface.write_multiple_registers(interface.context,0x49A0U,&value,1U)==MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
+    assert(!ProductModbusRegisterAdapter_SetMeasurementQuality(4U,0U,0U,0U,0U,0U));
+}
+
 int main(void)
 {
     /* Production images must not expose the SafetyTest command region. */
@@ -1578,6 +1602,7 @@ int main(void)
     TestDipSwitchRegisters();
     TestRotarySwitchRegisters();
     TestLowVoltageRegisters();
+    TestMeasurementQualityRegisters();
     return 0;
 }
 

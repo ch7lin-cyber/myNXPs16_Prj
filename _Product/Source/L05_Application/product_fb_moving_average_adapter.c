@@ -31,6 +31,20 @@ bool ProductFbMovingAverageAdapter_Init(
            FB_MOVING_AVERAGE_OK;
 }
 
+bool ProductFbMovingAverageAdapter_Reset(ProductFbMovingAverageAdapter_t *adapter)
+{
+    FbMovingAverageInput input = {0};
+    if (adapter == NULL || adapter->sample_provider == NULL) return false;
+    input.enable = 1;
+    input.reset = 1;
+    adapter->last_status = FbMovingAverage_Execute(&adapter->fb_config,
+        &input, &adapter->fb_state, &adapter->output);
+    adapter->has_last_sample_sequence = false;
+    adapter->reset_pending = true;
+    adapter->input_invalid = true;
+    return adapter->last_status == FB_MOVING_AVERAGE_OK;
+}
+
 void ProductFbMovingAverageAdapter_Process(void *context,
                                            uint32_t elapsed_ms)
 {

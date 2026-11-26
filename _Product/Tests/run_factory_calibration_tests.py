@@ -43,6 +43,8 @@ with tempfile.TemporaryDirectory(prefix='factory-tests-') as directory:
         for mode in ([1, 0] if name == 'modbus' else [1]):
             output = str(Path(directory) / (name + str(mode)))
             flags = ['-DFACTORY_CALIBRATION_INPUT_COUNT=4'] if name != 'conversion' else []
+            if name == 'measurement':
+                flags += ['-DPRODUCT_SENSOR_RECOVERY_GOOD_SAMPLES=1']
             if name == 'safety_pwm':
                 flags += ['-DPRODUCT_SAFETY_TEST_BUILD=1', '-DPRODUCT_SAFETY_TEST_TARGET=1',
                           '-DPRODUCT_SAFETY_TEST_EVK=1']

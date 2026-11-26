@@ -419,6 +419,11 @@ uint16_t ProductModbusRegisterAdapter_GetDacStatus(void);
 uint16_t ProductModbusRegisterAdapter_GetDacFailedChannel(void);
 void ProductModbusRegisterAdapter_DiscardPendingDacCodes(void);
 
+/* Read-only FC03/04 image at 49A0h + channel*8, high word first. */
+bool ProductModbusRegisterAdapter_SetMeasurementQuality(
+    uint8_t channel, uint16_t flags, uint16_t good_samples,
+    uint32_t sequence, uint32_t age_ms, uint32_t revision);
+
 void ProductModbusRegisterAdapter_SetLowVoltageMonitor(
     const product_low_voltage_monitor_t *monitor);
 

@@ -127,6 +127,8 @@ static uint16_t RecordErrorRegister(ProductAdcDriverContext_t *context,
     diagnostics->last_error_register = error;
     diagnostics->latched_error_register |= error;
     diagnostics->last_fault_categories = categories;
+    if (categories != PRODUCT_ADC_FAULT_NONE)
+        diagnostics->sample_fault_active = true;
     if ((error != 0U) && (diagnostics->first_error_register == 0U))
     {
         diagnostics->first_error_register = error;
@@ -605,11 +607,14 @@ static HalAdcStatus_t ProductAdcTryReadInternal(
         else
         {
             context->diagnostics.error_register_read_failures++;
+            context->diagnostics.sample_fault_active = true;
+            return MapDriverStatus(status);
         }
     }
     PRODUCT_ADC_DEBUG_ONLY(context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_FAULT);
     if (error_categories != PRODUCT_ADC_FAULT_NONE)
     {
+        context->diagnostics.sample_fault_active = true;
         context->diagnostics.consecutive_clean_samples = 0U;
         context->diagnostics.discarded_samples++;
         PRODUCT_ADC_DEBUG_ONLY(context->diagnostics.fault_sample_discards++);
@@ -701,14 +706,23 @@ static HalAdcStatus_t ProductAdcTryReadInternal(
 /* Retain HAL failures across periodic register audits and recovery cycles. */
 static HalAdcStatus_t ProductAdcTryRead(void *driver_context, HalAdcSample_t *sample)
 {
-#if PRODUCT_ADC_DEBUG_ENABLE
     ProductAdcDriverContext_t *context = (ProductAdcDriverContext_t *)driver_context;
     HalAdcStatus_t result;
+#if PRODUCT_ADC_DEBUG_ENABLE
     if (context != NULL)
     {
         PRODUCT_ADC_DEBUG_ONLY(context->diagnostics.last_read_stage = PRODUCT_ADC_READ_STAGE_VALIDATE);
     }
+#endif
     result = ProductAdcTryReadInternal(driver_context, sample);
+    if (context != NULL)
+    {
+        if (result == HAL_ADC_STATUS_OK)
+            context->diagnostics.sample_fault_active = false;
+        else if (result != HAL_ADC_STATUS_NOT_READY)
+            context->diagnostics.sample_fault_active = true;
+    }
+#if PRODUCT_ADC_DEBUG_ENABLE
     if (context != NULL)
     {
         ProductAdcDriverDiagnostics_t *diagnostics = &context->diagnostics;
@@ -753,10 +767,8 @@ static HalAdcStatus_t ProductAdcTryRead(void *driver_context, HalAdcSample_t *sa
             }
         }
     }
-    return result;
-#else
-    return ProductAdcTryReadInternal(driver_context, sample);
 #endif
+    return result;
 }
 
 bool ProductAdcDriver_Init(void)

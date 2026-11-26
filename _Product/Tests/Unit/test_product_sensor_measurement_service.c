@@ -72,6 +72,22 @@ bool FactoryCalibrationService_Convert(uint8_t input,
     return true;
 }
 
+bool ProductModbusRegisterAdapter_SetMeasurementQuality(uint8_t channel,
+    uint16_t flags, uint16_t good_samples, uint32_t sequence,
+    uint32_t age_ms, uint32_t revision)
+{
+    (void)channel; (void)flags; (void)good_samples; (void)sequence;
+    (void)age_ms; (void)revision;
+    return true;
+}
+
+static void InitializeHealthy(void)
+{
+    ProductSensorMeasurementService_Initialize();
+    for (uint8_t i=0U; i<4U; ++i)
+        assert(ProductSensorMeasurementService_SetSourceHealth(i,true,false));
+}
+
 static void TestConfigurationMapping(void)
 {
     SensorConversionConfig_t configuration;
@@ -174,7 +190,7 @@ static void TestKTypePipelineAndCjcPairing(void)
     g_cjc_temperature_centi_c[1] = 2500L;
     g_cjc_valid[1] = true;
 
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     assert(ProductSensorMeasurementService_Process(2U));
     assert(g_monitor.inputError == 61U);
     assert(g_monitor.unfilteredProcessValue > 19.0F);
@@ -231,7 +247,7 @@ static void TestInvalidCjcIsReported(void)
 
     g_sample.sequence = 2UL;
     g_cjc_valid[0] = false;
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.inputError == 9U);
     assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
@@ -252,14 +268,15 @@ static void TestCjcSourceSelection(void)
     g_sample.sequence = 10U;
     g_cjc_valid[0] = false;
     g_cjc_valid[1] = false;
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.inputError == 61U);
     assert(g_monitor.unfilteredProcessValue > 249.0F && g_monitor.unfilteredProcessValue < 251.0F);
     assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
     assert(snapshot.cjc_temperature_centi_c == 0L);
-    /* Source change must re-evaluate even when the sample sequence is unchanged. */
+    /* A new source requires a new ADC sample before conversion. */
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_INTERNAL_TMP20;
+    ++g_sample.sequence;
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.inputError == 9U);
     g_cjc_valid[0] = true;
@@ -275,9 +292,11 @@ static void TestCjcSourceSelection(void)
     assert(ProductSensorMeasurementService_GetSnapshot(3U, &snapshot));
     assert(snapshot.cjc_temperature_centi_c == 4000L);
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_EXTERNAL_1;
+    ++g_sample.sequence;
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.inputError == 9U);
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_EXTERNAL_2;
+    ++g_sample.sequence;
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.inputError == 9U);
     /* K 1300 C remains convertible in disabled mode. */
@@ -300,7 +319,7 @@ static void TestAnalogPvEngineeringRange(void)
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
     g_sample.valid = true;
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     for (unsigned int i = 0U; i < 3U; ++i)
     {
         g_sample.microvolts = microvolts[i];
@@ -329,7 +348,7 @@ static void TestDistinctRangeErrors(void)
     for (unsigned int i = 0U; i < 4U; i++)
     {
         g_product_configuration.sensorType = types[i];
-        ProductSensorMeasurementService_Initialize();
+        InitializeHealthy();
         assert(ProductSensorMeasurementService_ResolveConfiguration(types[i], &config, &profile));
         for (unsigned int j = 0U; j < 6U; j++)
         {
@@ -365,7 +384,7 @@ static void TestDistinctRangeErrors(void)
             assert(g_monitor.inputError == errors[j]);
             assert(ProductSensorMeasurementService_GetSnapshot(0U, &snapshot));
             assert(snapshot.input_error == errors[j]);
-            assert(snapshot.valid);
+            assert(snapshot.valid == (errors[j] == PRODUCT_INPUT_ERROR_NONE));
         }
     }
 }
@@ -380,7 +399,7 @@ static void TestMedianWindowFive(void)
     g_product_configuration.cjcSource = EVENT_CJC_SOURCE_DISABLED;
     g_product_configuration.filterTimeConstantSeconds = 0.0F;
     g_sample.valid = true;
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     for (unsigned int i = 0U; i < sizeof(inputs) / sizeof(inputs[0]); i++)
     {
         g_sample.microvolts = inputs[i];
@@ -398,10 +417,13 @@ static void TestMedianWindowFive(void)
     g_sample.microvolts = 0;
     assert(ProductSensorMeasurementService_Process(1U));
     assert(g_monitor.unfilteredProcessValue == -32000.0F);
-    /* OFF then ON must seed a fresh window, even at the same sequence. */
+    /* OFF then ON must wait for a new ADC sequence, then seed fresh history. */
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_OFF;
     assert(ProductSensorMeasurementService_Process(0U));
     g_product_configuration.sensorType = PRODUCT_SENSOR_TYPE_VOLTAGE_0_50MV;
+    assert(ProductSensorMeasurementService_Process(0U));
+    assert(g_monitor.inputError == PRODUCT_INPUT_ERROR_RECOVERING);
+    ++g_sample.sequence;
     assert(ProductSensorMeasurementService_Process(0U));
     assert(g_monitor.unfilteredProcessValue == -32000.0F);
 }
@@ -413,7 +435,7 @@ static void TestProcessingTimestamp(void)
     g_product_configuration.cjcSource=EVENT_CJC_SOURCE_DISABLED;
     g_product_configuration.filterTimeConstantSeconds=0.0F;
     g_sample.valid=true; g_sample.microvolts=25000; g_sample.sequence=99;
-    ProductSensorMeasurementService_Initialize();
+    InitializeHealthy();
     assert(ProductSensorMeasurementService_ProcessAt(0,100));
     ProductSensorMeasurementService_GetSnapshot(0,&snapshot);
     assert(snapshot.processed_timestamp_valid && snapshot.processed_timestamp_ms==100);

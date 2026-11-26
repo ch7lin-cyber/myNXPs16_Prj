@@ -733,6 +733,18 @@ void ProductApplication_Process(void)
 #if !PRODUCT_SAFETY_TEST_EVK
         (void)ProductSensorConfigurationConsumer_Process(
             input, g_system_timestamp_ms);
+        {
+            AnalogInputDiagnostics_t input_diagnostics;
+            ProductAdcDriverDiagnostics_t adc_diagnostics;
+            AnalogInputRoute_t route;
+            bool known = AnalogInputService_GetRoute(input, &route) &&
+                AnalogInputService_GetDiagnostics(route.device, &input_diagnostics) &&
+                ProductAdcDriver_GetDiagnostics(route.device, &adc_diagnostics);
+            (void)ProductSensorMeasurementService_SetSourceHealth(input,
+                known && input_diagnostics.online && adc_diagnostics.initialized,
+                !known || adc_diagnostics.sample_fault_active ||
+                    ((adc_diagnostics.active_fault_categories & PRODUCT_ADC_FAULT_INTERNAL) != 0U));
+        }
         (void)ProductSensorMeasurementService_ProcessAt(input, g_system_timestamp_ms);
 #endif
         (void)AlarmConfigurationEventConsumer_Process(input);

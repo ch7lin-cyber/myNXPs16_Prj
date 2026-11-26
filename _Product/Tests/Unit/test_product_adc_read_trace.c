@@ -10,6 +10,8 @@ static uint32_t g_raw = 0x009C0DD9UL;
 static uint8_t g_channel;
 static adi_ad7124_status_t g_read_status = kAdiAd7124_Ok;
 static uint32_t g_error_enable;
+static uint32_t g_sample_error;
+static bool g_error_read_fails;
 
 void GPIO_PinWrite(GPIO_Type *base, uint32_t port, uint32_t pin, uint8_t output)
 {
@@ -46,6 +48,7 @@ adi_ad7124_status_t ADI_AD7124_ReadRegister(adi_ad7124_device_t *device,
     uint8_t address, uint32_t *value)
 {
     (void)device;
+    if (address == ADI_AD7124_ERROR_REG && g_error_read_fails) return kAdiAd7124_TransportError;
     *value = (address == ADI_AD7124_ERROR_ENABLE_REG) ? g_error_enable : 0U;
     return kAdiAd7124_Ok;
 }
@@ -54,7 +57,7 @@ adi_ad7124_status_t ADI_AD7124_TryReadDataDiagnostic(adi_ad7124_device_t *device
     uint32_t *error, bool *error_read)
 {
     (void)device;
-    *status = 0U; *error = 0U; *error_read = false;
+    *status = 0U; *error = g_sample_error; *error_read = g_sample_error != 0U;
     if (g_read_status == kAdiAd7124_Ok) { *raw = g_raw; *channel = g_channel; }
     return g_read_status;
 }
@@ -83,6 +86,16 @@ int main(void)
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
     assert(sample.microvolts > 17000 && sample.microvolts < 17200);
     assert(context->diagnostics.successful_samples == 1U);
+    assert(!context->diagnostics.sample_fault_active);
+    g_sample_error=ADI_AD7124_ERROR_AINP_OV_MASK;
+    assert(ProductAdcTryRead(context,&sample)==HAL_ADC_STATUS_NOT_READY);
+    assert(context->diagnostics.sample_fault_active);
+    g_sample_error=0U; g_read_status=kAdiAd7124_NotReady;
+    assert(ProductAdcTryRead(context,&sample)==HAL_ADC_STATUS_NOT_READY);
+    assert(context->diagnostics.sample_fault_active); /* empty poll cannot heal fault */
+    g_read_status=kAdiAd7124_Ok;
+    assert(ProductAdcTryRead(context,&sample)==HAL_ADC_STATUS_OK);
+    assert(!context->diagnostics.sample_fault_active);
 
     g_channel = 3U;
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_DEVICE_ERROR);
@@ -146,6 +159,7 @@ int main(void)
     g_read_status = kAdiAd7124_TransportError;
     (void)memset(&sample, 0xFF, sizeof(sample));
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_IO_ERROR);
+    assert(context->diagnostics.sample_fault_active);
 #if PRODUCT_ADC_DEBUG_ENABLE
     assert(context->diagnostics.last_read_failure_stage == PRODUCT_ADC_READ_STAGE_TRANSFER);
 #endif
@@ -179,5 +193,11 @@ int main(void)
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_NOT_READY);
     assert(ProductAdcTryRead(context, &sample) == HAL_ADC_STATUS_OK);
     assert(sample.microvolts >= 249999 && sample.microvolts <= 250000);
+    g_raw=0U; g_error_read_fails=true;
+    assert(ProductAdcTryRead(context,&sample)==HAL_ADC_STATUS_IO_ERROR);
+    assert(context->diagnostics.sample_fault_active);
+    g_raw=0x009DC477UL; g_error_read_fails=false;
+    assert(ProductAdcTryRead(context,&sample)==HAL_ADC_STATUS_OK);
+    assert(!context->diagnostics.sample_fault_active);
     return 0;
 }

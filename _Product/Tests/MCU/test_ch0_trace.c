@@ -14,6 +14,10 @@ int main(int argc, char **argv)
         g_snapshot.sample_sequence = i;
         g_snapshot.engineering_value = values[i];
         g_snapshot.valid = true;
+        g_snapshot.sensor_type=PRODUCT_SENSOR_TYPE_TC_K;
+        g_snapshot.input_error=61U;
+        g_snapshot.processed_timestamp_valid=true;
+        g_snapshot.processed_timestamp_ms=9U+i*20U;
         ProductFbScheduleIntegration_Process(9U + i * 20U);
     }
     assert(g_product_fb_ch0_trace.count == 6U);

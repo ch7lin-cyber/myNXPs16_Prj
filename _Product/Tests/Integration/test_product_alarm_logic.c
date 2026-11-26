@@ -70,6 +70,9 @@ int main(void)
         samples[ch].sensor_type = PRODUCT_SENSOR_TYPE_TC_K;
         samples[ch].sample_sequence = 1U;
         samples[ch].valid = true;
+        samples[ch].input_error = 61U;
+        samples[ch].processed_timestamp_valid = true;
+        samples[ch].processed_timestamp_ms = now;
         samples[ch].engineering_value = 25124;
         for (i = 0; i < PRODUCT_AL_ALARMS_PER_CHANNEL; ++i)
         {
