@@ -39,6 +39,9 @@ bool BspInternalAdc_GetCjcTemperature(
     return true;
 }
 
+static uint16_t g_configuration_revision;
+uint16_t ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(uint8_t ch)
+{ (void)ch; return g_configuration_revision; }
 bool ProductModbusRegisterAdapter_GetTemperatureInputConfigForChannel(
     uint8_t channel,
     product_temperature_input_config_t *config)

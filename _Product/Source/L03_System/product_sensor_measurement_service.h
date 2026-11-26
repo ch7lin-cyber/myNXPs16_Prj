@@ -45,6 +45,9 @@ typedef struct
     bool valid;
     uint16_t quality_flags;
     uint16_t recovery_good_samples;
+    uint32_t configuration_revision; /* Active Apply generation, separate from quality */
+    int32_t configuration_minimum, configuration_maximum; /* milli-C, nominal */
+    bool configuration_range_valid;
     uint32_t quality_revision; /* increments when old history is invalidated */
     uint32_t sample_age_ms;    /* UINT32_MAX when no timed acquisition observed */
 } ProductSensorMeasurementSnapshot_t;

@@ -112,3 +112,8 @@ python _Product/Tests/test_safety_evk_mode.py
 舊換算回歸以明確 `PRODUCT_SENSOR_RECOVERY_GOOD_SAMPLES=1` 隔離既有算術測試；新恢復測試使用正式預設 3，未因測試而改變產品預設值。
 
 待測：正式板各 Sensor type 真實拔線／接回、資料停止更新、門檻與前景負載延遲、實際輸出與系統 Fault 分工。TC／0–20mA 等實體斷線若仍產生合理數值，單靠本次軟體品質標記無法可靠辨識，仍須以硬體開路診斷／burnout 或量程策略及板級實測確認。CJC 快取本身的年齡策略亦非本次新增的 ADC sequence 過期判斷。
+
+
+## 通道設定變更的補充機制
+
+設定變更不再只依賴短暫 invalid；L03 發佈獨立的設定世代，L05 依來源相依圖清歷史、驗證保留參數或持續封鎖。與一般來源品質失效的差異、各 FB 恢復規則及 Host 測試見[通道設定變更通知](CHANNEL_CONFIGURATION_NOTIFICATION.md)。

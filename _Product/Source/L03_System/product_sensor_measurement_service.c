@@ -46,6 +46,9 @@ typedef struct
     float unfiltered_value;
     float filtered_value;
     uint32_t last_sample_sequence;
+    uint16_t active_configuration_revision;
+    bool configuration_seen;
+    float last_filter_seconds;
     uint16_t last_sensor_type;
     uint16_t last_cjc_source;
     int16_t last_cjc_offset_centi_c;
@@ -372,6 +375,7 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
     float unfiltered;
     float time_constant;
     float sample_period;
+    uint16_t active_revision;
 
     if (channel >= PRODUCT_SENSOR_INPUT_COUNT) return false;
     state = &g_measurement_state[channel];
@@ -381,11 +385,19 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
         InvalidateMeasurement(state, PRODUCT_SENSOR_QUALITY_CONVERSION);
         return UpdateErrorMonitor(channel, PRODUCT_INPUT_ERROR_FAIL);
     }
-    if (state->last_sensor_type != product_configuration.sensorType ||
+    active_revision =
+        ProductModbusRegisterAdapter_GetTemperatureInputConfigurationRevisionForChannel(channel);
+    if (!state->configuration_seen || state->active_configuration_revision != active_revision ||
+        state->last_filter_seconds != product_configuration.filterTimeConstantSeconds ||
+        state->last_sensor_type != product_configuration.sensorType ||
         state->last_cjc_source != product_configuration.cjcSource ||
         state->last_cjc_offset_centi_c !=
             product_configuration.cjcOffsetCentiC)
     {
+        state->configuration_seen = true;
+        state->active_configuration_revision = active_revision;
+        state->last_filter_seconds = product_configuration.filterTimeConstantSeconds;
+        ++state->snapshot.configuration_revision;
         state->last_sensor_type = product_configuration.sensorType;
         state->last_cjc_source = product_configuration.cjcSource;
         state->last_cjc_offset_centi_c =
@@ -395,6 +407,14 @@ static bool ProcessMeasurement(uint8_t channel, uint32_t now_ms, bool timed)
         state->has_processed_sequence = state->has_seen_sequence;
         state->last_sample_sequence = state->seen_sequence;
         state->snapshot.input_error = PRODUCT_INPUT_ERROR_RECOVERING;
+        state->snapshot.configuration_range_valid =
+            ProductSensorMeasurementService_ResolveConfiguration(product_configuration.sensorType,
+                &conversion_configuration, &calibration_profile) &&
+            IsTemperatureType(conversion_configuration.type);
+        state->snapshot.configuration_minimum = state->snapshot.configuration_range_valid ?
+            conversion_configuration.nominal_min : 0;
+        state->snapshot.configuration_maximum = state->snapshot.configuration_range_valid ?
+            conversion_configuration.nominal_max : 0;
     }
     state->snapshot.sensor_type = product_configuration.sensorType;
     if (product_configuration.sensorType == PRODUCT_SENSOR_TYPE_OFF)

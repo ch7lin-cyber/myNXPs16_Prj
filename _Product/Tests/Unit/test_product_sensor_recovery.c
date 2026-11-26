@@ -121,9 +121,34 @@ static void TestCjcRecovery(void)
     g_cjc_valid[0]=true; Recover(0,220);
     assert(g_monitor.inputError==61U);
 }
+static void TestConfigurationGeneration(void)
+{
+    Setup(); g_product_configuration.sensorType=PRODUCT_SENSOR_TYPE_TC_K;
+    g_product_configuration.cjcSource=EVENT_CJC_SOURCE_DISABLED;
+    g_sample.microvolts=10153; Recover(0,100);
+    uint32_t rev=Snap(0).configuration_revision;
+    assert(Snap(0).configuration_range_valid && Snap(0).configuration_maximum==1300000);
+    /* A->B->A Apply between observations: final values equal, Active revision differs. */
+    g_configuration_revision+=2;
+    assert(ProductSensorMeasurementService_ProcessAt(0,150));
+    assert(Snap(0).configuration_revision==rev+1 && !Snap(0).valid &&
+           Snap(0).recovery_good_samples==0);
+    Recover(0,160); rev=Snap(0).configuration_revision;
+    g_product_configuration.filterTimeConstantSeconds=2.0F;
+    assert(ProductSensorMeasurementService_ProcessAt(0,210));
+    assert(Snap(0).configuration_revision==rev+1 && !Snap(0).valid);
+    rev=Snap(0).configuration_revision;
+    assert(ProductSensorMeasurementService_ProcessAt(0,211));
+    assert(Snap(0).configuration_revision==rev);
+    g_configuration_revision=UINT16_MAX; Next(0,220);
+    rev=Snap(0).configuration_revision; g_configuration_revision=0; Next(0,240);
+    assert(Snap(0).configuration_revision==rev+1);
+    g_product_configuration.sensorType=PRODUCT_SENSOR_TYPE_VOLTAGE_0_10V;
+    Next(0,260); assert(!Snap(0).configuration_range_valid);
+}
 int main(void)
 {
     TestStartupAndDuplicates(); TestStaleAndFilterReset(); TestBrokenRecoveryAndQuarantine();
-    TestRawFaultBeforeMedian(); TestChannelAndClock(); TestUnknownAndConfiguration(); TestCjcRecovery();
-    puts("PASS: seven sensor recovery groups"); return 0;
+    TestRawFaultBeforeMedian(); TestChannelAndClock(); TestUnknownAndConfiguration(); TestCjcRecovery(); TestConfigurationGeneration();
+    puts("PASS: eight sensor recovery/configuration groups"); return 0;
 }

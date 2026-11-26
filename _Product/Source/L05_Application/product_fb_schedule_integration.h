@@ -76,6 +76,15 @@ typedef enum { PRODUCT_CH0_ALARM_PV_RAW=0,
 /* Main loop only; changing source requires all CH0 alarms disabled. */
 bool ProductFbScheduleIntegration_SetCh0AlarmPvSource(ProductCh0AlarmPvSource source);
 ProductCh0AlarmPvSource ProductFbScheduleIntegration_GetCh0AlarmPvSource(void);
+typedef struct {
+    uint32_t configuration_revision, notification_count;
+    bool moving_average_reset, pv_reset, pid_reset;
+    uint32_t alarm_channels_reset; /* bit per logical Alarm channel */
+} ProductChannelConfigurationNotification;
+/* Last delivered notification persists across FB release periods. Main loop only. */
+bool ProductFbScheduleIntegration_GetChannelConfigurationNotification(
+    uint8_t channel, ProductChannelConfigurationNotification *out);
+bool ProductFbScheduleIntegration_IsCh0PvConfigurationBlocked(void);
 void ProductFbScheduleIntegration_Process(uint32_t now_ms);
 /* Main-loop configuration and command APIs are on this product-owned adapter. */
 ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(void);

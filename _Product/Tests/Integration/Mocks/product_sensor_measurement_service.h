@@ -17,6 +17,9 @@ typedef struct
     uint16_t sensor_type;
     bool valid;
     uint16_t quality_flags;
+    uint32_t configuration_revision; /* Active Apply generation, separate from quality */
+    int32_t configuration_minimum, configuration_maximum; /* milli-C, nominal */
+    bool configuration_range_valid;
     uint32_t quality_revision;
 } ProductSensorMeasurementSnapshot_t;
 

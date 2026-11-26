@@ -13,6 +13,58 @@
 
 static ProductPvProcessingAdapter g_ch0_pv_processing;
 static uint32_t g_fb_now_ms;
+static bool g_pv_configuration_review_required;
+static bool g_configuration_seen[PRODUCT_AL_CHANNEL_COUNT];
+static ProductChannelConfigurationNotification g_notifications[PRODUCT_AL_CHANNEL_COUNT];
+#if PRODUCT_PID_CH0_TEST_ENABLED
+static bool g_pid_configuration_review_required;
+#endif
+
+static bool PvSourcesCompatible(const ProductPvProcessingConfig *config)
+{
+    unsigned i;
+    for (i=0;i<(config->switch_enabled ? 2U : 1U);++i) {
+        ProductSensorMeasurementSnapshot_t s;
+        if (!ProductSensorMeasurementService_GetSnapshot((uint8_t)config->source[i],&s) ||
+            !s.configuration_range_valid) return false;
+    }
+    return true;
+}
+/* Conservative reconfiguration contract: X coordinates and switch envelope
+ * must fit each new source's nominal temperature range. Y/offset semantics
+ * still require explicit application review; execution keeps finite/range guards. */
+static bool PvConfigurationFitsRanges(const ProductPvProcessingConfig *config)
+{
+    unsigned i,n;
+    bool known=g_configuration_seen[config->source[0]] ||
+        (config->switch_enabled && g_configuration_seen[config->source[1]]);
+    if (!known) return true;
+    for (i=0;i<(config->switch_enabled ? 2U : 1U);++i) {
+        ProductSensorMeasurementSnapshot_t s;
+        const FbInputLinearizationConfig *c=&config->linearization[i];
+        if (!ProductSensorMeasurementService_GetSnapshot((uint8_t)config->source[i],&s) ||
+            !s.configuration_range_valid) return false;
+        if (c->mode!=FB_INPUT_LINEARIZATION_BYPASS)
+            for (n=0;n<c->parameters.curve.count;++n)
+                if (c->parameters.curve.table[n].x<s.configuration_minimum ||
+                    c->parameters.curve.table[n].x>s.configuration_maximum) return false;
+        if (config->switch_enabled &&
+            (config->switch_config.sensor_low<s.configuration_minimum ||
+             config->switch_config.sensor_high>s.configuration_maximum)) return false;
+    }
+    return true;
+}
+static bool PvBlocked(void)
+{
+    return g_pv_configuration_review_required ||
+        (g_ch0_pv_processing.initialized &&
+         /* Before first publication, source validity gates startup. */
+         ((g_configuration_seen[g_ch0_pv_processing.config.source[0]] ||
+           (g_ch0_pv_processing.config.switch_enabled &&
+            g_configuration_seen[g_ch0_pv_processing.config.source[1]])) &&
+          !PvSourcesCompatible(&g_ch0_pv_processing.config)));
+}
+
 static ProductCh0AlarmPvSource g_ch0_alarm_source;
 static bool g_processed_alarm_has_sample;
 static uint32_t g_processed_alarm_sequence;
@@ -63,7 +115,7 @@ static bool ReadProcessingSample(void *context, uint16_t source, ProductPvSource
 static void ProcessCh0Pv(void *context, uint32_t elapsed_ms)
 {
     (void)elapsed_ms;
-    (void)ProductPvProcessing_Process(context,g_fb_now_ms,true,false);
+    (void)ProductPvProcessing_Process(context,g_fb_now_ms,!PvBlocked(),false);
 }
 
 static ProductAlarmLogicAdapter_t g_alarm_logic;
@@ -74,6 +126,14 @@ static ProductPidControllerInput_t g_ch0_pid_test_input;
 volatile uint32_t g_ch0_pid_test_enable, g_ch0_pid_test_reset;
 volatile int32_t g_ch0_pid_test_sv, g_ch0_pid_test_mv;
 volatile ProductCh0PidTestDiagnostics g_ch0_pid_test_watch;
+
+static bool PidSvInChannelRange(int32_t sv)
+{
+    ProductSensorMeasurementSnapshot_t s;
+    if (!g_configuration_seen[0]) return true;
+    return ProductSensorMeasurementService_GetSnapshot(0,&s) && s.configuration_range_valid &&
+        sv>=s.configuration_minimum && sv<=s.configuration_maximum;
+}
 
 static bool ReadPidTestSample(void *context, ProductPidControllerInput_t *input)
 {
@@ -86,7 +146,8 @@ static bool ReadPidTestSample(void *context, ProductPidControllerInput_t *input)
     input->sv=g_ch0_pid_test_sv;
     input->enable=g_ch0_pid_test_enable==1U;
     input->reset=g_ch0_pid_test_reset==1U;
-    input->valid=available && source.valid && source.unit==PRODUCT_PV_MILLICELSIUS &&
+    input->valid=!g_pid_configuration_review_required && PidSvInChannelRange(g_ch0_pid_test_sv) &&
+        available && source.valid && source.unit==PRODUCT_PV_MILLICELSIUS &&
         (uint32_t)(g_fb_now_ms-source.timestamp_ms)<=200U &&
         g_ch0_pid_test_mv>=0 && g_ch0_pid_test_mv<=1000 &&
         g_ch0_pid_test_sv>=FB_ALARM_LIMIT_MIN && g_ch0_pid_test_sv<=FB_ALARM_LIMIT_MAX;
@@ -99,10 +160,12 @@ bool ProductFbScheduleIntegration_ConfigureCh0PidTest(bool enable, int32_t sv, i
 {
     if (!g_ch0_pid_test.initialized || sv<FB_ALARM_LIMIT_MIN || sv>FB_ALARM_LIMIT_MAX ||
         mv<0 || mv>1000) return false;
+    if (!PidSvInChannelRange(sv)) return false;
     if (FbPid_SetTestMv(&g_ch0_pid_test.fb_pid,mv)!=FB_PID_STATUS_OK) return false;
     if (!ProductPidControllerAdapter_Reset(&g_ch0_pid_test)) return false;
     g_ch0_pid_test_enable=enable; g_ch0_pid_test_sv=sv; g_ch0_pid_test_reset=false;
     g_ch0_pid_test_mv=mv;
+    g_pid_configuration_review_required=false;
     return true;
 }
 bool ProductFbScheduleIntegration_ResetCh0PidTest(void)
@@ -324,6 +387,14 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
 {
     ProductPvProcessingConfig pv_config={0};
     g_fb_now_ms=now_ms;
+    for (unsigned ch=0;ch<PRODUCT_AL_CHANNEL_COUNT;++ch) {
+        g_configuration_seen[ch]=false;
+        g_notifications[ch]=(ProductChannelConfigurationNotification){0};
+    }
+    g_pv_configuration_review_required=false;
+#if PRODUCT_PID_CH0_TEST_ENABLED
+    g_pid_configuration_review_required=false;
+#endif
     g_ch0_measurement_revision=0U;
     g_ch0_ma_source_valid=false;
     pv_config.source[0]=0U;
@@ -375,11 +446,83 @@ ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(vo
     return &g_alarm_logic;
 }
 
+
+bool ProductFbScheduleIntegration_GetChannelConfigurationNotification(
+    uint8_t ch, ProductChannelConfigurationNotification *out)
+{
+    if (ch>=PRODUCT_AL_CHANNEL_COUNT || !out || !g_configuration_seen[ch]) return false;
+    *out=g_notifications[ch]; return true;
+}
+bool ProductFbScheduleIntegration_IsCh0PvConfigurationBlocked(void) { return PvBlocked(); }
+
+static void RefreshProcessedAlarmDomain(void)
+{
+    ProductSensorMeasurementSnapshot_t s;
+    bool bypass=!g_ch0_pv_processing.config.switch_enabled &&
+        g_ch0_pv_processing.config.linearization[0].mode==FB_INPUT_LINEARIZATION_BYPASS;
+    bool compatible=!PvBlocked();
+    int32_t minimum=FB_ALARM_LIMIT_MIN, maximum=FB_ALARM_LIMIT_MAX;
+    if (bypass) {
+        compatible=ProductSensorMeasurementService_GetSnapshot(
+            (uint8_t)g_ch0_pv_processing.config.source[0],&s) && s.configuration_range_valid;
+        if (compatible) { minimum=s.configuration_minimum; maximum=s.configuration_maximum; }
+    }
+    (void)ProductAlarmLogicAdapter_NotifyChannelConfigurationChanged(&g_alarm_logic,0U,
+        compatible,minimum,maximum);
+}
+
+static void DeliverConfigurationChanges(void)
+{
+    unsigned ch;
+    for (ch=0;ch<PRODUCT_AL_CHANNEL_COUNT;++ch) {
+        ProductSensorMeasurementSnapshot_t s;
+        ProductChannelConfigurationNotification *n=&g_notifications[ch];
+        bool pv_depends;
+        if (!ProductSensorMeasurementService_GetSnapshot((uint8_t)ch,&s)) continue;
+        if (!g_configuration_seen[ch] && s.configuration_revision==0U) continue;
+        if (g_configuration_seen[ch] && n->configuration_revision==s.configuration_revision) continue;
+        g_configuration_seen[ch]=true;
+        n->configuration_revision=s.configuration_revision; ++n->notification_count;
+        n->moving_average_reset=n->pv_reset=n->pid_reset=false;
+        n->alarm_channels_reset=0U;
+        pv_depends=g_ch0_pv_processing.config.source[0]==ch ||
+            (g_ch0_pv_processing.config.switch_enabled && g_ch0_pv_processing.config.source[1]==ch);
+        if (ch==0U) {
+            (void)ProductFbMovingAverageAdapter_Reset(&g_ch0_moving_average_adapter);
+            n->moving_average_reset=true;
+#if PRODUCT_PID_CH0_TEST_ENABLED
+            (void)ProductPidControllerAdapter_Reset(&g_ch0_pid_test);
+            g_ch0_pid_test_input=(ProductPidControllerInput_t){0};
+            g_pid_configuration_review_required=true; n->pid_reset=true;
+#endif
+        }
+        if (pv_depends) {
+            (void)ProductPvProcessing_Process(&g_ch0_pv_processing,g_fb_now_ms,false,true);
+            g_processed_alarm_has_sample=false; n->pv_reset=true;
+            if (g_ch0_pv_processing.config.switch_enabled ||
+                g_ch0_pv_processing.config.linearization[0].mode!=FB_INPUT_LINEARIZATION_BYPASS)
+                g_pv_configuration_review_required=true;
+        }
+        /* A raw Alarm belongs to its channel; processed CH0 follows actual PV sources. */
+        if (ch!=0U || g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_RAW) {
+            (void)ProductAlarmLogicAdapter_NotifyChannelConfigurationChanged(&g_alarm_logic,
+                (uint8_t)ch,s.configuration_range_valid,s.configuration_minimum,s.configuration_maximum);
+            n->alarm_channels_reset|=1UL<<ch;
+        }
+        if (pv_depends && g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_PROCESSED) {
+            /* Transformed-domain semantics require explicit reconfiguration review. */
+            RefreshProcessedAlarmDomain();
+            n->alarm_channels_reset|=1UL;
+        }
+    }
+}
+
 void ProductFbScheduleIntegration_Process(uint32_t now_ms)
 {
     ProductSensorMeasurementSnapshot_t measurement;
     bool source_valid;
     g_fb_now_ms=now_ms;
+    DeliverConfigurationChanges();
     source_valid = ProductSensorMeasurementService_GetSnapshot(0U, &measurement);
     if (source_valid)
     {
@@ -417,9 +560,13 @@ bool ProductFbScheduleIntegration_ConfigureCh0PvProcessing(const ProductPvProces
     if (config==NULL || config->source[0]>=PRODUCT_AL_CHANNEL_COUNT ||
         (config->switch_enabled && config->source[1]>=PRODUCT_AL_CHANNEL_COUNT)) return false;
     if (!ProductPvProcessing_ValidateConfig(config) || !g_ch0_pv_processing.initialized) return false;
+    if (!PvConfigurationFitsRanges(config)) return false;
     if (g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_PROCESSED &&
         !ProductAlarmLogicAdapter_ResetDisabledChannel(&g_alarm_logic,0U)) return false;
     if (!ProductPvProcessing_SetConfig(&g_ch0_pv_processing,config)) return false;
+    g_pv_configuration_review_required=false;
+    if (g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_PROCESSED)
+        RefreshProcessedAlarmDomain();
     g_processed_alarm_has_sample=false;
     return true;
 }
@@ -431,6 +578,18 @@ bool ProductFbScheduleIntegration_SetCh0AlarmPvSource(ProductCh0AlarmPvSource so
     if (source==g_ch0_alarm_source) return true;
     if (!ProductAlarmLogicAdapter_ResetDisabledChannel(&g_alarm_logic,0U)) return false;
     g_ch0_alarm_source=source; g_processed_alarm_has_sample=false;
+    if (g_configuration_seen[0] || (source==PRODUCT_CH0_ALARM_PV_PROCESSED &&
+        (g_configuration_seen[g_ch0_pv_processing.config.source[0]] ||
+         (g_ch0_pv_processing.config.switch_enabled &&
+          g_configuration_seen[g_ch0_pv_processing.config.source[1]])))) {
+        ProductSensorMeasurementSnapshot_t s;
+        if (source==PRODUCT_CH0_ALARM_PV_RAW &&
+            ProductSensorMeasurementService_GetSnapshot(0U,&s))
+            (void)ProductAlarmLogicAdapter_NotifyChannelConfigurationChanged(&g_alarm_logic,0U,
+                s.configuration_range_valid,s.configuration_minimum,s.configuration_maximum);
+        else if (source==PRODUCT_CH0_ALARM_PV_PROCESSED)
+            RefreshProcessedAlarmDomain();
+    }
     return true;
 }
 

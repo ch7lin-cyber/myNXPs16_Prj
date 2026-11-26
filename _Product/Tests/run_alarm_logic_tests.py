@@ -21,7 +21,8 @@ common += [platform / 'L04_FunctionBlock' / name for name in
 san = '--sanitize' in sys.argv
 with tempfile.TemporaryDirectory() as folder:
     for name in ['test_product_alarm_logic', 'test_product_fb_schedule_integration',
-                 'test_product_pv_schedule_integration', 'test_product_processed_alarm_source']:
+                 'test_product_pv_schedule_integration', 'test_product_processed_alarm_source',
+                 'test_product_channel_configuration_notification']:
         binary = Path(folder) / name
         cmd = ['cc', '-std=c99', '-O1' if san else '-O2', '-g', '-Wall',
                '-Wextra', '-Werror', '-pedantic']

@@ -68,6 +68,11 @@ typedef struct
     void *provider_context;
     void *pid_context;
     uint32_t cycle_count;
+    bool range_known[PRODUCT_AL_CHANNEL_COUNT];
+    bool temperature_compatible[PRODUCT_AL_CHANNEL_COUNT];
+    int32_t minimum[PRODUCT_AL_CHANNEL_COUNT], maximum[PRODUCT_AL_CHANNEL_COUNT];
+    bool alarm_blocked[PRODUCT_AL_CHANNEL_COUNT][PRODUCT_AL_ALARMS_PER_CHANNEL];
+    bool logic_blocked[PRODUCT_AL_LOGIC_COUNT];
     bool initialized;
 } ProductAlarmLogicAdapter_t;
 
@@ -82,6 +87,13 @@ bool ProductAlarmLogicAdapter_SetSetpoint(ProductAlarmLogicAdapter_t *adapter,
  * Clears runtime, peaks, queued commands and sample age; keeps config/SV. */
 bool ProductAlarmLogicAdapter_ResetDisabledChannel(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel);
+/* L05 notification, main loop only. Keeps config/SV, clears runtime/peaks/commands
+ * and transitive dependent Logic history, including forward references/cycles. */
+bool ProductAlarmLogicAdapter_NotifyChannelConfigurationChanged(
+    ProductAlarmLogicAdapter_t *adapter, uint8_t channel,
+    bool temperature_compatible, int32_t minimum, int32_t maximum);
+bool ProductAlarmLogicAdapter_AlarmParametersValid(const ProductAlarmLogicAdapter_t *adapter,
+    uint8_t channel, uint8_t alarm);
 bool ProductAlarmLogicAdapter_Command(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, uint8_t alarm, bool reset, bool clear_peak);
 bool ProductAlarmLogicAdapter_SetLogic(ProductAlarmLogicAdapter_t *adapter,

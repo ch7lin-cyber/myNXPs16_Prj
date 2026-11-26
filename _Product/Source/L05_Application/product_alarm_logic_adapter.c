@@ -89,6 +89,85 @@ bool ProductAlarmLogicAdapter_Command(ProductAlarmLogicAdapter_t *a,
     return true;
 }
 
+
+/* Validate the effective thresholds with wide arithmetic; never clamp parameters. */
+bool ProductAlarmLogicAdapter_AlarmParametersValid(const ProductAlarmLogicAdapter_t *a,
+    uint8_t ch, uint8_t i)
+{
+    const ProductAlAlarm_t *s;
+    int64_t hi, lo, sv;
+    bool use_hi=true, use_lo=true;
+    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT || i>=PRODUCT_AL_ALARMS_PER_CHANNEL)
+        return false;
+    s=&a->alarms[ch][i];
+    if (!s->enabled || s->config.mode==FB_ALARM_MODE_DISABLED) return true;
+    if (!a->range_known[ch]) return true; /* pre-notification compatibility */
+    if (!a->temperature_compatible[ch]) return false;
+    hi=s->config.alarm_high; lo=s->config.alarm_low; sv=a->setpoint[ch];
+    switch (s->config.mode) {
+        case FB_ALARM_MODE_RELATIVE_HIGH: use_lo=false; break;
+        case FB_ALARM_MODE_RELATIVE_LOW: use_hi=false; break;
+        case FB_ALARM_MODE_ABSOLUTE_HIGH: use_lo=false; break;
+        case FB_ALARM_MODE_ABSOLUTE_LOW: use_hi=false; break;
+        default: break;
+    }
+    if ((s->config.options & FB_ALARM_OPTION_STANDBY) &&
+        (sv<a->minimum[ch] || sv>a->maximum[ch])) return false;
+    if ((s->config.mode>=FB_ALARM_MODE_RELATIVE_HIGH_LOW &&
+         s->config.mode<=FB_ALARM_MODE_RELATIVE_LOW) ||
+        s->config.mode==FB_ALARM_MODE_HYSTERESIS_HIGH ||
+        s->config.mode==FB_ALARM_MODE_HYSTERESIS_LOW) {
+        if (sv<a->minimum[ch] || sv>a->maximum[ch]) return false;
+        if (s->config.mode==FB_ALARM_MODE_HYSTERESIS_HIGH) { hi=sv+hi; lo=sv+lo; }
+        else if (s->config.mode==FB_ALARM_MODE_HYSTERESIS_LOW) { hi=sv-hi; lo=sv-lo; }
+        else { hi=sv+hi; lo=sv-lo; }
+    }
+    return (!use_hi || (hi>=a->minimum[ch] && hi<=a->maximum[ch])) &&
+           (!use_lo || (lo>=a->minimum[ch] && lo<=a->maximum[ch]));
+}
+
+static void LogicClosure(const ProductAlarmLogicAdapter_t *a,
+    const bool channels[PRODUCT_AL_CHANNEL_COUNT], bool marked[PRODUCT_AL_LOGIC_COUNT])
+{
+    unsigned pass,i,n;
+    for (pass=0;pass<PRODUCT_AL_LOGIC_COUNT;++pass)
+        for (i=0;i<PRODUCT_AL_LOGIC_COUNT;++i)
+            for (n=0;n<FB_LOGIC_INPUT_COUNT;++n) {
+                const ProductAlSource_t *s=&a->logic[i].sources[n];
+                if (!a->logic[i].enabled || a->logic[i].config.operator_type==FB_LOGIC_OPERATOR_OFF)
+                    continue;
+                if ((s->kind==PRODUCT_AL_SOURCE_ALARM && channels[s->channel] &&
+                     a->alarms[s->channel][s->index].enabled &&
+                     a->alarms[s->channel][s->index].config.mode!=FB_ALARM_MODE_DISABLED) ||
+                    (s->kind==PRODUCT_AL_SOURCE_LOGIC && marked[s->index])) marked[i]=true;
+            }
+}
+
+bool ProductAlarmLogicAdapter_NotifyChannelConfigurationChanged(
+    ProductAlarmLogicAdapter_t *a, uint8_t ch, bool compatible, int32_t minimum, int32_t maximum)
+{
+    bool channels[PRODUCT_AL_CHANNEL_COUNT]={false};
+    bool affected[PRODUCT_AL_LOGIC_COUNT]={false};
+    unsigned i;
+    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT) return false;
+    a->range_known[ch]=true; a->temperature_compatible[ch]=compatible && minimum<=maximum;
+    a->minimum[ch]=minimum; a->maximum[ch]=maximum;
+    channels[ch]=true; LogicClosure(a,channels,affected);
+    for (i=0;i<PRODUCT_AL_ALARMS_PER_CHANNEL;++i) {
+        ProductAlAlarm_t *s=&a->alarms[ch][i];
+        FbAlarm_Initialize(&s->fb); s->output=(FbAlarmOutput_t){0};
+        s->output.status=FB_ALARM_STATUS_INVALID_INPUT;
+        s->reset_pending=s->clear_pending=s->reset_high=s->clear_high=false;
+        a->alarm_blocked[ch][i]=!ProductAlarmLogicAdapter_AlarmParametersValid(a,ch,(uint8_t)i);
+    }
+    a->has_sequence[ch]=false; a->sequence[ch]=0; a->age_ms[ch]=0;
+    for (i=0;i<PRODUCT_AL_LOGIC_COUNT;++i) if (affected[i]) {
+        FbLogic_Initialize(&a->logic[i].fb);
+        a->logic[i].output=(FbLogicOutput_t){0}; a->logic[i].valid=false;
+    }
+    return true;
+}
+
 static bool SourceValid(const ProductAlSource_t *s)
 {
     switch (s->kind)
@@ -163,6 +242,25 @@ static bool Resolve(const ProductAlarmLogicAdapter_t *a,
     }
 }
 
+static void RefreshBlocked(ProductAlarmLogicAdapter_t *a)
+{
+    unsigned ch,i,n,pass;
+    for (ch=0;ch<PRODUCT_AL_CHANNEL_COUNT;++ch)
+        for (i=0;i<PRODUCT_AL_ALARMS_PER_CHANNEL;++i)
+            a->alarm_blocked[ch][i]=!ProductAlarmLogicAdapter_AlarmParametersValid(a,(uint8_t)ch,(uint8_t)i);
+    (void)memset(a->logic_blocked,0,sizeof(a->logic_blocked));
+    for (pass=0;pass<PRODUCT_AL_LOGIC_COUNT;++pass)
+        for (i=0;i<PRODUCT_AL_LOGIC_COUNT;++i)
+            for (n=0;n<FB_LOGIC_INPUT_COUNT;++n) {
+                const ProductAlSource_t *s=&a->logic[i].sources[n];
+                if (!a->logic[i].enabled || a->logic[i].config.operator_type==FB_LOGIC_OPERATOR_OFF)
+                    continue;
+                if ((s->kind==PRODUCT_AL_SOURCE_ALARM && a->alarm_blocked[s->channel][s->index]) ||
+                    (s->kind==PRODUCT_AL_SOURCE_LOGIC && a->logic_blocked[s->index]))
+                    a->logic_blocked[i]=true;
+            }
+}
+
 static void RunLogic(ProductAlarmLogicAdapter_t *a, unsigned begin,
     unsigned end, uint32_t ms)
 {
@@ -171,7 +269,7 @@ static void RunLogic(ProductAlarmLogicAdapter_t *a, unsigned begin,
     {
         ProductAlLogic_t *slot = &a->logic[i];
         FbLogicInput_t input = {0};
-        bool valid = true;
+        bool valid = !a->logic_blocked[i];
         if (slot->enabled && slot->config.operator_type != FB_LOGIC_OPERATOR_OFF)
             for (n = 0; n < FB_LOGIC_INPUT_COUNT; ++n)
                 if (!Resolve(a, &slot->sources[n], &input.inputs[n])) valid = false;
@@ -188,6 +286,7 @@ void ProductAlarmLogicAdapter_Process(void *context, uint32_t ms)
     unsigned ch, i;
     if (!Ready(a)) return;
     ++a->cycle_count;
+    RefreshBlocked(a);
     for (ch = 0; ch < PRODUCT_AL_CHANNEL_COUNT; ++ch)
     {
         ProductAlSample_t sample = {0};
@@ -205,7 +304,7 @@ void ProductAlarmLogicAdapter_Process(void *context, uint32_t ms)
             ProductAlAlarm_t *slot = &a->alarms[ch][i];
             FbAlarmInput_t input = {0};
             input.enable = slot->enabled;
-            input.valid = available && sample.valid &&
+            input.valid = !a->alarm_blocked[ch][i] && available && sample.valid &&
                 (PRODUCT_AL_MAX_SAMPLE_AGE_MS == 0U ||
                  a->age_ms[ch] <= PRODUCT_AL_MAX_SAMPLE_AGE_MS);
             input.process_value = sample.pv;

@@ -97,6 +97,19 @@ int main(void)
     g_ch0_pid_test_mv=100; Fresh(104U); assert(g_ch0_pid_test_watch.controller.output_valid);
     g_ch0_pid_test_enable=235; Fresh(124U);
     assert(!g_ch0_pid_test_watch.controller.output_valid);
+    /* A configuration generation clears MV immediately, even before next release. */
+    sample.configuration_revision=1; sample.configuration_range_valid=true;
+    sample.configuration_minimum=-200000; sample.configuration_maximum=400000;
+    Fresh(125U); assert(!Read().controller.output_valid);
+    g_ch0_pid_test_enable=1; Fresh(144U); assert(!Read().controller.output_valid);
+    assert(ProductFbScheduleIntegration_ResetCh0PidTest());
+    Fresh(164U); assert(!Read().controller.output_valid); /* reset is not approval */
+    assert(!ProductFbScheduleIntegration_ConfigureCh0PidTest(true,450000,100));
+    assert(ProductFbScheduleIntegration_ConfigureCh0PidTest(true,30000,100));
+    Fresh(184U); assert(Read().controller.output_valid);
+    g_ch0_pid_test_sv=450000; Fresh(204U); assert(!Read().controller.output_valid);
+    g_ch0_pid_test_sv=30000; Fresh(224U); assert(Read().controller.output_valid);
+    sample.configuration_revision=2; Fresh(225U); assert(!Read().controller.output_valid);
     puts("PASS: CH0 snapshot -> shared PID callback -> L05 adapter -> L04 fixed MV; guards, reset, timing and recovery");
     return 0;
 }
