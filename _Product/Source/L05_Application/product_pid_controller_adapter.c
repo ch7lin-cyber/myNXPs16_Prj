@@ -98,6 +98,13 @@ FbPidStatus_t ProductPidControllerAdapter_SetParameter(
     return FbPid_SetParameter(&adapter->fb_pid, parameter, value);
 }
 
+bool ProductPidControllerAdapter_IsAutoTuneRunning(const ProductPidControllerAdapter_t *adapter)
+{
+    return adapter != NULL && adapter->initialized && adapter->fb_pid.initialized &&
+        adapter->fb_pid.config.mode == FB_PID_MODE_AUTO_TUNE &&
+        adapter->fb_pid.active && !adapter->fb_pid.auto_tune_completed;
+}
+
 void ProductPidControllerAdapter_Process(void *context, uint32_t elapsed_ms)
 {
     ProductPidControllerAdapter_t *adapter = (ProductPidControllerAdapter_t *)context;

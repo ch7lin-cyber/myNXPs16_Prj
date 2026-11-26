@@ -111,3 +111,8 @@ python _Product/Tests/test_safety_evk_mode.py
 新增案例包含：A→B→A、Apply revision 繞回、設定世代繞回、濾波時間改變、重複觀察不重送、未到 FB 釋放時間且 Snapshot 已 valid 仍立即清歷史、跨通道隔離、向前參照／間接 Logic、越界 Alarm 持續封鎖及修正恢復、相對遲滯界限、非溫度來源、未啟用第二來源不受影響、processed Alarm 隨實際來源清除、PV 明確確認及新外框拒絕、PID Reset 不能代替確認、SV 越界拒絕。
 
 Host 結果為軟體行為證據。MCUXpresso Debug／Release／SafetyTest 完整建置、Flash／RAM 容量及正式板的感測器切換、連續有效樣本時序、PWM／DO 實體輸出仍列待驗證，不能由此推定上板通過。
+
+
+## 一般 SV 更新與設定變更的區別
+
+單純修改 SV 使用[統一 SetChannelSv](CHANNEL_SV_UPDATE.md)，不觸發本文件的清歷史通知，也不解除 PV／PID 的設定重新確認旗標。SWD 非法 SV 請求會被拒絕並保留舊目標，不再直接當成無效控制輸入。

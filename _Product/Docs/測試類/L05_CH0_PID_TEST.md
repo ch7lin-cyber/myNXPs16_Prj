@@ -50,7 +50,8 @@ PV／SV 公開刻度均為 0.001°C；固定 MV 使用 0.1%。測試後端不使
 | 運算式 | 用途 |
 |---|---|
 | `g_ch0_pid_test_enable` | uint32，只有寫 1 才啟用；0 或其他數值停用；預設 0 |
-| `g_ch0_pid_test_sv` | int32，0.001°C；預設 25000 |
+| `g_ch0_pid_test_sv` | int32，0.001°C；SV 請求影子值，初始 0 但尚未接受設定；主迴圈經統一入口驗證，拒絕時回復舊目標 |
+| `g_ch0_pid_test_sv_result` | 最近一次 SWD SV 請求的 `ProductChannelSvResult` |
 | `g_ch0_pid_test_mv` | int32，0.1%；預設 0，合法 0～1000；超範圍輸出無效 |
 | `g_ch0_pid_test_reset` | uint32，寫 1 送出一次重置，取樣後清回 0 |
 | `g_ch0_pid_test_watch.input` | 最後一次 provider 的 PV／SV／序號／有效性 |
@@ -58,7 +59,7 @@ PV／SV 公開刻度均為 0.001°C；固定 MV 使用 0.1%。測試後端不使
 | `g_ch0_pid_test_watch.controller.callback_count` | 執行次數 |
 | `g_ch0_pid_test_watch.controller.last_elapsed_ms` | 本次週期 |
 
-在初始化完成後暫停，設定 enable=1、sv=30000、mv=100，再 Resume 約 1 秒後 Suspend。快照應顯示真實 PV、SV=30000、有效時 MV=100。不要修改 watch，它是每次 callback 完成後更新的結果副本；setter 後的立即狀態以 Get API 為準，watch 要等下一 callback。volatile 不提供跨執行中多欄位讀取的一致性，應暫停後讀取／修改，不以 Live Watch 的混合時間資料判斷。
+先等待 L03 發佈有效的溫度設定量程，並以 Configure 完成設定通知要求的明確確認。之後可在暫停時設定 enable=1、sv=30000、mv=100，再 Resume 約 1 秒後 Suspend。快照應顯示真實 PV、SV=30000、有效時 MV=100。不要修改 watch，它是每次 callback 完成後更新的結果副本；setter 後的立即狀態以 Get API 為準，watch 要等下一 callback。volatile 不提供跨執行中多欄位讀取的一致性，應暫停後讀取／修改，不以 Live Watch 的混合時間資料判斷。
 
 Host 已補測 SWD 控制值、單次重置、非法 MV／enable 與快照更新；ASan／UBSan 通過，另以 Host LTO 編譯並確認五個 SWD 全域符號保留。這不代表已驗證 ARM Debugger 的載入、符號顯示或目標板時序。
 
@@ -66,11 +67,11 @@ Host 已補測 SWD 控制值、單次重置、非法 MV／enable 與快照更新
 
 | API | 用途與限制 |
 |---|---|
-| `ConfigureCh0PidTest(enable, sv, mv)` | 設定測試 SV、固定 MV 及開關；完整名稱為 `ProductFbScheduleIntegration_ConfigureCh0PidTest`。SV 範圍 -200000～3000000（暫沿用產品溫度範圍），MV 0～1000；非法設定不變更現況。有效設定立即清空舊輸出，下一排程才運算 |
+| `ConfigureCh0PidTest(enable, sv, mv)` | 設定測試 SV、固定 MV 及開關；完整名稱為 `ProductFbScheduleIntegration_ConfigureCh0PidTest`。SV 先經統一 SetChannelSv 驗證目前名義量程及相對警報有效界限，另受原有 -200000～3000000 限制；MV 0～1000；非法設定不變更現況。有效設定立即清空舊輸出，下一排程才運算 |
 | `ResetCh0PidTest()` | 完整名稱同前綴；立即清空舊輸出，並在下一排程送出一次 RESET。該次不產生有效 MV，後續有效週期恢復固定值 |
 | `GetCh0PidTest(&diagnostics)` | 完整名稱同前綴；取得最後 provider 輸入、adapter 診斷及 `fixed_mv_test_backend=true`。輸入是最後一次取樣的診斷，不是 setter 的立即回讀 |
 
-初始化 `ProductFbScheduleIntegration_Init()` 後、主迴圈開始執行前，可由測試入口加入：
+在 `ProductFbScheduleIntegration_Init()` 後，等待 L03 已發佈設定量程、L05 Process 已消費設定通知，再由主迴圈的單次測試入口加入（不要每輪重複 Configure）：
 
 ```c
 #if PRODUCT_PID_CH0_TEST_ENABLED
@@ -136,3 +137,8 @@ MCUXpresso 的 `arm-none-eabi-gcc` 編譯的是 MCU 程式，不能用來產生 
 1. MCU 測試組態編譯、CH0 實際量測與 SWD 觀察 MV；確認週期、有效性與恢復。
 2. 接入產品輸出限制、既有 SYSTEM／Safety／輸出服務，再測 PWM CH0。不能直接把此測試 MV 繞過既有輸出權責寫到硬體。
 3. 取得相容 CKLIB，移除測試組態巨集，沿用 L05 provider／callback 並完成參數映射與真正閉迴路測試。固定 MV 通過不等同 PID 控制效果已驗證。
+
+
+## 一般調整 SV（2026-11-27）
+
+日常只改目標，使用 `ProductFbScheduleIntegration_SetChannelSv(0U, sv)`；保留固定 MV、enable 與既有輸出，下一 callback 取得新目標。Configure 仍是會 Reset 的完整設定／確認入口。非法 SWD SV 請求回復舊值，不會使有效舊目標瞬間 invalid；MV 越界的既有失效規則不變。AT 拒絕規則與 Ramp 擴充見[統一 SV 契約](../功能類/CHANNEL_SV_UPDATE.md)。

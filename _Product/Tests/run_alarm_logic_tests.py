@@ -9,7 +9,8 @@ root = Path(__file__).resolve().parents[2]
 platform = root / '_Modules/PlatformCore'
 includes = [root / '_Product/Tests/Integration/Mocks', root / '_Product/Config',
             root / '_Product/Source/L05_Application', root / '_Product/Source/L03_System',
-            platform / 'L04_FunctionBlock/Utility', platform / 'L04_FunctionBlock/Alarm',
+            platform / 'L04_FunctionBlock/Utility', platform / 'L04_FunctionBlock/Control',
+            platform / 'L04_FunctionBlock/Alarm',
             platform / 'L03_SystemPlatform/SystemService/DigitalInputService']
 common = [root / '_Product/Source/L05_Application' / name for name in
           ['product_fb_schedule.c', 'product_fb_schedule_integration.c',
@@ -17,12 +18,13 @@ common = [root / '_Product/Source/L05_Application' / name for name in
            'product_pv_processing_adapter.c']]
 common += [platform / 'L04_FunctionBlock' / name for name in
            ['Utility/FbMovingAverage.c', 'Utility/FbLogic.c', 'Alarm/FbAlarm.c',
-            'Utility/FbLinearization.c', 'Utility/FbSignalLinearization.c', 'Utility/FbInputSwitchOver.c']]
+            'Utility/FbLinearization.c', 'Utility/FbSignalLinearization.c', 'Utility/FbInputSwitchOver.c',
+            'Control/FbSetpointRamp.c']]
 san = '--sanitize' in sys.argv
 with tempfile.TemporaryDirectory() as folder:
     for name in ['test_product_alarm_logic', 'test_product_fb_schedule_integration',
                  'test_product_pv_schedule_integration', 'test_product_processed_alarm_source',
-                 'test_product_channel_configuration_notification']:
+                 'test_product_channel_configuration_notification', 'test_product_channel_sv']:
         binary = Path(folder) / name
         cmd = ['cc', '-std=c99', '-O1' if san else '-O2', '-g', '-Wall',
                '-Wextra', '-Werror', '-pedantic']

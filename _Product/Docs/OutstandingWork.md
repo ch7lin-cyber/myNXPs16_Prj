@@ -350,3 +350,13 @@ PlatformCore 基準：`80081ed`
 - [ ] 正式板切換 TC-K→TC-T／Pt100／類比輸入，確認參數越界持續封鎖、修正參數後才恢復，以及 3 筆新有效樣本條件。
 - [ ] 正式板量測切換與恢復期間 PWM／DO；驗證 PV 折線／雙來源確認流程與無關通道隔離。
 - [ ] 日後新增正式 PID 或其他 FB 時補上實際相依與參數驗證，不以目前固定 MV 測試作為正式 PID 的通過證據。
+
+
+## L05 統一 SV 更新（2026-11-27）
+
+- [x] SetChannelSv 目標／相對與遲滯界限驗證、PID／Ramp 兩階段交付、一般變更保留歷史、AT 執行中拒絕新目標。
+- [x] 整合 Alarm 舊 setter 與 CH0 固定 MV PID 測試入口；Host／sanitizer 與實際 L04 Ramp 介面測試，見[功能契約](功能類/CHANNEL_SV_UPDATE.md)。
+- [ ] MCUXpresso Debug／Release／SafetyTest 完整建置及 Flash／RAM 容量確認。
+- [ ] 後續正式 SV Modbus／UI／NVM 恢復入口接入統一 API，並處理拒絕結果；目前未新增寫入寄存器。
+- [ ] 正式 PID／AT 與 Ramp 排程接入後，驗證 AT 拒絕時序、運行 SV 路由及目標改變時的實際控制響應。
+- [ ] 正式板量測調整 SV、警報轉換與 Safety 封鎖期間的 PWM／DO 實體輸出。

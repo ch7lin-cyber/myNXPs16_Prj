@@ -31,6 +31,8 @@ typedef struct
 typedef bool (*ProductAlReadSample_t)(void *, uint8_t, ProductAlSample_t *);
 typedef bool (*ProductAlReadBoolean_t)(void *, uint8_t, bool *);
 typedef void (*ProductAlPidStep_t)(void *, uint32_t);
+/* Optional product owner: integrated instances delegate SV requests to L05. */
+typedef bool (*ProductAlSetpointHandler_t)(void *, uint8_t, int32_t);
 
 typedef struct
 {
@@ -59,12 +61,15 @@ typedef struct
     ProductAlAlarm_t alarms[PRODUCT_AL_CHANNEL_COUNT][PRODUCT_AL_ALARMS_PER_CHANNEL];
     ProductAlLogic_t logic[PRODUCT_AL_LOGIC_COUNT];
     int32_t setpoint[PRODUCT_AL_CHANNEL_COUNT];
+    bool setpoint_configured[PRODUCT_AL_CHANNEL_COUNT];
     uint32_t sequence[PRODUCT_AL_CHANNEL_COUNT];
     uint32_t age_ms[PRODUCT_AL_CHANNEL_COUNT];
     bool has_sequence[PRODUCT_AL_CHANNEL_COUNT];
     ProductAlReadSample_t read_sample;
     ProductAlReadBoolean_t read_boolean;
     ProductAlPidStep_t pid_step;
+    ProductAlSetpointHandler_t setpoint_handler;
+    void *setpoint_context;
     void *provider_context;
     void *pid_context;
     uint32_t cycle_count;
@@ -81,6 +86,9 @@ bool ProductAlarmLogicAdapter_Init(ProductAlarmLogicAdapter_t *adapter,
     void *provider_context);
 bool ProductAlarmLogicAdapter_SetAlarm(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, uint8_t alarm, const FbAlarmConfig_t *config, bool enabled);
+/* Pure validation of enabled SV-relative/hysteresis bounds; no state change. */
+bool ProductAlarmLogicAdapter_SetpointFitsRange(const ProductAlarmLogicAdapter_t *adapter,
+    uint8_t channel, int32_t sv, bool temperature_compatible, int32_t minimum, int32_t maximum);
 bool ProductAlarmLogicAdapter_SetSetpoint(ProductAlarmLogicAdapter_t *adapter,
     uint8_t channel, int32_t sv);
 /* Source/configuration transition only; rejects if any channel alarm enabled.

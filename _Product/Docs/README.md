@@ -4,7 +4,7 @@
 
 | 分類 | 內容 | 數量 |
 |---|---|---|
-| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 37 份 |
+| [功能類](功能類/) | 架構、功能契約、設定、操作與整合設計 | 38 份 |
 | [測試類](測試類/) | 測試操作、注入方式、驗證步驟與判定紀錄 | 6 份 |
 | [尚未完成工作](OutstandingWork.md) | 跨功能／測試的待辦與待驗證事項 | 1 份 |
 
@@ -27,6 +27,8 @@
 | [DirectUpdate](功能類/FW_UPDATE_LAYOUT.md) | 直接覆寫、FINISH、ACTIVE 與中斷後 recovery |
 
 ## 功能類
+
+- [L05 統一 SV 更新入口](功能類/CHANNEL_SV_UPDATE.md)
 
 - [通道設定變更通知與 FB 恢復契約](功能類/CHANNEL_CONFIGURATION_NOTIFICATION.md)
 

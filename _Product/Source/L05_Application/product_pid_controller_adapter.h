@@ -91,6 +91,7 @@ FbPidStatus_t ProductPidControllerAdapter_SetParameter(
     ProductPidControllerAdapter_t *adapter,
     FbPidParameter_t parameter,
     int32_t value);
+bool ProductPidControllerAdapter_IsAutoTuneRunning(const ProductPidControllerAdapter_t *adapter);
 void ProductPidControllerAdapter_Process(void *context, uint32_t elapsed_ms);
 bool ProductPidControllerAdapter_GetOutput(
     const ProductPidControllerAdapter_t *adapter,

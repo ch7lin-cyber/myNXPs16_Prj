@@ -38,6 +38,8 @@ int main(void)
     FbPid_Deinit(&fb);
     assert(!ProductFbScheduleIntegration_ConfigureCh0PidTest(true,30000,100));
     assert(ProductFbScheduleIntegration_Init(0));
+    sample.configuration_range_valid=true;
+    sample.configuration_minimum=-200000; sample.configuration_maximum=1300000;
     sample.sensor_type=PRODUCT_SENSOR_TYPE_TC_K; sample.valid=true; sample.input_error=61;
     sample.processed_timestamp_valid=true; sample.engineering_value=25123;
     Fresh(20);
@@ -107,9 +109,34 @@ int main(void)
     assert(!ProductFbScheduleIntegration_ConfigureCh0PidTest(true,450000,100));
     assert(ProductFbScheduleIntegration_ConfigureCh0PidTest(true,30000,100));
     Fresh(184U); assert(Read().controller.output_valid);
-    g_ch0_pid_test_sv=450000; Fresh(204U); assert(!Read().controller.output_valid);
+    g_ch0_pid_test_sv=450000; Fresh(204U);
+    assert(g_ch0_pid_test_sv_result==PRODUCT_CHANNEL_SV_OUT_OF_RANGE);
+    assert(g_ch0_pid_test_sv==30000 && Read().input.sv==30000 && Read().controller.output_valid);
     g_ch0_pid_test_sv=30000; Fresh(224U); assert(Read().controller.output_valid);
     sample.configuration_revision=2; Fresh(225U); assert(!Read().controller.output_valid);
+    /* Changing SV keeps a configuration-review block; only Configure acknowledges it. */
+    assert(ProductFbScheduleIntegration_SetChannelSv(0,31000)==PRODUCT_CHANNEL_SV_OK);
+    Fresh(244U); assert(!Read().controller.output_valid);
+    assert(ProductFbScheduleIntegration_ConfigureCh0PidTest(true,31000,100));
+    Fresh(264U); d=Read(); assert(d.controller.output_valid);
+    assert(ProductFbScheduleIntegration_SetChannelSv(0,32000)==PRODUCT_CHANNEL_SV_OK);
+    assert(Read().controller.output_valid && Read().controller.output.mv[0]==100);
+    assert(Read().controller.callback_count==d.controller.callback_count);
+    assert(ProductFbScheduleIntegration_GetAlarmLogicAdapter()->setpoint[0]==32000);
+    assert(g_ch0_pid_test_sv==32000);
+    Fresh(284U); assert(Read().input.sv==32000 && Read().controller.output_valid);
+    assert(!ProductFbScheduleIntegration_BindChannelSvConsumer(0,PRODUCT_CHANNEL_SV_PID,NULL));
+    {
+        ProductPidControllerAdapter_t probe={0};
+        assert(!ProductPidControllerAdapter_IsAutoTuneRunning(NULL));
+        probe.initialized=true; probe.fb_pid.initialized=true;
+        probe.fb_pid.config.mode=FB_PID_MODE_AUTO_TUNE; probe.fb_pid.active=true;
+        assert(ProductPidControllerAdapter_IsAutoTuneRunning(&probe));
+        probe.fb_pid.auto_tune_completed=true;
+        assert(!ProductPidControllerAdapter_IsAutoTuneRunning(&probe));
+        probe.fb_pid.auto_tune_completed=false; probe.fb_pid.active=false;
+        assert(!ProductPidControllerAdapter_IsAutoTuneRunning(&probe));
+    }
     puts("PASS: CH0 snapshot -> shared PID callback -> L05 adapter -> L04 fixed MV; guards, reset, timing and recovery");
     return 0;
 }

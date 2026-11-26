@@ -46,7 +46,7 @@
 
 Sample sequence 改變時觀察年齡歸零；相同 sequence 仍每個週期執行 FB，以推進延遲。觀察年齡超過上限、Snapshot 取得失敗或 valid=false 時，Alarm 依 L04 無效輸入契約立即 OFF／清除執行狀態，峰值保留。新樣本恢復後重新待機及計時。這是從 L05 觀察到的年齡，非 Sensor 擷取時間戳；初始化第一次讀取視為新樣本。
 
-SV 由 SetSetpoint() 提供，單位同為 0.001°C，預設 0。啟用相對或遲滯模式前，產品須明確設定 SV；不自動採用 PID SV。
+SV 單位為 0.001°C。獨立 adapter 可用 SetSetpoint() 本地設定；L05 整合實例會將此入口轉送統一 SetChannelSv，與已綁定 PID／Ramp 同步交付。尚未接受有效 SV 時，相對／遲滯／待機 Alarm 保持封鎖；一般 SV 更新不清歷史，詳見[統一 SV 更新](CHANNEL_SV_UPDATE.md)。
 
 ## 設定與結果 API
 
@@ -55,7 +55,7 @@ SV 由 SetSetpoint() 提供，單位同為 0.001°C，預設 0。啟用相對或
 | API | 用途 |
 |---|---|
 | SetAlarm(adapter, channel, alarm, config, enabled) | 驗證後複製單組 Alarm 設定；新設定在下一個 callback 套用。 |
-| SetSetpoint(adapter, channel, sv) | 更新該通道所有 Alarm 使用的 SV。 |
+| SetSetpoint(adapter, channel, sv) | 獨立實例更新本地 SV；整合實例轉送統一驗證，拒絕時保留舊值。 |
 | Command(adapter, channel, alarm, reset, clear_peak) | 提出獨立 Reset／Peak Clear 命令；不會直接改寫結果。 |
 | SetLogic(adapter, logic, config, sources, enabled) | 驗證四個來源，複製設定並清除舊結果／計時；下一個 callback 執行。 |
 | SetPidStep(adapter, callback, context) | 註冊中間的 PID 執行位置；NULL 取消。 |

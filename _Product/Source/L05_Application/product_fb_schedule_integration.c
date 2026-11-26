@@ -13,6 +13,9 @@
 
 static ProductPvProcessingAdapter g_ch0_pv_processing;
 static uint32_t g_fb_now_ms;
+static bool g_sv_ready, g_sv_busy;
+static ProductChannelSv g_channel_sv[PRODUCT_AL_CHANNEL_COUNT];
+static ProductChannelSvConsumer g_sv_consumers[PRODUCT_AL_CHANNEL_COUNT][PRODUCT_CHANNEL_SV_CONSUMER_COUNT];
 static bool g_pv_configuration_review_required;
 static bool g_configuration_seen[PRODUCT_AL_CHANNEL_COUNT];
 static ProductChannelConfigurationNotification g_notifications[PRODUCT_AL_CHANNEL_COUNT];
@@ -125,6 +128,7 @@ static ProductPidControllerAdapter_t g_ch0_pid_test;
 static ProductPidControllerInput_t g_ch0_pid_test_input;
 volatile uint32_t g_ch0_pid_test_enable, g_ch0_pid_test_reset;
 volatile int32_t g_ch0_pid_test_sv, g_ch0_pid_test_mv;
+volatile uint32_t g_ch0_pid_test_sv_result;
 volatile ProductCh0PidTestDiagnostics g_ch0_pid_test_watch;
 
 static bool PidSvInChannelRange(int32_t sv)
@@ -143,14 +147,15 @@ static bool ReadPidTestSample(void *context, ProductPidControllerInput_t *input)
     available=ReadProcessingSample(NULL,0U,&source);
     input->sample_sequence=source.sequence;
     input->pv=source.value;
-    input->sv=g_ch0_pid_test_sv;
+    input->sv=g_channel_sv[0].target;
     input->enable=g_ch0_pid_test_enable==1U;
     input->reset=g_ch0_pid_test_reset==1U;
-    input->valid=!g_pid_configuration_review_required && PidSvInChannelRange(g_ch0_pid_test_sv) &&
+    input->valid=g_channel_sv[0].configured && !g_pid_configuration_review_required &&
+        PidSvInChannelRange(input->sv) &&
         available && source.valid && source.unit==PRODUCT_PV_MILLICELSIUS &&
         (uint32_t)(g_fb_now_ms-source.timestamp_ms)<=200U &&
         g_ch0_pid_test_mv>=0 && g_ch0_pid_test_mv<=1000 &&
-        g_ch0_pid_test_sv>=FB_ALARM_LIMIT_MIN && g_ch0_pid_test_sv<=FB_ALARM_LIMIT_MAX;
+        input->sv>=FB_ALARM_LIMIT_MIN && input->sv<=FB_ALARM_LIMIT_MAX;
     g_ch0_pid_test_reset=false;
     g_ch0_pid_test_input=*input;
     return true; /* unavailable source is explicit invalid input, never fake PV */
@@ -161,6 +166,10 @@ bool ProductFbScheduleIntegration_ConfigureCh0PidTest(bool enable, int32_t sv, i
     if (!g_ch0_pid_test.initialized || sv<FB_ALARM_LIMIT_MIN || sv>FB_ALARM_LIMIT_MAX ||
         mv<0 || mv>1000) return false;
     if (!PidSvInChannelRange(sv)) return false;
+    {
+        ProductChannelSvResult result=ProductFbScheduleIntegration_SetChannelSv(0U,sv);
+        if (result!=PRODUCT_CHANNEL_SV_OK && result!=PRODUCT_CHANNEL_SV_UNCHANGED) return false;
+    }
     if (FbPid_SetTestMv(&g_ch0_pid_test.fb_pid,mv)!=FB_PID_STATUS_OK) return false;
     if (!ProductPidControllerAdapter_Reset(&g_ch0_pid_test)) return false;
     g_ch0_pid_test_enable=enable; g_ch0_pid_test_sv=sv; g_ch0_pid_test_reset=false;
@@ -179,6 +188,25 @@ bool ProductFbScheduleIntegration_GetCh0PidTest(ProductCh0PidTestDiagnostics *ou
     out->input=g_ch0_pid_test_input; out->fixed_mv_test_backend=true;
     return ProductPidControllerAdapter_GetDiagnostics(&g_ch0_pid_test,&out->controller);
 }
+static ProductChannelSvResult ValidatePidTestSv(void *context, int32_t sv)
+{
+    const ProductPidControllerAdapter_t *a=context;
+    (void)sv;
+    return a->initialized ? PRODUCT_CHANNEL_SV_OK : PRODUCT_CHANNEL_SV_CONSUMER_REJECTED;
+}
+static bool PidTestAtRunning(void *context)
+{ return ProductPidControllerAdapter_IsAutoTuneRunning(context); }
+static void CommitPidTestSv(void *context, int32_t sv)
+{ (void)context; g_ch0_pid_test_sv=sv; }
+static void HandlePidTestSvRequest(void)
+{
+    if ((g_channel_sv[0].configured && g_ch0_pid_test_sv!=g_channel_sv[0].target) ||
+        (!g_channel_sv[0].configured && (g_ch0_pid_test_enable==1U || g_ch0_pid_test_sv!=0))) {
+        g_ch0_pid_test_sv_result=ProductFbScheduleIntegration_SetChannelSv(0U,g_ch0_pid_test_sv);
+        /* Rejected commands keep the previous accepted target; no invalid input pulse. */
+        g_ch0_pid_test_sv=g_channel_sv[0].configured ? g_channel_sv[0].target : 0;
+    }
+}
 static void ProcessCh0PidTest(void *context, uint32_t elapsed_ms)
 {
     ProductCh0PidTestDiagnostics snapshot;
@@ -189,6 +217,130 @@ static void ProcessCh0PidTest(void *context, uint32_t elapsed_ms)
         g_ch0_pid_test_watch=snapshot;
 }
 #endif
+
+/* Derive validation from current Snapshot metadata, even before the next
+ * notification delivery; do not validate a new SV against a stale old range. */
+static bool AlarmSvDomain(uint8_t ch, const ProductSensorMeasurementSnapshot_t *physical,
+    int32_t *minimum, int32_t *maximum)
+{
+    const ProductPvProcessingConfig *c=&g_ch0_pv_processing.config;
+    ProductSensorMeasurementSnapshot_t source;
+    unsigned i;
+    *minimum=physical->configuration_minimum; *maximum=physical->configuration_maximum;
+    if (ch!=0U || g_ch0_alarm_source==PRODUCT_CH0_ALARM_PV_RAW) return true;
+    if (!c->switch_enabled && c->linearization[0].mode==FB_INPUT_LINEARIZATION_BYPASS) {
+        if (!ProductSensorMeasurementService_GetSnapshot((uint8_t)c->source[0],&source) ||
+            !source.configuration_range_valid || !IsTemperatureSensor(source.sensor_type)) return false;
+        *minimum=source.configuration_minimum; *maximum=source.configuration_maximum;
+        return true;
+    }
+    *minimum=FB_ALARM_LIMIT_MIN; *maximum=FB_ALARM_LIMIT_MAX;
+    if (PvBlocked()) return false;
+    for (i=0;i<(c->switch_enabled ? 2U : 1U);++i) {
+        uint8_t src=(uint8_t)c->source[i];
+        if (!ProductSensorMeasurementService_GetSnapshot(src,&source) ||
+            source.configuration_revision!=g_notifications[src].configuration_revision) return false;
+    }
+    return true;
+}
+
+/* A transaction publishes targets, not computed FB outputs. Consumers execute
+ * on their next release. Serialization provides atomicity relative to callbacks. */
+ProductChannelSvResult ProductFbScheduleIntegration_SetChannelSv(uint8_t ch, int32_t sv)
+{
+    ProductSensorMeasurementSnapshot_t s;
+    int32_t minimum, maximum;
+    unsigned i;
+    bool alarm_compatible;
+    ProductChannelSvResult result=PRODUCT_CHANNEL_SV_OK;
+    if (!g_sv_ready) return PRODUCT_CHANNEL_SV_NOT_INITIALIZED;
+    if (ch>=PRODUCT_AL_CHANNEL_COUNT) return PRODUCT_CHANNEL_SV_INVALID_ARGUMENT;
+    if (g_sv_busy) return PRODUCT_CHANNEL_SV_BUSY;
+    if (!ProductSensorMeasurementService_GetSnapshot(ch,&s) ||
+        !s.configuration_range_valid || !IsTemperatureSensor(s.sensor_type) ||
+        s.configuration_minimum>s.configuration_maximum)
+        return PRODUCT_CHANNEL_SV_RANGE_UNAVAILABLE;
+    if (sv<s.configuration_minimum || sv>s.configuration_maximum)
+        return PRODUCT_CHANNEL_SV_OUT_OF_RANGE;
+    alarm_compatible=AlarmSvDomain(ch,&s,&minimum,&maximum);
+    if (!ProductAlarmLogicAdapter_SetpointFitsRange(&g_alarm_logic,ch,sv,alarm_compatible,minimum,maximum))
+        return PRODUCT_CHANNEL_SV_ALARM_RANGE;
+    if (g_channel_sv[ch].configured && g_channel_sv[ch].target==sv)
+        return PRODUCT_CHANNEL_SV_UNCHANGED;
+    g_sv_busy=true;
+    for (i=0;i<PRODUCT_CHANNEL_SV_CONSUMER_COUNT;++i) {
+        const ProductChannelSvConsumer *c=&g_sv_consumers[ch][i];
+        if (c->at_running && c->at_running(c->context)) {
+            result=PRODUCT_CHANNEL_SV_AT_BUSY; break;
+        }
+    }
+    if (result==PRODUCT_CHANNEL_SV_OK)
+        for (i=0;i<PRODUCT_CHANNEL_SV_CONSUMER_COUNT;++i) {
+            const ProductChannelSvConsumer *c=&g_sv_consumers[ch][i];
+            if (!c->validate) continue;
+            result=c->validate(c->context,sv);
+            if (result!=PRODUCT_CHANNEL_SV_OK) {
+                if (result!=PRODUCT_CHANNEL_SV_AT_BUSY) result=PRODUCT_CHANNEL_SV_CONSUMER_REJECTED;
+                break;
+            }
+        }
+    if (result==PRODUCT_CHANNEL_SV_OK) {
+        g_channel_sv[ch].target=sv; g_channel_sv[ch].configured=true;
+        ++g_channel_sv[ch].revision;
+        /* Commit to the owned adapter directly; its public setter delegates here. */
+        g_alarm_logic.setpoint[ch]=sv; g_alarm_logic.setpoint_configured[ch]=true;
+        for (i=0;i<PRODUCT_CHANNEL_SV_CONSUMER_COUNT;++i) {
+            const ProductChannelSvConsumer *c=&g_sv_consumers[ch][i];
+            if (c->commit) c->commit(c->context,sv);
+        }
+    }
+    g_sv_busy=false;
+    return result;
+}
+
+bool ProductFbScheduleIntegration_GetChannelSv(uint8_t ch, ProductChannelSv *out)
+{
+    if (!g_sv_ready || ch>=PRODUCT_AL_CHANNEL_COUNT || !out) return false;
+    *out=g_channel_sv[ch]; return true;
+}
+
+bool ProductFbScheduleIntegration_BindChannelSvConsumer(uint8_t ch,
+    ProductChannelSvConsumerSlot slot, const ProductChannelSvConsumer *consumer)
+{
+    ProductChannelSvConsumer *old;
+    bool accepted=true;
+    if (!g_sv_ready || g_sv_busy || ch>=PRODUCT_AL_CHANNEL_COUNT ||
+        slot<PRODUCT_CHANNEL_SV_PID || slot>=PRODUCT_CHANNEL_SV_CONSUMER_COUNT) return false;
+#if PRODUCT_PID_CH0_TEST_ENABLED
+    if (ch==0U && slot==PRODUCT_CHANNEL_SV_PID) return false;
+#endif
+    if (consumer && (!consumer->validate || !consumer->commit ||
+        (slot==PRODUCT_CHANNEL_SV_PID && !consumer->at_running))) return false;
+    if (consumer && g_channel_sv[ch].configured &&
+        ProductFbScheduleIntegration_SetChannelSv(ch,g_channel_sv[ch].target)!=PRODUCT_CHANNEL_SV_UNCHANGED)
+        return false;
+    old=&g_sv_consumers[ch][slot];
+    g_sv_busy=true;
+    if ((old->at_running && old->at_running(old->context)) ||
+        (consumer && consumer->at_running && consumer->at_running(consumer->context))) accepted=false;
+    if (accepted && consumer && g_channel_sv[ch].configured)
+        accepted=consumer->validate(consumer->context,g_channel_sv[ch].target)==PRODUCT_CHANNEL_SV_OK;
+    if (accepted) {
+        *old=consumer ? *consumer : (ProductChannelSvConsumer){0};
+        if (consumer && g_channel_sv[ch].configured)
+            consumer->commit(consumer->context,g_channel_sv[ch].target);
+    }
+    g_sv_busy=false;
+    return accepted;
+}
+
+static bool IntegratedSetpointRequest(void *context, uint8_t ch, int32_t sv)
+{
+    ProductChannelSvResult result;
+    (void)context;
+    result=ProductFbScheduleIntegration_SetChannelSv(ch,sv);
+    return result==PRODUCT_CHANNEL_SV_OK || result==PRODUCT_CHANNEL_SV_UNCHANGED;
+}
 
 static bool ReadAlarmSample(void *context, uint8_t channel, ProductAlSample_t *sample)
 {
@@ -386,6 +538,12 @@ static const ProductFbScheduleTask_t g_tasks[] =
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
 {
     ProductPvProcessingConfig pv_config={0};
+    g_sv_ready=false; g_sv_busy=false;
+    for (unsigned ch=0;ch<PRODUCT_AL_CHANNEL_COUNT;++ch) {
+        g_channel_sv[ch]=(ProductChannelSv){0};
+        for (unsigned i=0;i<PRODUCT_CHANNEL_SV_CONSUMER_COUNT;++i)
+            g_sv_consumers[ch][i]=(ProductChannelSvConsumer){0};
+    }
     g_fb_now_ms=now_ms;
     for (unsigned ch=0;ch<PRODUCT_AL_CHANNEL_COUNT;++ch) {
         g_configuration_seen[ch]=false;
@@ -409,17 +567,21 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
         return false;
     if (!ProductAlarmLogicAdapter_Init(&g_alarm_logic, ReadAlarmSample, ReadLogicDi, NULL))
         return false;
+    g_alarm_logic.setpoint_handler=IntegratedSetpointRequest;
 #if PRODUCT_PID_CH0_TEST_ENABLED
     {
         const ProductPidControllerAdapterConfig_t pid_config={
             FB_PID_MODE_PID,FB_PID_MODE_PID,FB_PID_ACTION_HEAT,200U,100U,0U};
         if (g_ch0_pid_test.initialized) ProductPidControllerAdapter_Deinit(&g_ch0_pid_test);
-        g_ch0_pid_test_enable=false; g_ch0_pid_test_reset=false; g_ch0_pid_test_sv=25000;
+        g_ch0_pid_test_enable=false; g_ch0_pid_test_reset=false; g_ch0_pid_test_sv=0;
+        g_ch0_pid_test_sv_result=PRODUCT_CHANNEL_SV_UNCHANGED;
         g_ch0_pid_test_input=(ProductPidControllerInput_t){0};
         g_ch0_pid_test_mv=0;
         g_ch0_pid_test_watch=(ProductCh0PidTestDiagnostics){0};
         if (!ProductPidControllerAdapter_Init(&g_ch0_pid_test,&pid_config,ReadPidTestSample,NULL))
             return false;
+        g_sv_consumers[0][PRODUCT_CHANNEL_SV_PID]=(ProductChannelSvConsumer){
+            ValidatePidTestSv,CommitPidTestSv,PidTestAtRunning,&g_ch0_pid_test};
         if (!ProductAlarmLogicAdapter_SetPidStep(&g_alarm_logic,
                 ProcessCh0PidTest,&g_ch0_pid_test)) return false;
     }
@@ -436,9 +598,10 @@ bool ProductFbScheduleIntegration_Init(uint32_t now_ms)
     {
         return false;
     }
-    return ProductFbSchedule_Init(
+    g_sv_ready=ProductFbSchedule_Init(
         &g_schedule, g_tasks, g_task_states,
         sizeof(g_tasks) / sizeof(g_tasks[0]), now_ms);
+    return g_sv_ready;
 }
 
 ProductAlarmLogicAdapter_t *ProductFbScheduleIntegration_GetAlarmLogicAdapter(void)
@@ -523,6 +686,9 @@ void ProductFbScheduleIntegration_Process(uint32_t now_ms)
     bool source_valid;
     g_fb_now_ms=now_ms;
     DeliverConfigurationChanges();
+#if PRODUCT_PID_CH0_TEST_ENABLED
+    HandlePidTestSvRequest();
+#endif
     source_valid = ProductSensorMeasurementService_GetSnapshot(0U, &measurement);
     if (source_valid)
     {

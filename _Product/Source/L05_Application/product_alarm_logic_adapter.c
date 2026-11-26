@@ -53,7 +53,10 @@ bool ProductAlarmLogicAdapter_SetSetpoint(ProductAlarmLogicAdapter_t *a,
     uint8_t ch, int32_t sv)
 {
     if (!Ready(a) || ch >= PRODUCT_AL_CHANNEL_COUNT) return false;
+    if (a->setpoint_handler != NULL)
+        return a->setpoint_handler(a->setpoint_context,ch,sv);
     a->setpoint[ch] = sv;
+    a->setpoint_configured[ch] = true;
     return true;
 }
 
@@ -91,19 +94,13 @@ bool ProductAlarmLogicAdapter_Command(ProductAlarmLogicAdapter_t *a,
 
 
 /* Validate the effective thresholds with wide arithmetic; never clamp parameters. */
-bool ProductAlarmLogicAdapter_AlarmParametersValid(const ProductAlarmLogicAdapter_t *a,
-    uint8_t ch, uint8_t i)
+static bool AlarmFitsRange(const ProductAlAlarm_t *s, int32_t sv,
+    int32_t minimum, int32_t maximum)
 {
-    const ProductAlAlarm_t *s;
-    int64_t hi, lo, sv;
+    int64_t hi, lo;
     bool use_hi=true, use_lo=true;
-    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT || i>=PRODUCT_AL_ALARMS_PER_CHANNEL)
-        return false;
-    s=&a->alarms[ch][i];
     if (!s->enabled || s->config.mode==FB_ALARM_MODE_DISABLED) return true;
-    if (!a->range_known[ch]) return true; /* pre-notification compatibility */
-    if (!a->temperature_compatible[ch]) return false;
-    hi=s->config.alarm_high; lo=s->config.alarm_low; sv=a->setpoint[ch];
+    hi=s->config.alarm_high; lo=s->config.alarm_low;
     switch (s->config.mode) {
         case FB_ALARM_MODE_RELATIVE_HIGH: use_lo=false; break;
         case FB_ALARM_MODE_RELATIVE_LOW: use_hi=false; break;
@@ -112,18 +109,56 @@ bool ProductAlarmLogicAdapter_AlarmParametersValid(const ProductAlarmLogicAdapte
         default: break;
     }
     if ((s->config.options & FB_ALARM_OPTION_STANDBY) &&
-        (sv<a->minimum[ch] || sv>a->maximum[ch])) return false;
+        (sv<minimum || sv>maximum)) return false;
     if ((s->config.mode>=FB_ALARM_MODE_RELATIVE_HIGH_LOW &&
          s->config.mode<=FB_ALARM_MODE_RELATIVE_LOW) ||
         s->config.mode==FB_ALARM_MODE_HYSTERESIS_HIGH ||
         s->config.mode==FB_ALARM_MODE_HYSTERESIS_LOW) {
-        if (sv<a->minimum[ch] || sv>a->maximum[ch]) return false;
+        if (sv<minimum || sv>maximum) return false;
         if (s->config.mode==FB_ALARM_MODE_HYSTERESIS_HIGH) { hi=sv+hi; lo=sv+lo; }
         else if (s->config.mode==FB_ALARM_MODE_HYSTERESIS_LOW) { hi=sv-hi; lo=sv-lo; }
         else { hi=sv+hi; lo=sv-lo; }
     }
-    return (!use_hi || (hi>=a->minimum[ch] && hi<=a->maximum[ch])) &&
-           (!use_lo || (lo>=a->minimum[ch] && lo<=a->maximum[ch]));
+    return (!use_hi || (hi>=minimum && hi<=maximum)) &&
+           (!use_lo || (lo>=minimum && lo<=maximum));
+}
+
+bool ProductAlarmLogicAdapter_AlarmParametersValid(const ProductAlarmLogicAdapter_t *a,
+    uint8_t ch, uint8_t i)
+{
+    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT || i>=PRODUCT_AL_ALARMS_PER_CHANNEL)
+        return false;
+    if (!a->alarms[ch][i].enabled || a->alarms[ch][i].config.mode==FB_ALARM_MODE_DISABLED)
+        return true;
+    if (a->setpoint_handler && !a->setpoint_configured[ch]) {
+        const FbAlarmConfig_t *c=&a->alarms[ch][i].config;
+        if ((c->mode>=FB_ALARM_MODE_RELATIVE_HIGH_LOW && c->mode<=FB_ALARM_MODE_RELATIVE_LOW) ||
+            c->mode==FB_ALARM_MODE_HYSTERESIS_HIGH || c->mode==FB_ALARM_MODE_HYSTERESIS_LOW ||
+            (c->options & FB_ALARM_OPTION_STANDBY)) return false;
+    }
+    if (!a->range_known[ch]) return true;
+    return a->temperature_compatible[ch] &&
+        AlarmFitsRange(&a->alarms[ch][i],a->setpoint[ch],a->minimum[ch],a->maximum[ch]);
+}
+
+bool ProductAlarmLogicAdapter_SetpointFitsRange(const ProductAlarmLogicAdapter_t *a,
+    uint8_t ch, int32_t sv, bool compatible, int32_t minimum, int32_t maximum)
+{
+    unsigned i;
+    if (!Ready(a) || ch>=PRODUCT_AL_CHANNEL_COUNT || minimum>maximum) return false;
+    for (i=0;i<PRODUCT_AL_ALARMS_PER_CHANNEL;++i) {
+        const ProductAlAlarm_t *s=&a->alarms[ch][i];
+        bool relative=(s->config.mode>=FB_ALARM_MODE_RELATIVE_HIGH_LOW &&
+                       s->config.mode<=FB_ALARM_MODE_RELATIVE_LOW) ||
+                      s->config.mode==FB_ALARM_MODE_HYSTERESIS_HIGH ||
+                      s->config.mode==FB_ALARM_MODE_HYSTERESIS_LOW;
+        if (!s->enabled || s->config.mode==FB_ALARM_MODE_DISABLED) continue;
+        if ((relative || (s->config.options & FB_ALARM_OPTION_STANDBY)) && !compatible) return false;
+        if ((s->config.options & FB_ALARM_OPTION_STANDBY) &&
+            (sv<minimum || sv>maximum)) return false;
+        if (relative && !AlarmFitsRange(s,sv,minimum,maximum)) return false;
+    }
+    return true;
 }
 
 static void LogicClosure(const ProductAlarmLogicAdapter_t *a,

@@ -106,6 +106,7 @@ L04 方塊內省略共同 `Fb` 字首，完整名稱在第 4 節列出。L04 本
 | 應用總流程 | `ProductApplication_Init()`、`ProductApplication_Tick1ms()`、`ProductApplication_Process()` | 已接入 main；負責 due flags、服務順序與產品串接 |
 | FB 排程核心 | `ProductFbSchedule_Init()`、`ProductFbSchedule_Process()` | 檢查 enabled、到期、實際 elapsed_ms；逾期只呼叫一次 |
 | FB 整合／來源設定 | `ProductFbScheduleIntegration_Init()`、`ProductFbScheduleIntegration_Process()`、`ProductFbScheduleIntegration_ConfigureCh0PvProcessing()`、`ProductFbScheduleIntegration_SetCh0AlarmPvSource()` | 任務表與各 Adapter 實例由本模組持有 |
+| 通道 SV 統一更新 | `ProductFbScheduleIntegration_SetChannelSv()`、`GetChannelSv()`、`BindChannelSvConsumer()` | 名義量程與相對警報驗證後同步交付；AT 忙碌拒絕，一般更新保留歷史；Ramp 為擴充介面 |
 | CH0 PV 候選處理 | `ProcessCh0Pv()`（內部 callback）、`ProductPvProcessing_Init()`、`ProductPvProcessing_SetConfig()`、`ProductPvProcessing_Process()`、`ProductPvProcessing_GetOutput()` | 20 ms 任務已接；預設來源 CH0、bypass，未啟用雙來源切換 |
 | Alarm／Logic 組裝 | `ProductAlarmLogicAdapter_Init()`、`SetAlarm()`、`SetSetpoint()`、`SetLogic()`、`Command()`、`SetPidStep()`、`Process()`、`GetAlarm()`、`GetLogic()` | 此列省略重複的 `ProductAlarmLogicAdapter_` 字首；20 ms callback 已接，各 Alarm／Logic slot 預設停用 |
 | CH0 移動平均 | `ProductFbMovingAverageAdapter_Init()`、`ProductFbMovingAverageAdapter_Process()`、`ProductFbMovingAverageAdapter_GetOutput()`、`ProductFbScheduleIntegration_GetCh0MovingAverage()` | 20 ms 任務，5 筆視窗；僅新有效 sequence 收樣，結果未自動接 PID／PWM |

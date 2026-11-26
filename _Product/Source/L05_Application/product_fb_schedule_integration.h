@@ -25,6 +25,8 @@ typedef struct {
 /* SWD only: edit controls while halted; resume then halt to read the snapshot. */
 extern volatile uint32_t g_ch0_pid_test_enable, g_ch0_pid_test_reset;
 extern volatile int32_t g_ch0_pid_test_sv, g_ch0_pid_test_mv;
+/* SV is a request shadow processed through SetChannelSv; result is ProductChannelSvResult. */
+extern volatile uint32_t g_ch0_pid_test_sv_result;
 extern volatile ProductCh0PidTestDiagnostics g_ch0_pid_test_watch;
 /* Main-loop APIs; no Register or physical output. SV uses 0.001 C, MV 0.1%. */
 #ifdef __cplusplus
@@ -68,7 +70,36 @@ extern volatile ProductFbCh0Trace_t g_product_fb_ch0_trace;
 extern "C" {
 #endif
 
+typedef enum {
+    PRODUCT_CHANNEL_SV_OK=0, PRODUCT_CHANNEL_SV_UNCHANGED,
+    PRODUCT_CHANNEL_SV_NOT_INITIALIZED, PRODUCT_CHANNEL_SV_INVALID_ARGUMENT,
+    PRODUCT_CHANNEL_SV_RANGE_UNAVAILABLE, PRODUCT_CHANNEL_SV_OUT_OF_RANGE,
+    PRODUCT_CHANNEL_SV_ALARM_RANGE, PRODUCT_CHANNEL_SV_AT_BUSY,
+    PRODUCT_CHANNEL_SV_CONSUMER_REJECTED, PRODUCT_CHANNEL_SV_BUSY
+} ProductChannelSvResult;
+typedef enum { PRODUCT_CHANNEL_SV_PID=0, PRODUCT_CHANNEL_SV_RAMP,
+               PRODUCT_CHANNEL_SV_CONSUMER_COUNT } ProductChannelSvConsumerSlot;
+typedef struct { int32_t target; uint32_t revision; bool configured; } ProductChannelSv;
+/* Validate is read-only; return OK or AT_BUSY/CONSUMER_REJECTED.
+ * Commit cannot fail, allocate, reset histories, reenter, or operate hardware.
+ * All callbacks/API calls run serially in the main loop, never ISR context. */
+typedef ProductChannelSvResult (*ProductChannelSvValidate)(void *, int32_t);
+typedef void (*ProductChannelSvCommit)(void *, int32_t);
+typedef bool (*ProductChannelSvAtRunning)(void *);
+typedef struct {
+    ProductChannelSvValidate validate;
+    ProductChannelSvCommit commit;
+    ProductChannelSvAtRunning at_running; /* mandatory for a PID consumer */
+    void *context;
+} ProductChannelSvConsumer;
 bool ProductFbScheduleIntegration_Init(uint32_t now_ms);
+/* Temperature target in 0.001 C; rejects all-or-nothing. No Reset or PV invalidation. */
+ProductChannelSvResult ProductFbScheduleIntegration_SetChannelSv(uint8_t channel, int32_t sv);
+bool ProductFbScheduleIntegration_GetChannelSv(uint8_t channel, ProductChannelSv *out);
+/* Bind while stopped; NULL unbinds. Existing accepted target is validated/applied
+ * to a new consumer. Built-in CH0 PID test slot cannot be replaced/unbound. */
+bool ProductFbScheduleIntegration_BindChannelSvConsumer(uint8_t channel,
+    ProductChannelSvConsumerSlot slot, const ProductChannelSvConsumer *consumer);
 bool ProductFbScheduleIntegration_ConfigureCh0PvProcessing(const ProductPvProcessingConfig *config);
 bool ProductFbScheduleIntegration_GetCh0ProcessedPv(ProductPvProcessingOutput *output);
 typedef enum { PRODUCT_CH0_ALARM_PV_RAW=0,
